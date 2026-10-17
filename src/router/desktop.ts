@@ -17,6 +17,7 @@ import TransactionListPage from '@/views/desktop/transactions/ListPage.vue';
 
 import StatisticsTransactionPage from '@/views/desktop/statistics/TransactionPage.vue';
 import BudgetPage from '@/views/desktop/budgets/BudgetPage.vue';
+import HouseholdReportPage from '@/views/desktop/reports/HouseholdReportPage.vue';
 
 import InsightsExplorerPage from '@/views/desktop/insights/ExplorerPage.vue';
 
@@ -130,6 +131,11 @@ const router = createRouter({
         {
             path: '/budgets',
             component: BudgetPage,
+            beforeEnter: checkLogin
+        },
+        {
+            path: '/reports/household',
+            component: HouseholdReportPage,
             beforeEnter: checkLogin
         },
         {

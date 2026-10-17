@@ -240,6 +240,11 @@ interface ApiRequestConfig extends AxiosRequestConfig {
     readonly ignoreError?: boolean;
     readonly timeout?: number;
     readonly cancelableUuid?: string;
+    readonly bookId?: string | null; // send the request to this book instead of the selected one, null means the user's own book
+}
+
+export interface BookRequestOptions {
+    readonly bookId: string | null;
 }
 
 export type ApiResponsePromise<T> = Promise<AxiosResponse<ApiResponse<T>>>;
@@ -287,7 +292,7 @@ axios.interceptors.request.use((config: ApiRequestConfig) => {
 
     config.headers['X-Timezone-Name'] = timezoneName;
 
-    const bookId = getActiveBookId();
+    const bookId = config.bookId !== undefined ? config.bookId : getActiveBookId();
 
     if (bookId && !config.noAuth) {
         config.headers['X-Book-Id'] = bookId;
@@ -341,7 +346,7 @@ axios.interceptors.response.use(response => {
             return Promise.reject({ processed: true });
         }
 
-        if (getActiveBookId() && (errorCode === 221000 // book id is invalid
+        if (error.response.config.bookId === undefined && getActiveBookId() && (errorCode === 221000 // book id is invalid
             || errorCode === 221001 // you are not a member of this book
         )) {
             setCurrentBookId(null);
@@ -569,8 +574,8 @@ export default {
             timeout: DEFAULT_CLEAR_ALL_TRANSACTIONS_API_TIMEOUT
         } as ApiRequestConfig);
     },
-    getAllAccounts: ({ visibleOnly }: { visibleOnly: boolean }): ApiResponsePromise<AccountInfoResponse[]> => {
-        return axios.get<ApiResponse<AccountInfoResponse[]>>('v1/accounts/list.json?visible_only=' + visibleOnly);
+    getAllAccounts: ({ visibleOnly }: { visibleOnly: boolean }, options?: BookRequestOptions): ApiResponsePromise<AccountInfoResponse[]> => {
+        return axios.get<ApiResponse<AccountInfoResponse[]>>('v1/accounts/list.json?visible_only=' + visibleOnly, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },
     getAccount: ({ id }: { id: string }): ApiResponsePromise<AccountInfoResponse> => {
         return axios.get<ApiResponse<AccountInfoResponse>>('v1/accounts/get.json?id=' + id);
@@ -617,7 +622,7 @@ export default {
     getUnreconciledTransactionCounts: (req: TransactionUnreconciledCountRequest): ApiResponsePromise<TransactionUnreconciledCountResponse> => {
         return axios.get<ApiResponse<TransactionUnreconciledCountResponse>>(`v1/transactions/unreconciled_transaction_counts.json?account_ids=${req.accountIds.join(',')}`);
     },
-    getTransactionStatistics: (req: TransactionStatisticRequest): ApiResponsePromise<TransactionStatisticResponse> => {
+    getTransactionStatistics: (req: TransactionStatisticRequest, options?: BookRequestOptions): ApiResponsePromise<TransactionStatisticResponse> => {
         const queryParams: string[] = [];
 
         if (req.startTime) {
@@ -640,7 +645,7 @@ export default {
             queryParams.push(`match_mode=${req.matchMode}`);
         }
 
-        return axios.get<ApiResponse<TransactionStatisticResponse>>(`v1/transactions/statistics.json?use_transaction_timezone=${req.useTransactionTimezone}` + (queryParams.length ? '&' + queryParams.join('&') : ''));
+        return axios.get<ApiResponse<TransactionStatisticResponse>>(`v1/transactions/statistics.json?use_transaction_timezone=${req.useTransactionTimezone}` + (queryParams.length ? '&' + queryParams.join('&') : ''), options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },
     getTransactionStatisticsTrends: (req: TransactionStatisticTrendsRequest): ApiResponsePromise<TransactionStatisticTrendsResponseItem[]> => {
         const queryParams: string[] = [];
@@ -853,8 +858,8 @@ export default {
     saveTransactionCategoryBudgets: (req: TransactionCategoryBudgetSaveRequest): ApiResponsePromise<TransactionCategoryBudgetInfoResponse[]> => {
         return axios.post<ApiResponse<TransactionCategoryBudgetInfoResponse[]>>('v1/transaction/categories/budgets/save.json', req);
     },
-    getAllTransactionCategories: (): ApiResponsePromise<Record<number, TransactionCategoryInfoResponse[]>> => {
-        return axios.get<ApiResponse<Record<number, TransactionCategoryInfoResponse[]>>>('v1/transaction/categories/list.json');
+    getAllTransactionCategories: (options?: BookRequestOptions): ApiResponsePromise<Record<number, TransactionCategoryInfoResponse[]>> => {
+        return axios.get<ApiResponse<Record<number, TransactionCategoryInfoResponse[]>>>('v1/transaction/categories/list.json', options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },
     getTransactionCategory: ({ id }: { id: string }): ApiResponsePromise<TransactionCategoryInfoResponse> => {
         return axios.get<ApiResponse<TransactionCategoryInfoResponse>>('v1/transaction/categories/get.json?id=' + id);
