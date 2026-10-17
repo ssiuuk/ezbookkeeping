@@ -100,6 +100,30 @@
                             </slot>
                         </div>
                         <v-spacer />
+                        <v-btn class="ms-2 text-none" color="primary" density="comfortable"
+                               :variant="isInSharedBook ? 'tonal' : 'text'"
+                               :prepend-icon="mdiBookOpenPageVariantOutline"
+                               v-if="showBookSwitcher">
+                            <span class="text-truncate" style="max-width: 160px">{{ currentBookDisplayName }}</span>
+                            <v-menu activator="parent" location="bottom end" offset="14px">
+                                <v-list>
+                                    <v-list-subheader>{{ tt('Switch Book') }}</v-list-subheader>
+                                    <v-list-item :key="book.id"
+                                                 :title="getBookDisplayName(book)"
+                                                 :active="isCurrentBook(book)"
+                                                 v-for="book in allBooks"
+                                                 @click="switchBook(book)">
+                                        <template #append>
+                                            <v-icon :icon="mdiCheck" v-if="isCurrentBook(book)" />
+                                        </template>
+                                    </v-list-item>
+                                    <v-divider class="my-1"/>
+                                    <v-list-item :prepend-icon="mdiAccountMultipleOutline"
+                                                 :title="tt('Shared Books')"
+                                                 to="/settings/user/shared_books"></v-list-item>
+                                </v-list>
+                            </v-menu>
+                        </v-btn>
                         <v-btn class="ms-2" color="primary" variant="text" density="comfortable"
                                :aria-label="tt('Use on Mobile Device')" :icon="true"
                                @click="showMobileQrCode = true">
@@ -189,6 +213,7 @@ import { useDisplay, useTheme } from 'vuetify';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useI18n } from '@/locales/helpers.ts';
+import { useBookBase } from '@/views/base/books/BookBase.ts';
 
 import { useRootStore } from '@/stores/index.ts';
 import { useSettingsStore } from '@/stores/setting.ts';
@@ -221,7 +246,10 @@ import {
     mdiCogOutline,
     mdiInformationOutline,
     mdiLockOutline,
-    mdiLogout
+    mdiLogout,
+    mdiBookOpenPageVariantOutline,
+    mdiAccountMultipleOutline,
+    mdiCheck
 } from '@mdi/js';
 
 defineProps<{
@@ -237,6 +265,15 @@ const route = useRoute();
 const router = useRouter();
 
 const { tt, initLocale } = useI18n();
+const {
+    allBooks,
+    isInSharedBook,
+    showBookSwitcher,
+    currentBookDisplayName,
+    getBookDisplayName,
+    isCurrentBook,
+    switchBook
+} = useBookBase();
 
 const rootStore = useRootStore();
 const settingsStore = useSettingsStore();

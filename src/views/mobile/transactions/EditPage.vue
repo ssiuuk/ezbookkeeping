@@ -439,6 +439,10 @@
                 v-textarea-auto-size
                 v-model:value="transaction.comment"
             ></f7-list-input>
+
+            <f7-list-item class="transaction-edit-created-by"
+                          :title="tt('format.misc.addedByUser', { name: transactionCreatorName })"
+                          v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction && mode !== TransactionEditPageMode.Add && transactionCreatorName"></f7-list-item>
         </f7-list>
 
         <f7-actions close-by-outside-click close-on-escape :opened="showGeoLocationActionSheet" @actions:closed="showGeoLocationActionSheet = false">
@@ -540,6 +544,7 @@ import { useTransactionCategoriesStore } from '@/stores/transactionCategory.ts';
 import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 import { useTransactionsStore } from '@/stores/transaction.ts';
 import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
+import { useBooksStore } from '@/stores/book.ts';
 
 import { CategoryType } from '@/core/category.ts';
 import {
@@ -664,6 +669,9 @@ const transactionCategoriesStore = useTransactionCategoriesStore();
 const transactionTagsStore = useTransactionTagsStore();
 const transactionsStore = useTransactionsStore();
 const transactionTemplatesStore = useTransactionTemplatesStore();
+const booksStore = useBooksStore();
+
+const transactionCreatorName = computed<string>(() => booksStore.currentBookMembers.length > 1 ? booksStore.getMemberDisplayName(transaction.value.createdByUid) : '');
 
 const pictureBrowser = useTemplateRef<PhotoBrowser.PhotoBrowser>('pictureBrowser');
 const pictureInput = useTemplateRef<HTMLInputElement>('pictureInput');

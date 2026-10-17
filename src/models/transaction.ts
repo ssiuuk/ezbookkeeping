@@ -30,6 +30,7 @@ export class Transaction implements TransactionInfoResponse {
     public tagIds: string[];
     public comment: string;
     public editable: boolean;
+    public createdByUid?: string; // only for displaying transaction
 
     private _pictures?: TransactionPicture[];
     private _geoLocation?: TransactionGeoLocation;
@@ -364,6 +365,8 @@ export class Transaction implements TransactionInfoResponse {
             transaction.setLatitudeAndLongitude(transactionResponse.geoLocation.latitude, transactionResponse.geoLocation.longitude);
         }
 
+        transaction.createdByUid = transactionResponse.createdByUid;
+
         return transaction;
     }
 
@@ -679,6 +682,7 @@ export interface TransactionInfoResponse {
     readonly pictures?: TransactionPictureInfoBasicResponse[];
     readonly comment: string;
     readonly geoLocation?: TransactionGeoLocationResponse;
+    readonly createdByUid?: string;
     readonly editable: boolean;
 }
 

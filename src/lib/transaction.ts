@@ -213,6 +213,7 @@ export function setTransactionModelByTransaction(transaction: Transaction, trans
 
         if (setContextData) {
             transaction.setGeoLocation(transaction2.geoLocation);
+            transaction.createdByUid = transaction2.createdByUid;
         }
     }
 }

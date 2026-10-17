@@ -364,6 +364,12 @@
                                         v-model="transaction.comment"
                                     />
                                 </v-col>
+                                <v-col class="pt-0" cols="12" md="12" v-if="type === TransactionEditPageType.Transaction && mode !== TransactionEditPageMode.Add && transactionCreatorName">
+                                    <div class="d-flex align-center text-body-medium text-medium-emphasis">
+                                        <v-icon class="me-1" :icon="mdiAccountEditOutline" size="18" />
+                                        <span>{{ tt('format.misc.addedByUser', { name: transactionCreatorName }) }}</span>
+                                    </div>
+                                </v-col>
                             </v-row>
                         </v-form>
                     </v-window-item>
@@ -525,6 +531,7 @@ import { useUserStore } from '@/stores/user.ts';
 import { useAccountsStore } from '@/stores/account.ts';
 import { useTransactionCategoriesStore } from '@/stores/transactionCategory.ts';
 import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
+import { useBooksStore } from '@/stores/book.ts';
 import { useTransactionsStore } from '@/stores/transaction.ts';
 import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
 
@@ -575,7 +582,8 @@ import {
     mdiMenuDown,
     mdiImagePlusOutline,
     mdiTrashCanOutline,
-    mdiFullscreen
+    mdiFullscreen,
+    mdiAccountEditOutline
 } from '@mdi/js';
 
 export interface TransactionEditOptions extends SetTransactionOptions {
@@ -663,12 +671,15 @@ const userStore = useUserStore();
 const accountsStore = useAccountsStore();
 const transactionCategoriesStore = useTransactionCategoriesStore();
 const transactionTagsStore = useTransactionTagsStore();
+const booksStore = useBooksStore();
 const transactionsStore = useTransactionsStore();
 const transactionTemplatesStore = useTransactionTemplatesStore();
 
 const map = useTemplateRef<MapViewType>('map');
 const confirmDialog = useTemplateRef<ConfirmDialogType>('confirmDialog');
 const snackbar = useTemplateRef<SnackBarType>('snackbar');
+
+const transactionCreatorName = computed<string>(() => booksStore.currentBookMembers.length > 1 ? booksStore.getMemberDisplayName(transaction.value.createdByUid) : '');
 const pictureInput = useTemplateRef<HTMLInputElement>('pictureInput');
 
 let resolveFunc: ((response?: TransactionEditResponse) => void) | null = null;

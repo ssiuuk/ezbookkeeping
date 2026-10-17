@@ -5,6 +5,7 @@ import { useI18n } from '@/locales/helpers.ts';
 import { useRootStore } from '@/stores/index.ts';
 import { useSettingsStore } from '@/stores/setting.ts';
 import { useExchangeRatesStore } from '@/stores/exchangeRates.ts';
+import { useBooksStore } from '@/stores/book.ts';
 
 import type { AuthResponse } from '@/models/auth_response.ts';
 
@@ -19,6 +20,7 @@ export function useLoginPageBase(platform: 'mobile' | 'desktop') {
     const rootStore = useRootStore();
     const settingsStore = useSettingsStore();
     const exchangeRatesStore = useExchangeRatesStore();
+    const booksStore = useBooksStore();
 
     const version = `${getClientDisplayVersion()}`;
 
@@ -58,6 +60,7 @@ export function useLoginPageBase(platform: 'mobile' | 'desktop') {
         updateMapCacheExpiration(settingsStore.appSettings.mapCacheExpiration);
         exchangeRatesStore.removeExpiredExchangeRates(true);
         exchangeRatesStore.autoUpdateExchangeRatesData();
+        booksStore.initBooks();
 
         if (authResponse.notificationContent) {
             rootStore.setNotificationContent(authResponse.notificationContent);

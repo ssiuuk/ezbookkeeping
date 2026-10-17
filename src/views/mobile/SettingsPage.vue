@@ -5,6 +5,7 @@
         <f7-block-title class="margin-top">{{ currentNickName }}</f7-block-title>
         <f7-list strong inset dividers>
             <f7-list-item :title="tt('User Profile')" link="/user/profile"></f7-list-item>
+            <f7-list-item :title="tt('Shared Books')" :after="currentBookDisplayName" link="/user/books"></f7-list-item>
             <f7-list-item :title="tt('Transaction Categories')" link="/category/all"></f7-list-item>
             <f7-list-item :title="tt('Transaction Tags')" link="/tag/list"></f7-list-item>
             <f7-list-item :title="tt('Transaction Templates')" link="/template/list"></f7-list-item>
@@ -103,6 +104,7 @@ import { ref, computed } from 'vue';
 import type { Router } from 'framework7/types';
 
 import { useI18n } from '@/locales/helpers.ts';
+import { useBookBase } from '@/views/base/books/BookBase.ts';
 import { useI18nUIComponents, showLoading, hideLoading } from '@/lib/ui/mobile.ts';
 import { useAppSettingPageBase } from '@/views/base/settings/AppSettingsPageBase.ts';
 
@@ -122,6 +124,7 @@ const props = defineProps<{
 }>();
 
 const { tt, formatDateTimeToLongDate, initLocale } = useI18n();
+const { currentBookDisplayName } = useBookBase();
 const { showToast, showConfirm } = useI18nUIComponents();
 const { allThemes, allTimezones, timeZone } = useAppSettingPageBase();
 
