@@ -72,6 +72,7 @@ const props = defineProps<{
     clearable?: boolean;
     minDate?: Date;
     maxDate?: Date;
+    maxYearsAfterCurrentYear?: number;
     disabledDates?: (date: Date) => boolean;
     showAlternateDates?: boolean;
     presetRanges?: PresetDateRange[];
@@ -98,7 +99,7 @@ const userStore = useUserStore();
 
 const datetimepicker = useTemplateRef<VueDatePickerType>('datetimepicker');
 
-const yearRange = getAllowedYearRange();
+const yearRange = getAllowedYearRange(props.maxYearsAfterCurrentYear);
 
 const dayNames = computed<string[]>(() => arrangeArrayWithNewStartIndex(getAllMinWeekdayNames(), firstDayOfWeek.value));
 const firstDayOfWeek = computed<WeekDayValue>(() => userStore.currentUserFirstDayOfWeek);

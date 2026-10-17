@@ -288,7 +288,8 @@
                 @click="showScheduledStartDateSheet = true"
                 v-if="pageTypeAndMode?.type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate && transaction.templateType === TemplateType.Schedule.type"
             >
-                <date-selection-sheet v-model:show="showScheduledStartDateSheet"
+                <date-selection-sheet :max-years-after-current-year="SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR"
+                                      v-model:show="showScheduledStartDateSheet"
                                       v-model="transaction.scheduledStartDate">
                 </date-selection-sheet>
             </f7-list-item>
@@ -302,7 +303,8 @@
                 @click="showScheduledEndDateSheet = true"
                 v-if="pageTypeAndMode?.type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate && transaction.templateType === TemplateType.Schedule.type"
             >
-                <date-selection-sheet v-model:show="showScheduledEndDateSheet"
+                <date-selection-sheet :max-years-after-current-year="SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR"
+                                      v-model:show="showScheduledEndDateSheet"
                                       v-model="transaction.scheduledEndDate">
                 </date-selection-sheet>
             </f7-list-item>
@@ -551,7 +553,7 @@ import {
 import { ScheduledTemplateFrequencyType, TemplateType } from '@/core/template.ts';
 import { KnownFileType } from '@/core/file.ts';
 
-import { TRANSACTION_MAX_AMOUNT, TRANSACTION_MIN_AMOUNT } from '@/consts/transaction.ts';
+import { TRANSACTION_MAX_AMOUNT, TRANSACTION_MIN_AMOUNT, SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR } from '@/consts/transaction.ts';
 import { KnownErrorCode } from '@/consts/api.ts';
 import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
 
