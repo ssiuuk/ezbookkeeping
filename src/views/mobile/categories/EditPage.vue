@@ -69,7 +69,7 @@
                 :header="tt('Primary Category')"
                 :title="getPrimaryCategoryName(category.parentId)"
                 @click="showPrimaryCategorySheet = true"
-                v-if="editCategoryId && category.parentId && category.parentId !== '0'"
+                v-if="(editCategoryId || query['allowChangingParent'] === 'true') && category.parentId && category.parentId !== '0'"
             >
                 <list-item-selection-sheet value-type="item"
                                            key-field="id" value-field="id" title-field="name"
@@ -242,6 +242,10 @@ function init(): void {
 
         if (query['icon']) {
             category.value.icon = query['icon'];
+        }
+
+        if (query['name']) {
+            category.value.name = query['name'];
         }
 
         clientSessionId.value = generateRandomUUID();

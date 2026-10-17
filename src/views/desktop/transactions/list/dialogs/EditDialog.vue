@@ -155,13 +155,15 @@
                                                                    secondary-icon-field="icon" secondary-icon-type-field="iconType" secondary-icon-type="category" secondary-color-field="color"
                                                                    secondary-hidden-field="hidden"
                                                                    :readonly="mode === TransactionEditPageMode.View"
-                                                                   :disabled="loading || submitting || recognizing || !hasVisibleExpenseCategories"
+                                                                   :disabled="loading || submitting || recognizing || (!hasVisibleExpenseCategories && mode === TransactionEditPageMode.View)"
                                                                    :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
                                                                    :show-selection-primary-text="true"
                                                                    :custom-selection-primary-text="getTransactionPrimaryCategoryName(transaction.expenseCategoryId, allCategories[CategoryType.Expense])"
                                                                    :custom-selection-secondary-text="getTransactionSecondaryCategoryName(transaction.expenseCategoryId, allCategories[CategoryType.Expense])"
                                                                    :label="tt('Category')" :placeholder="tt('Category')"
                                                                    :items="allCategories[CategoryType.Expense] || []"
+                                                                   :add-item-text="tt('Add Secondary Category')"
+                                                                   @add:item="addSecondaryCategory(CategoryType.Expense, $event)"
                                                                    v-model="transaction.expenseCategoryId">
                                                 </two-column-select>
                                             </div>
@@ -179,13 +181,15 @@
                                                                    secondary-icon-field="icon" secondary-icon-type-field="iconType" secondary-icon-type="category" secondary-color-field="color"
                                                                    secondary-hidden-field="hidden"
                                                                    :readonly="mode === TransactionEditPageMode.View"
-                                                                   :disabled="loading || submitting || recognizing || !hasVisibleIncomeCategories"
+                                                                   :disabled="loading || submitting || recognizing || (!hasVisibleIncomeCategories && mode === TransactionEditPageMode.View)"
                                                                    :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
                                                                    :show-selection-primary-text="true"
                                                                    :custom-selection-primary-text="getTransactionPrimaryCategoryName(transaction.incomeCategoryId, allCategories[CategoryType.Income])"
                                                                    :custom-selection-secondary-text="getTransactionSecondaryCategoryName(transaction.incomeCategoryId, allCategories[CategoryType.Income])"
                                                                    :label="tt('Category')" :placeholder="tt('Category')"
                                                                    :items="allCategories[CategoryType.Income] || []"
+                                                                   :add-item-text="tt('Add Secondary Category')"
+                                                                   @add:item="addSecondaryCategory(CategoryType.Income, $event)"
                                                                    v-model="transaction.incomeCategoryId">
                                                 </two-column-select>
                                             </div>
@@ -203,13 +207,15 @@
                                                                    secondary-icon-field="icon" secondary-icon-type-field="iconType" secondary-icon-type="category" secondary-color-field="color"
                                                                    secondary-hidden-field="hidden"
                                                                    :readonly="mode === TransactionEditPageMode.View"
-                                                                   :disabled="loading || submitting || recognizing || !hasVisibleTransferCategories"
+                                                                   :disabled="loading || submitting || recognizing || (!hasVisibleTransferCategories && mode === TransactionEditPageMode.View)"
                                                                    :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
                                                                    :show-selection-primary-text="true"
                                                                    :custom-selection-primary-text="getTransactionPrimaryCategoryName(transaction.transferCategoryId, allCategories[CategoryType.Transfer])"
                                                                    :custom-selection-secondary-text="getTransactionSecondaryCategoryName(transaction.transferCategoryId, allCategories[CategoryType.Transfer])"
                                                                    :label="tt('Category')" :placeholder="tt('Category')"
                                                                    :items="allCategories[CategoryType.Transfer] || []"
+                                                                   :add-item-text="tt('Add Secondary Category')"
+                                                                   @add:item="addSecondaryCategory(CategoryType.Transfer, $event)"
                                                                    v-model="transaction.transferCategoryId">
                                                 </two-column-select>
                                             </div>
@@ -499,6 +505,7 @@
         </one-column-dialog-layout>
     </v-dialog>
 
+    <category-edit-dialog ref="categoryEditDialog" />
     <confirm-dialog ref="confirmDialog"/>
     <snack-bar ref="snackbar" />
     <input ref="pictureInput" type="file" style="display: none" :accept="SUPPORTED_IMAGE_EXTENSIONS" @change="onUploadPicture($event)" />
@@ -508,9 +515,11 @@
 import MapView from '@/components/common/MapView.vue';
 import ConfirmDialog from '@/components/desktop/ConfirmDialog.vue';
 import SnackBar from '@/components/desktop/SnackBar.vue';
+import CategoryEditDialog from '@/views/desktop/categories/list/dialogs/EditDialog.vue';
 
 import { ref, computed, useTemplateRef, watch, nextTick } from 'vue';
 
+import type { TwoLevelItemAddEvent } from '@/components/base/TwoLevelItemSelectionBase.ts';
 import { useI18n } from '@/locales/helpers.ts';
 import {
     TransactionEditPageMode,
@@ -537,6 +546,7 @@ import { KnownFileType } from '@/core/file.ts';
 import { KnownErrorCode } from '@/consts/api.ts';
 import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
 
+import type { TransactionCategory } from '@/models/transaction_category.ts';
 import { TransactionTemplate } from '@/models/transaction_template.ts';
 import type { TransactionPictureInfoBasicResponse } from '@/models/transaction_picture_info.ts';
 import { Transaction } from '@/models/transaction.ts';
@@ -549,7 +559,8 @@ import {
 import { generateRandomUUID } from '@/lib/misc.ts';
 import {
     getTransactionPrimaryCategoryName,
-    getTransactionSecondaryCategoryName
+    getTransactionSecondaryCategoryName,
+    getParentCategoryIdForNewSubCategory
 } from '@/lib/category.ts';
 import { type SetTransactionOptions } from '@/lib/transaction.ts';
 import {
@@ -596,6 +607,7 @@ interface TransactionEditResponse {
 type MapViewType = InstanceType<typeof MapView>;
 type ConfirmDialogType = InstanceType<typeof ConfirmDialog>;
 type SnackBarType = InstanceType<typeof SnackBar>;
+type CategoryEditDialogType = InstanceType<typeof CategoryEditDialog>;
 
 const props = defineProps<{
     type: TransactionEditPageType;
@@ -669,6 +681,7 @@ const transactionTemplatesStore = useTransactionTemplatesStore();
 const map = useTemplateRef<MapViewType>('map');
 const confirmDialog = useTemplateRef<ConfirmDialogType>('confirmDialog');
 const snackbar = useTemplateRef<SnackBarType>('snackbar');
+const categoryEditDialog = useTemplateRef<CategoryEditDialogType>('categoryEditDialog');
 const pictureInput = useTemplateRef<HTMLInputElement>('pictureInput');
 
 let resolveFunc: ((response?: TransactionEditResponse) => void) | null = null;
@@ -1259,6 +1272,47 @@ function viewOrRemovePicture(pictureInfo: TransactionPictureInfoBasicResponse): 
             removingPictureId.value = '';
             submitting.value = false;
         });
+    });
+}
+
+function addSecondaryCategory(categoryType: CategoryType, event: TwoLevelItemAddEvent): void {
+    let selectedCategoryId: string = '';
+
+    if (categoryType === CategoryType.Expense) {
+        selectedCategoryId = transaction.value.expenseCategoryId;
+    } else if (categoryType === CategoryType.Income) {
+        selectedCategoryId = transaction.value.incomeCategoryId;
+    } else if (categoryType === CategoryType.Transfer) {
+        selectedCategoryId = transaction.value.transferCategoryId;
+    }
+
+    const preferredPrimaryCategory = event.primaryItem as TransactionCategory | undefined;
+    const parentId = getParentCategoryIdForNewSubCategory(allCategories.value, categoryType, preferredPrimaryCategory?.id, selectedCategoryId);
+
+    if (!parentId) {
+        snackbar.value?.showMessage('No available primary category');
+        return;
+    }
+
+    categoryEditDialog.value?.open({
+        type: categoryType,
+        parentId: parentId,
+        name: event.filterContent.trim(),
+        allowChangingParent: true
+    }).then(result => {
+        if (categoryType === CategoryType.Expense) {
+            transaction.value.expenseCategoryId = result.category.id;
+        } else if (categoryType === CategoryType.Income) {
+            transaction.value.incomeCategoryId = result.category.id;
+        } else if (categoryType === CategoryType.Transfer) {
+            transaction.value.transferCategoryId = result.category.id;
+        }
+
+        snackbar.value?.showMessage(result.message);
+    }).catch(error => {
+        if (error) {
+            snackbar.value?.showError(error);
+        }
     });
 }
 

@@ -86,6 +86,11 @@
                     </v-list>
                 </div>
             </div>
+            <div class="two-column-select-add-item mx-2 mt-1" v-if="addItemText && !readonly">
+                <v-btn block variant="text" class="justify-start" :prepend-icon="mdiPlus" @click="onAddItemClicked">
+                    {{ addItemText }}
+                </v-btn>
+            </div>
         </template>
     </v-select>
 </template>
@@ -98,6 +103,7 @@ import { VTextField } from 'vuetify/components/VTextField';
 import { ref, computed, useTemplateRef, nextTick } from 'vue';
 
 import { useI18n } from '@/locales/helpers.ts';
+import type { TwoLevelItemAddEvent } from '@/components/base/TwoLevelItemSelectionBase.ts';
 import { type CommonTwoColumnListItemSelectionProps, useTwoColumnListItemSelectionBase } from '@/components/base/TwoColumnListItemSelectionBase.ts';
 
 import {
@@ -117,7 +123,8 @@ import {
 
 import {
     mdiChevronRight,
-    mdiMagnify
+    mdiMagnify,
+    mdiPlus
 } from '@mdi/js';
 
 interface DesktopTwoColumnListItemSelectionProps extends CommonTwoColumnListItemSelectionProps {
@@ -132,12 +139,14 @@ interface DesktopTwoColumnListItemSelectionProps extends CommonTwoColumnListItem
     customSelectionSecondaryText?: string;
     noItemText?: string;
     autoUpdateMenuPosition?: boolean;
+    addItemText?: string;
 }
 
 const props = defineProps<DesktopTwoColumnListItemSelectionProps>();
 
 const emit = defineEmits<{
     (e: 'update:modelValue', value: unknown): void;
+    (e: 'add:item', value: TwoLevelItemAddEvent): void;
 }>();
 
 const { tt, ti } = useI18n();
@@ -249,6 +258,14 @@ function updateMenuPosition(): void {
 function onPrimaryItemClicked(item: unknown): void {
     updateCurrentPrimaryValue(currentPrimaryValue, item);
     updateMenuPosition();
+}
+
+function onAddItemClicked(): void {
+    menuState.value = false;
+    emit('add:item', {
+        primaryItem: selectedPrimaryItem.value,
+        filterContent: filterContent.value ?? ''
+    });
 }
 
 function onSecondaryItemClicked(subItem: unknown): void {

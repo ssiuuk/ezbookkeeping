@@ -6,6 +6,11 @@ import { NormalizedText } from '@/core/text.ts';
 
 import { getItemByKeyValue } from '@/lib/common.ts';
 
+export interface TwoLevelItemAddEvent {
+    readonly primaryItem?: unknown;
+    readonly filterContent: string;
+}
+
 export interface TwoLevelItemSelectionBaseProps {
     modelValue: unknown;
     primaryKeyField?: string;
