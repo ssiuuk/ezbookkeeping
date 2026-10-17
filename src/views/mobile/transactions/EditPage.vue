@@ -103,7 +103,7 @@
                 class="list-item-with-header-and-title list-item-title-hide-overflow"
                 key="expenseCategorySelection"
                 link="#" no-chevron
-                :class="{ 'disabled': !hasVisibleExpenseCategories, 'readonly': mode === TransactionEditPageMode.View }"
+                :class="{ 'disabled': !hasVisibleExpenseCategories && mode === TransactionEditPageMode.View, 'readonly': mode === TransactionEditPageMode.View }"
                 :header="tt('Category')"
                 @click="showCategorySheet = true"
                 v-if="transaction.type === TransactionType.Expense"
@@ -126,8 +126,10 @@
                                            secondary-hidden-field="hidden"
                                            :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
                                            :items="allCategories[CategoryType.Expense]"
+                                           :add-item-text="mode !== TransactionEditPageMode.View ? tt('Add Secondary Category') : undefined"
                                            v-model:show="showCategorySheet"
-                                           v-model="transaction.expenseCategoryId">
+                                           v-model="transaction.expenseCategoryId"
+                                           @add:item="addSecondaryCategory(CategoryType.Expense, $event)">
                 </tree-view-selection-sheet>
             </f7-list-item>
 
@@ -135,7 +137,7 @@
                 class="list-item-with-header-and-title list-item-title-hide-overflow"
                 key="incomeCategorySelection"
                 link="#" no-chevron
-                :class="{ 'disabled': !hasVisibleIncomeCategories, 'readonly': mode === TransactionEditPageMode.View }"
+                :class="{ 'disabled': !hasVisibleIncomeCategories && mode === TransactionEditPageMode.View, 'readonly': mode === TransactionEditPageMode.View }"
                 :header="tt('Category')"
                 @click="showCategorySheet = true"
                 v-if="transaction.type === TransactionType.Income"
@@ -158,8 +160,10 @@
                                            secondary-hidden-field="hidden"
                                            :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
                                            :items="allCategories[CategoryType.Income]"
+                                           :add-item-text="mode !== TransactionEditPageMode.View ? tt('Add Secondary Category') : undefined"
                                            v-model:show="showCategorySheet"
-                                           v-model="transaction.incomeCategoryId">
+                                           v-model="transaction.incomeCategoryId"
+                                           @add:item="addSecondaryCategory(CategoryType.Income, $event)">
                 </tree-view-selection-sheet>
             </f7-list-item>
 
@@ -167,7 +171,7 @@
                 class="list-item-with-header-and-title list-item-title-hide-overflow"
                 key="transferCategorySelection"
                 link="#" no-chevron
-                :class="{ 'disabled': !hasVisibleTransferCategories, 'readonly': mode === TransactionEditPageMode.View }"
+                :class="{ 'disabled': !hasVisibleTransferCategories && mode === TransactionEditPageMode.View, 'readonly': mode === TransactionEditPageMode.View }"
                 :header="tt('Category')"
                 @click="showCategorySheet = true"
                 v-if="transaction.type === TransactionType.Transfer"
@@ -190,8 +194,10 @@
                                            secondary-hidden-field="hidden"
                                            :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
                                            :items="allCategories[CategoryType.Transfer]"
+                                           :add-item-text="mode !== TransactionEditPageMode.View ? tt('Add Secondary Category') : undefined"
                                            v-model:show="showCategorySheet"
-                                           v-model="transaction.transferCategoryId">
+                                           v-model="transaction.transferCategoryId"
+                                           @add:item="addSecondaryCategory(CategoryType.Transfer, $event)">
                 </tree-view-selection-sheet>
             </f7-list-item>
 
@@ -525,6 +531,7 @@
 import { ref, computed, useTemplateRef } from 'vue';
 import type { PhotoBrowser, Router } from 'framework7/types';
 
+import type { TwoLevelItemAddEvent } from '@/components/base/TwoLevelItemSelectionBase.ts';
 import { useI18n } from '@/locales/helpers.ts';
 import { useI18nUIComponents, isiOS, showLoading, hideLoading, closeAllDialog } from '@/lib/ui/mobile.ts';
 import {
@@ -543,6 +550,7 @@ import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 import { useTransactionsStore } from '@/stores/transaction.ts';
 import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
 
+import { entries, keys } from '@/core/base.ts';
 import { CategoryType } from '@/core/category.ts';
 import {
     TransactionType,
@@ -569,7 +577,7 @@ import {
     parseDateTimeFromUnixTimeWithTimezoneOffset
 } from '@/lib/datetime.ts';
 import { generateRandomUUID } from '@/lib/misc.ts';
-import { getTransactionPrimaryCategoryName, getTransactionSecondaryCategoryName } from '@/lib/category.ts';
+import { getTransactionPrimaryCategoryName, getTransactionSecondaryCategoryName, getParentCategoryIdForNewSubCategory } from '@/lib/category.ts';
 import { type SetTransactionOptions } from '@/lib/transaction.ts';
 import {
     isTransactionFromAITextRecognitionEnabled,
@@ -682,6 +690,7 @@ const showMoreActionSheet = ref<boolean>(false);
 const showSourceAmountSheet = ref<boolean>(false);
 const showDestinationAmountSheet = ref<boolean>(false);
 const showCategorySheet = ref<boolean>(false);
+const pendingAddedCategory = ref<{ type: CategoryType; existingCategoryIds: Record<string, boolean> } | null>(null);
 const showSourceAccountSheet = ref<boolean>(false);
 const showDestinationAccountSheet = ref<boolean>(false);
 const showTransactionDateTimeSheet = ref<boolean>(false);
@@ -1449,8 +1458,70 @@ function onUploadPicture(event: Event): void {
     uploadPicture(pictureFile);
 }
 
+function addSecondaryCategory(categoryType: CategoryType, event: TwoLevelItemAddEvent): void {
+    const parentId = getParentCategoryIdForNewSubCategory(allCategories.value, categoryType, undefined, getSelectedCategoryId(categoryType));
+
+    if (!parentId) {
+        showToast('No available primary category');
+        return;
+    }
+
+    const existingCategoryIds: Record<string, boolean> = {};
+
+    for (const categoryId of keys(transactionCategoriesStore.allTransactionCategoriesMap)) {
+        existingCategoryIds[categoryId] = true;
+    }
+
+    pendingAddedCategory.value = {
+        type: categoryType,
+        existingCategoryIds: existingCategoryIds
+    };
+
+    const name = event.filterContent.trim();
+    props.f7router.navigate(`/category/add?type=${categoryType}&parentId=${parentId}&allowChangingParent=true${name ? `&name=${encodeURIComponent(name)}` : ''}`);
+}
+
+function getSelectedCategoryId(categoryType: CategoryType): string {
+    if (categoryType === CategoryType.Expense) {
+        return transaction.value.expenseCategoryId;
+    } else if (categoryType === CategoryType.Income) {
+        return transaction.value.incomeCategoryId;
+    } else if (categoryType === CategoryType.Transfer) {
+        return transaction.value.transferCategoryId;
+    } else {
+        return '';
+    }
+}
+
+function selectAddedCategory(): void {
+    const pending = pendingAddedCategory.value;
+
+    if (!pending) {
+        return;
+    }
+
+    pendingAddedCategory.value = null;
+
+    for (const [categoryId, category] of entries(transactionCategoriesStore.allTransactionCategoriesMap)) {
+        if (pending.existingCategoryIds[categoryId] || category.type !== pending.type || !category.parentId || category.parentId === '0') {
+            continue;
+        }
+
+        if (pending.type === CategoryType.Expense) {
+            transaction.value.expenseCategoryId = categoryId;
+        } else if (pending.type === CategoryType.Income) {
+            transaction.value.incomeCategoryId = categoryId;
+        } else if (pending.type === CategoryType.Transfer) {
+            transaction.value.transferCategoryId = categoryId;
+        }
+
+        return;
+    }
+}
+
 function onPageAfterIn(): void {
     routeBackOnError(props.f7router, loadingError);
+    selectAddedCategory();
 
     if (settingsStore.appSettings.autoGetCurrentGeoLocation && mode.value === TransactionEditPageMode.Add
         && !geoLocationStatus.value && !transaction.value.geoLocation) {
@@ -1459,7 +1530,7 @@ function onPageAfterIn(): void {
 }
 
 function onPageBeforeOut(): void {
-    if (submitted.value || pageTypeAndMode?.type !== TransactionEditPageType.Transaction || mode.value !== TransactionEditPageMode.Add || query['noTransactionDraft'] === 'true' || addByTemplateId.value || duplicateFromId.value) {
+    if (pendingAddedCategory.value || submitted.value || pageTypeAndMode?.type !== TransactionEditPageType.Transaction || mode.value !== TransactionEditPageMode.Add || query['noTransactionDraft'] === 'true' || addByTemplateId.value || duplicateFromId.value) {
         return;
     }
 

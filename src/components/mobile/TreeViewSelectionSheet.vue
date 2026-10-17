@@ -14,6 +14,9 @@
                           @input="filterContent = $event.target.value"
                           @focus="onSearchBarFocus">
             </f7-searchbar>
+            <div class="right" v-if="addItemText">
+                <f7-link icon-f7="plus" :aria-label="addItemText" @click="onAddItemClicked"></f7-link>
+            </div>
         </f7-toolbar>
         <f7-page-content :class="'margin-top ' + heightClass">
             <f7-list class="no-margin-top no-margin-bottom" v-if="!filteredItems || !filteredItems.length">
@@ -54,7 +57,7 @@ import { ref, computed, useTemplateRef } from 'vue';
 import type { Sheet, Searchbar } from 'framework7/types';
 
 import { useI18n } from '@/locales/helpers.ts';
-import { type TwoLevelItemSelectionBaseProps, useTwoLevelItemSelectionBase } from '@/components/base/TwoLevelItemSelectionBase.ts';
+import { type TwoLevelItemSelectionBaseProps, type TwoLevelItemAddEvent, useTwoLevelItemSelectionBase } from '@/components/base/TwoLevelItemSelectionBase.ts';
 
 import { NormalizedText } from '@/core/text.ts';
 
@@ -64,6 +67,7 @@ import { type Framework7Dom, scrollSheetToTop } from '@/lib/ui/mobile.ts';
 
 interface MobileTwoLevelItemSelectionBaseProps extends TwoLevelItemSelectionBaseProps {
     show: boolean;
+    addItemText?: string;
 }
 
 const props = defineProps<MobileTwoLevelItemSelectionBaseProps>();
@@ -71,6 +75,7 @@ const props = defineProps<MobileTwoLevelItemSelectionBaseProps>();
 const emit = defineEmits<{
     (e: 'update:modelValue', value: unknown): void;
     (e: 'update:show', value: boolean): void;
+    (e: 'add:item', value: TwoLevelItemAddEvent): void;
 }>();
 
 const { tt, ti } = useI18n();
@@ -134,6 +139,13 @@ function isPrimaryItemHasSecondaryValue(primaryItem: Record<string, unknown>): b
 function onSecondaryItemClicked(subItem: unknown): void {
     updateCurrentSecondaryValue(currentValue, subItem);
     emit('update:modelValue', currentValue.value);
+    emit('update:show', false);
+}
+
+function onAddItemClicked(): void {
+    emit('add:item', {
+        filterContent: filterContent.value ?? ''
+    });
     emit('update:show', false);
 }
 

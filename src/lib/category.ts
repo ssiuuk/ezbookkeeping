@@ -216,6 +216,28 @@ export function allVisiblePrimaryTransactionCategoriesByType(allTransactionCateg
     return visibleCategories;
 }
 
+export function getParentCategoryIdForNewSubCategory(allTransactionCategories: Record<number, TransactionCategory[]>, categoryType: number, preferredPrimaryCategoryId?: string, selectedCategoryId?: string): string | undefined {
+    const visiblePrimaryCategories = allVisiblePrimaryTransactionCategoriesByType(allTransactionCategories, categoryType);
+    const candidateIds: (string | undefined)[] = [ preferredPrimaryCategoryId ];
+
+    if (selectedCategoryId) {
+        for (const primaryCategory of visiblePrimaryCategories) {
+            if (primaryCategory.subCategories?.some(subCategory => subCategory.id === selectedCategoryId)) {
+                candidateIds.push(primaryCategory.id);
+                break;
+            }
+        }
+    }
+
+    for (const candidateId of candidateIds) {
+        if (candidateId && visiblePrimaryCategories.some(primaryCategory => primaryCategory.id === candidateId)) {
+            return candidateId;
+        }
+    }
+
+    return visiblePrimaryCategories[0]?.id;
+}
+
 export function getFinalCategoryIdsByFilteredCategoryIds(allTransactionCategoriesMap: Record<number, TransactionCategory>, filteredCategoryIds: Record<string, boolean>): string {
     let finalCategoryIds = '';
 

@@ -17,7 +17,7 @@
                                 v-model="category.name"
                             />
                         </v-col>
-                        <v-col cols="12" md="12" v-if="editCategoryId && category.parentId && category.parentId !== '0'">
+                        <v-col cols="12" md="12" v-if="(editCategoryId || allowChangingParent) && category.parentId && category.parentId !== '0'">
                             <v-select
                                 item-title="name"
                                 item-value="id"
@@ -118,6 +118,7 @@ import { generateRandomUUID } from '@/lib/misc.ts';
 
 interface TransactionCategoryEditResponse {
     message: string;
+    category: TransactionCategory;
 }
 
 type SnackBarType = InstanceType<typeof SnackBar>;
@@ -144,6 +145,7 @@ let resolveFunc: ((value: TransactionCategoryEditResponse) => void) | null = nul
 let rejectFunc: ((reason?: unknown) => void) | null = null;
 
 const showState = ref<boolean>(false);
+const allowChangingParent = ref<boolean>(false);
 const initCategory = ref<TransactionCategory | null>(null);
 
 const isCategoryModified = computed<boolean>(() => {
@@ -154,8 +156,9 @@ const isCategoryModified = computed<boolean>(() => {
     }
 });
 
-function open(options: { id?: string; parentId?: string; type?: CategoryType; currentCategory?: TransactionCategory, color?: ColorValue, icon?: string }): Promise<TransactionCategoryEditResponse> {
+function open(options: { id?: string; parentId?: string; type?: CategoryType; currentCategory?: TransactionCategory, color?: ColorValue, icon?: string, name?: string, allowChangingParent?: boolean }): Promise<TransactionCategoryEditResponse> {
     showState.value = true;
+    allowChangingParent.value = !!options.allowChangingParent;
     loading.value = true;
     submitting.value = false;
 
@@ -214,6 +217,10 @@ function open(options: { id?: string; parentId?: string; type?: CategoryType; cu
             category.value.icon = initCategory.value.icon;
         }
 
+        if (options.name) {
+            category.value.name = options.name;
+        }
+
         clientSessionId.value = generateRandomUUID();
         loading.value = false;
     }
@@ -238,7 +245,7 @@ function save(): void {
         category: category.value,
         isEdit: !!editCategoryId.value,
         clientSessionId: clientSessionId.value
-    }).then(() => {
+    }).then(savedCategory => {
         submitting.value = false;
 
         let message = 'You have saved this category';
@@ -247,7 +254,7 @@ function save(): void {
             message = 'You have added a new category';
         }
 
-        resolveFunc?.({ message });
+        resolveFunc?.({ message, category: savedCategory });
         showState.value = false;
     }).catch(error => {
         submitting.value = false;
