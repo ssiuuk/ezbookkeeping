@@ -28,6 +28,7 @@
 
     <monthly-expense-progress-widget :loading="loading" :title="widgetTitle"
                                      :show-title="widget.settings['showTitle'] as boolean"
+                                     :budget-amount="widget.settings['budgetAmount'] as number"
                                      v-else-if="widget.type === OverviewWidgetType.CurrentMonthExpenseProgress" />
 
     <period-income-expense-widget :loading="loading" :date-ranges="widget.settings['dateRanges'] as number[]"

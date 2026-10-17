@@ -15,6 +15,16 @@
                     <small v-else-if="!loading">{{ displayElapsedPercent }}</small>
                 </div>
                 <f7-progressbar class="margin-top-half" :progress="currentMonthElapsedPercent * 100"></f7-progressbar>
+                <template v-if="budgetProgress">
+                    <div class="display-flex justify-content-space-between margin-top-half">
+                        <small>{{ tt('Budget used') }}</small>
+                        <small class="margin-left-half text-truncate skeleton-text" v-if="loading">100.0</small>
+                        <small class="margin-left-half text-truncate" v-else-if="!loading">{{ displayBudgetUsedPercent }} / {{ displayBudgetAmount }}</small>
+                    </div>
+                    <f7-progressbar class="margin-top-half"
+                                    :color="budgetProgressColor"
+                                    :progress="Math.min(budgetProgress.usedRate, 1) * 100"></f7-progressbar>
+                </template>
             </template>
         </f7-list-item>
         <f7-list-item class="item-title-full-line">
@@ -22,8 +32,24 @@
                 <div class="overview-transaction-footer default-text-color display-flex justify-content-space-between">
                     <span>{{ tt('Estimated month-end expense') }}</span>
                     <div class="margin-left-half text-truncate skeleton-text" v-if="loading">0.00 USD</div>
-                    <span class="margin-left-half text-truncate" v-else-if="!loading">{{ displayEstimatedExpense }}</span>
+                    <span class="margin-left-half text-truncate"
+                          :class="{ 'text-color-red': budgetProgress?.projectedOverBudget }"
+                          v-else-if="!loading">{{ displayEstimatedExpense }}</span>
                 </div>
+                <template v-if="budgetProgress">
+                    <div class="overview-transaction-footer default-text-color display-flex justify-content-space-between">
+                        <span>{{ budgetProgress.overBudget ? tt('Over budget') : tt('Remaining budget') }}</span>
+                        <div class="margin-left-half text-truncate skeleton-text" v-if="loading">0.00 USD</div>
+                        <span class="margin-left-half text-truncate"
+                              :class="{ 'text-color-red': budgetProgress.overBudget }"
+                              v-else-if="!loading">{{ displayBudgetRemainingAmount }}</span>
+                    </div>
+                    <div class="overview-transaction-footer display-flex justify-content-space-between" v-if="!budgetProgress.overBudget">
+                        <span>{{ tt('Daily allowance') }}</span>
+                        <div class="margin-left-half text-truncate skeleton-text" v-if="loading">0.00 USD</div>
+                        <span class="margin-left-half text-truncate" v-else-if="!loading">{{ displayDailyAllowance }}</span>
+                    </div>
+                </template>
                 <div class="overview-transaction-footer display-flex justify-content-space-between">
                     <span>{{ tt('Last month total') }}</span>
                     <div class="margin-left-half text-truncate skeleton-text" v-if="loading">0.00 USD</div>
@@ -35,40 +61,39 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 
 import { useI18n } from '@/locales/helpers.ts';
-import { usePeriodStatisticsWidgetBase } from '@/views/base/overview/PeriodStatisticsWidgetBase.ts';
+import { useMonthlyExpenseProgressWidgetBase } from '@/views/base/overview/MonthlyExpenseProgressWidgetBase.ts';
 
-import type { BigDecimal } from '@/core/numeral.ts';
-import { type DateTime, DateRange } from '@/core/datetime.ts';
-
-import { BIG_DECIMAL_ZERO } from '@/lib/numeral.ts';
-import { getCurrentDateTime } from '@/lib/datetime.ts';
-
-defineProps<{
+const props = defineProps<{
     loading: boolean;
     title?: string;
     showTitle: boolean;
+    budgetAmount?: number;
 }>();
 
-const { tt, formatPercentToLocalizedNumerals } = useI18n();
+const { tt } = useI18n();
 const {
-    transactionOverview,
-    currentExpenseAmount,
     currentDisplayExpenseAmount,
-    getDisplayAmount
-} = usePeriodStatisticsWidgetBase({
-    dateType: DateRange.ThisMonth.type
+    currentMonthElapsedPercent,
+    displayElapsedPercent,
+    displayEstimatedExpense,
+    displayLastMonthExpense,
+    budgetProgress,
+    displayBudgetAmount,
+    displayBudgetUsedPercent,
+    displayBudgetRemainingAmount,
+    displayDailyAllowance
+} = useMonthlyExpenseProgressWidgetBase(props);
+
+const budgetProgressColor = computed<string>(() => {
+    if (budgetProgress.value?.overBudget) {
+        return 'red';
+    } else if (budgetProgress.value?.aheadOfSchedule) {
+        return 'orange';
+    } else {
+        return 'green';
+    }
 });
-
-const currentDateTime = ref<DateTime>(getCurrentDateTime());
-
-const currentMonthElapsedPercent = computed<number>(() => currentDateTime.value.getGregorianCalendarDay() / currentDateTime.value.getMaxDayOfGregorianCalendarMonth());
-const estimatedExpense = computed<BigDecimal>(() => currentExpenseAmount.value.divide(currentMonthElapsedPercent.value));
-const lastMonthExpense = computed<BigDecimal>(() => transactionOverview.value.lastMonth?.expenseAmount ?? BIG_DECIMAL_ZERO);
-
-const displayElapsedPercent = formatPercentToLocalizedNumerals(currentMonthElapsedPercent.value * 100.0, 0, '<1');
-const displayEstimatedExpense = computed<string>(() => getDisplayAmount(estimatedExpense.value, !!transactionOverview.value.thisMonth?.incompleteExpenseAmount));
-const displayLastMonthExpense = computed<string>(() => getDisplayAmount(lastMonthExpense.value, !!transactionOverview.value.lastMonth?.incompleteExpenseAmount));
 </script>
