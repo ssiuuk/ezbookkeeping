@@ -11,6 +11,7 @@ import { Account, type AccountInfoResponse } from './account.ts';
 import { TransactionCategory, type TransactionCategoryInfoResponse } from './transaction_category.ts';
 import { TransactionTag, type TransactionTagInfoResponse } from './transaction_tag.ts';
 import { TransactionPicture, type TransactionPictureInfoBasicResponse } from './transaction_picture_info.ts';
+import { NO_PROJECT_ID } from './project.ts';
 
 export class Transaction implements TransactionInfoResponse {
     public id: string;
@@ -31,6 +32,7 @@ export class Transaction implements TransactionInfoResponse {
     public comment: string;
     public editable: boolean;
     public createdByUid?: string; // only for displaying transaction
+    public projectId: string = NO_PROJECT_ID;
 
     private _pictures?: TransactionPicture[];
     private _geoLocation?: TransactionGeoLocation;
@@ -231,6 +233,14 @@ export class Transaction implements TransactionInfoResponse {
         this._displayDayOfWeek = displayDayOfWeek;
     }
 
+    public getNormalizedProjectId(): string {
+        if (this.type === TransactionType.ModifyBalance || !this.projectId) {
+            return NO_PROJECT_ID;
+        }
+
+        return this.projectId;
+    }
+
     public toCreateRequest(clientSessionId: string): TransactionCreateRequest {
         return {
             type: this.type,
@@ -244,6 +254,7 @@ export class Transaction implements TransactionInfoResponse {
             hideAmount: this.hideAmount,
             tagIds: this.tagIds,
             pictureIds: this.getPictureIds(),
+            projectId: this.getNormalizedProjectId(),
             comment: this.comment,
             geoLocation: this.getNormalizedGeoLocation(),
             clientSessionId: clientSessionId
@@ -270,6 +281,7 @@ export class Transaction implements TransactionInfoResponse {
             hideAmount: this.hideAmount,
             tagIds: this.tagIds,
             pictureIds: this.getPictureIds(),
+            projectId: this.getNormalizedProjectId(),
             comment: this.comment,
             geoLocation: this.getNormalizedGeoLocation()
         };
@@ -292,6 +304,7 @@ export class Transaction implements TransactionInfoResponse {
             hideAmount: this.hideAmount,
             tagIds: this.tagIds,
             pictures: this.pictures,
+            projectId: this.getNormalizedProjectId(),
             comment: this.comment,
         };
     }
@@ -366,6 +379,7 @@ export class Transaction implements TransactionInfoResponse {
         }
 
         transaction.createdByUid = transactionResponse.createdByUid;
+        transaction.projectId = transactionResponse.projectId || NO_PROJECT_ID;
 
         return transaction;
     }
@@ -408,6 +422,8 @@ export class Transaction implements TransactionInfoResponse {
             transactionDraft.comment ?? '', // comment
             true // editable
         );
+
+        transaction.projectId = transactionDraft.projectId || NO_PROJECT_ID;
 
         if (transactionDraft.pictures) {
             const pictures: TransactionPicture[] = [];
@@ -525,6 +541,7 @@ export interface TransactionDraft {
     readonly hideAmount?: boolean;
     readonly tagIds?: string[];
     readonly pictures?: TransactionPictureInfoBasicResponse[];
+    readonly projectId?: string;
     readonly comment?: string;
 }
 
@@ -545,6 +562,7 @@ export interface TransactionCreateRequest {
     readonly hideAmount: boolean;
     readonly tagIds: string[];
     readonly pictureIds: string[];
+    readonly projectId?: string;
     readonly comment: string;
     readonly geoLocation?: TransactionGeoLocationRequest;
     readonly clientSessionId: string;
@@ -563,6 +581,7 @@ export interface TransactionModifyRequest {
     readonly hideAmount: boolean;
     readonly tagIds: string[];
     readonly pictureIds: string[];
+    readonly projectId?: string;
     readonly comment: string;
     readonly geoLocation?: TransactionGeoLocationRequest;
 }
@@ -632,6 +651,7 @@ export interface TransactionListByMaxTimeRequest {
     readonly matchMode: number;
     readonly mustHavePictures?: boolean;
     readonly withPictures?: boolean;
+    readonly projectId?: string;
 }
 
 export interface TransactionListInMonthByPageRequest {
@@ -646,6 +666,7 @@ export interface TransactionListInMonthByPageRequest {
     readonly matchMode: number;
     readonly mustHavePictures?: boolean;
     readonly withPictures?: boolean;
+    readonly projectId?: string;
 }
 
 export interface TransactionAllListRequest {
@@ -683,6 +704,7 @@ export interface TransactionInfoResponse {
     readonly comment: string;
     readonly geoLocation?: TransactionGeoLocationResponse;
     readonly createdByUid?: string;
+    readonly projectId?: string;
     readonly editable: boolean;
 }
 
@@ -693,6 +715,7 @@ export interface TransactionStatisticRequest {
     readonly keyword: string;
     readonly matchMode: number;
     readonly useTransactionTimezone: boolean;
+    readonly projectId?: string;
 }
 
 export interface YearMonthRangeRequest {
@@ -705,6 +728,7 @@ export interface TransactionStatisticTrendsRequest extends YearMonthRangeRequest
     readonly keyword: string;
     readonly matchMode: number;
     readonly useTransactionTimezone: boolean;
+    readonly projectId?: string;
 }
 
 export interface TransactionStatisticAssetTrendsRequest {

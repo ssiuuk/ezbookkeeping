@@ -35,6 +35,7 @@ type DataManagementsApi struct {
 	userCustomExchangeRates *services.UserCustomExchangeRatesService
 	insightsExploreres      *services.InsightsExplorerService
 	categoryBudgets         *services.TransactionCategoryBudgetService
+	projects                *services.ProjectService
 }
 
 // Initialize a data management api singleton instance
@@ -56,6 +57,7 @@ var (
 		userCustomExchangeRates: services.UserCustomExchangeRates,
 		insightsExploreres:      services.InsightsExplorers,
 		categoryBudgets:         services.TransactionCategoryBudgets,
+		projects:                services.Projects,
 	}
 )
 
@@ -215,6 +217,13 @@ func (a *DataManagementsApi) ClearAllDataHandler(c *core.WebContext) (any, *errs
 
 	if err != nil {
 		log.Errorf(c, "[data_managements.ClearAllDataHandler] failed to delete all transaction category budgets, because %s", err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	err = a.projects.DeleteAllProjects(c, uid)
+
+	if err != nil {
+		log.Errorf(c, "[data_managements.ClearAllDataHandler] failed to delete all projects, because %s", err.Error())
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 

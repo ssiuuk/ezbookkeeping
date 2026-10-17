@@ -6,6 +6,7 @@ import { useBooksStore } from '@/stores/book.ts';
 import { useAccountsStore } from '@/stores/account.ts';
 import { useTransactionCategoriesStore } from '@/stores/transactionCategory.ts';
 import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
+import { useProjectsStore } from '@/stores/project.ts';
 
 import type { BookInfoResponse } from '@/models/book.ts';
 
@@ -19,6 +20,7 @@ export function useEntryBookSelectionBase() {
     const accountsStore = useAccountsStore();
     const transactionCategoriesStore = useTransactionCategoriesStore();
     const transactionTagsStore = useTransactionTagsStore();
+    const projectsStore = useProjectsStore();
 
     const entryBookId = ref<string | undefined>(undefined);
 
@@ -35,7 +37,8 @@ export function useEntryBookSelectionBase() {
         return Promise.all([
             ignoreUpToDate(accountsStore.loadAllAccounts({ force: true })),
             ignoreUpToDate(transactionCategoriesStore.loadAllCategories({ force: true })),
-            ignoreUpToDate(transactionTagsStore.loadAllTags({ force: true }))
+            ignoreUpToDate(transactionTagsStore.loadAllTags({ force: true })),
+            projectsStore.loadAllProjects({ force: true })
         ]);
     }
 

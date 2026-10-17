@@ -88,6 +88,17 @@
                                     </v-btn>
                                 </router-link>
 
+                                <router-link to="/projects"
+                                             :aria-current="isProjectsNavigationActive() ? 'page' : undefined">
+                                    <v-btn class="top-navigation-button ms-1" density="comfortable" variant="text"
+                                           :aria-label="tt('Projects')" :icon="true"
+                                           :active="isProjectsNavigationActive()"
+                                           :color="isProjectsNavigationActive() ? 'primary' : 'default'">
+                                        <v-icon :icon="isProjectsNavigationActive() ? mdiBriefcase : mdiBriefcaseOutline" size="24" />
+                                        <v-tooltip activator="parent">{{ tt('Projects') }}</v-tooltip>
+                                    </v-btn>
+                                </router-link>
+
                                 <router-link to="/insights/explorer"
                                              :aria-current="isTopNavigationActive('/insights/explorer') ? 'page' : undefined">
                                     <v-btn class="top-navigation-button ms-1" density="comfortable" variant="text"
@@ -262,6 +273,8 @@ import {
     mdiPiggyBank,
     mdiPiggyBankOutline,
     mdiHomeGroup,
+    mdiBriefcase,
+    mdiBriefcaseOutline,
     mdiPlus,
     mdiCellphone,
     mdiThemeLightDark,
@@ -341,6 +354,10 @@ const isEnableApplicationLock = computed<boolean>(() => settingsStore.appSetting
 
 function isTopNavigationActive(path: string): boolean {
     return route.path === path;
+}
+
+function isProjectsNavigationActive(): boolean {
+    return route.path === '/projects' || route.path === '/projects/report';
 }
 
 function lock(): void {

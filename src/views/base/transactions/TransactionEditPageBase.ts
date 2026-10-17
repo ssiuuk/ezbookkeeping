@@ -9,6 +9,7 @@ import { useTransactionCategoriesStore } from '@/stores/transactionCategory.ts';
 import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 import { useTransactionsStore } from '@/stores/transaction.ts';
 import { useExchangeRatesStore } from '@/stores/exchangeRates.ts';
+import { useProjectsStore } from '@/stores/project.ts';
 
 import type { BigDecimal, NumeralSystem } from '@/core/numeral.ts';
 import type { WeekDayValue } from '@/core/datetime.ts';
@@ -26,6 +27,7 @@ import type { TransactionPictureInfoBasicResponse } from '@/models/transaction_p
 import { Transaction } from '@/models/transaction.ts';
 import { TransactionTemplate } from '@/models/transaction_template.ts';
 import type { RecognizedTransactionResponse } from '@/models/large_language_model.ts';
+import { NO_PROJECT_ID, isProjectIdSet } from '@/models/project.ts';
 
 import {
     isArray,
@@ -74,6 +76,11 @@ export enum AfterSaveAction {
     StayWithCurrentTransaction = 'stayWithCurrentTransaction'
 }
 
+export interface TransactionProjectSelectItem {
+    readonly id: string;
+    readonly name: string;
+}
+
 export function useTransactionEditPageBase(type: TransactionEditPageType, initMode?: TransactionEditPageMode, transactionDefaultType?: number) {
     const {
         tt,
@@ -93,6 +100,7 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
     const transactionTagsStore = useTransactionTagsStore();
     const transactionsStore = useTransactionsStore();
     const exchangeRatesStore = useExchangeRatesStore();
+    const projectsStore = useProjectsStore();
 
     const isSupportGeoLocation: boolean = !!navigator.geolocation;
 
@@ -118,6 +126,31 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
     const customAccountCategoryOrder = computed<string>(() => settingsStore.appSettings.accountCategoryOrders);
     const defaultCurrency = computed<string>(() => userStore.currentUserDefaultCurrency);
     const defaultAccountId = computed<string>(() => userStore.currentUserDefaultAccountId);
+
+    const showProjectField = computed<boolean>(() => type === TransactionEditPageType.Transaction && transaction.value.type !== TransactionType.ModifyBalance);
+
+    const allProjectSelectItems = computed<TransactionProjectSelectItem[]>(() => {
+        const items: TransactionProjectSelectItem[] = [{ id: NO_PROJECT_ID, name: tt('None') }];
+        const currentProjectId = transaction.value.projectId;
+
+        for (const project of projectsStore.allProjects) {
+            if (!project.hidden || project.id === currentProjectId) {
+                items.push({ id: project.id, name: project.name });
+            }
+        }
+
+        return items;
+    });
+
+    const transactionProjectName = computed<string>(() => {
+        const projectId = transaction.value.projectId;
+
+        if (!isProjectIdSet(projectId)) {
+            return tt('None');
+        }
+
+        return projectsStore.allProjectsMap[projectId]?.name ?? tt('Unknown Project');
+    });
     const firstDayOfWeek = computed<WeekDayValue>(() => userStore.currentUserFirstDayOfWeek);
     const imageUploadQualityType = computed<ImageUploadQualityType>(() => ImageUploadQualityType.valueOf(settingsStore.appSettings.transactionPictureQuality) ?? ImageUploadQualityType.Default);
 
@@ -462,6 +495,7 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         currentTransaction.sourceAccountId = '';
         currentTransaction.destinationAccountId = '';
         currentTransaction.tagIds = [];
+        currentTransaction.projectId = NO_PROJECT_ID;
         currentTransaction.clearPictures();
 
         setTransactionModel(null, { type: currentTransaction.type }, false);
@@ -608,6 +642,9 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         showAccountBalance,
         defaultCurrency,
         defaultAccountId,
+        showProjectField,
+        allProjectSelectItems,
+        transactionProjectName,
         firstDayOfWeek,
         imageUploadQualityType,
         allTimezones,

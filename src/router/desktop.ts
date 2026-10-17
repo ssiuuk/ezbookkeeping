@@ -18,6 +18,8 @@ import TransactionListPage from '@/views/desktop/transactions/ListPage.vue';
 import StatisticsTransactionPage from '@/views/desktop/statistics/TransactionPage.vue';
 import BudgetPage from '@/views/desktop/budgets/BudgetPage.vue';
 import HouseholdReportPage from '@/views/desktop/reports/HouseholdReportPage.vue';
+import ProjectListPage from '@/views/desktop/projects/ListPage.vue';
+import ProjectReportPage from '@/views/desktop/projects/ReportPage.vue';
 
 import InsightsExplorerPage from '@/views/desktop/insights/ExplorerPage.vue';
 
@@ -137,6 +139,19 @@ const router = createRouter({
             path: '/reports/household',
             component: HouseholdReportPage,
             beforeEnter: checkLogin
+        },
+        {
+            path: '/projects',
+            component: ProjectListPage,
+            beforeEnter: checkLogin
+        },
+        {
+            path: '/projects/report',
+            component: ProjectReportPage,
+            beforeEnter: checkLogin,
+            props: route => ({
+                initId: route.query['id']
+            })
         },
         {
             path: '/statistics/transaction',

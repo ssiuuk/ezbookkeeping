@@ -371,6 +371,23 @@
                                         @tag:saving="onSavingTag"
                                     />
                                 </v-col>
+                                <v-col cols="12" md="12" v-if="showProjectField">
+                                    <v-select
+                                        item-title="name"
+                                        item-value="id"
+                                        persistent-placeholder
+                                        :readonly="mode === TransactionEditPageMode.View"
+                                        :disabled="loading || submitting || recognizing"
+                                        :label="tt('Project')"
+                                        :placeholder="tt('None')"
+                                        :items="allProjectSelectItems"
+                                        v-model="transaction.projectId"
+                                    >
+                                        <template #prepend-inner>
+                                            <v-icon :icon="mdiBriefcaseOutline" size="20" />
+                                        </template>
+                                    </v-select>
+                                </v-col>
                                 <v-col cols="12" md="12">
                                     <v-textarea
                                         type="text"
@@ -555,6 +572,7 @@ import { useAccountsStore } from '@/stores/account.ts';
 import { useTransactionCategoriesStore } from '@/stores/transactionCategory.ts';
 import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 import { useBooksStore } from '@/stores/book.ts';
+import { useProjectsStore } from '@/stores/project.ts';
 import { useEntryBookSelectionBase } from '@/views/base/books/EntryBookSelectionBase.ts';
 import { useTransactionsStore } from '@/stores/transaction.ts';
 import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
@@ -610,7 +628,8 @@ import {
     mdiImagePlusOutline,
     mdiTrashCanOutline,
     mdiFullscreen,
-    mdiAccountEditOutline
+    mdiAccountEditOutline,
+    mdiBriefcaseOutline
 } from '@mdi/js';
 
 export interface TransactionEditOptions extends SetTransactionOptions {
@@ -657,6 +676,8 @@ const {
     setGeoLocationByClickMap,
     transaction,
     defaultCurrency,
+    showProjectField,
+    allProjectSelectItems,
     imageUploadQualityType,
     allTimezones,
     allVisibleAccounts,
@@ -701,6 +722,7 @@ const accountsStore = useAccountsStore();
 const transactionCategoriesStore = useTransactionCategoriesStore();
 const transactionTagsStore = useTransactionTagsStore();
 const booksStore = useBooksStore();
+const projectsStore = useProjectsStore();
 
 const {
     entryBookId,
@@ -799,6 +821,9 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
         transactionCategoriesStore.loadAllCategories({ force: false }),
         transactionTagsStore.loadAllTags({ force: false })
     ];
+
+    // projects are optional for a transaction, so failing to load them should not block the dialog
+    projectsStore.loadAllProjects({ force: false }).catch(error => logger.warn('failed to load projects', error));
 
     if (props.type === TransactionEditPageType.Transaction) {
         if (options && options.id) {
