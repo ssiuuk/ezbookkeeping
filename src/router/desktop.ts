@@ -16,6 +16,7 @@ import HomePage from '@/views/desktop/HomePage.vue';
 import TransactionListPage from '@/views/desktop/transactions/ListPage.vue';
 
 import StatisticsTransactionPage from '@/views/desktop/statistics/TransactionPage.vue';
+import BudgetPage from '@/views/desktop/budgets/BudgetPage.vue';
 
 import InsightsExplorerPage from '@/views/desktop/insights/ExplorerPage.vue';
 
@@ -125,6 +126,11 @@ const router = createRouter({
                 initKeyword: route.query['keyword'],
                 initMatchMode: route.query['matchMode']
             })
+        },
+        {
+            path: '/budgets',
+            component: BudgetPage,
+            beforeEnter: checkLogin
         },
         {
             path: '/statistics/transaction',

@@ -177,7 +177,8 @@
             "resendValidationEmailTip": "Če ne prejmete e-pošte, ponovno vnesite geslo in kliknite spodnji gumb, da ponovno pošljete potrditveno e-pošto na: {email}",
             "oauth2bindTip": "Prijavljate se v uporabniški račun {userName} z uporabo računa {providerName}. Za potrditev vnesite svoje geslo za ezBookkeeping.",
             "bookOfUser": "{name}'s Book",
-            "addedByUser": "Added by {name}"
+            "addedByUser": "Added by {name}",
+            "spentWithoutBudget": "{amount} spent in categories without a budget"
         }
     },
     "dataExport": {
@@ -1876,6 +1877,16 @@
     "Forget password is disabled": "Obnova pozabljenega gesla je onemogočena",
     "Two-Factor Authentication": "Dvofaktorska avtentikacija",
     "Book": "Book",
+    "Budget": "Budget",
+    "Budgets": "Budgets",
+    "Set Budgets": "Set Budgets",
+    "Total Budget": "Total Budget",
+    "Spent": "Spent",
+    "Remaining": "Remaining",
+    "Overspent": "Overspent",
+    "You have saved the budgets": "You have saved the budgets",
+    "Unable to retrieve budgets": "Unable to retrieve budgets",
+    "Unable to save budgets": "Unable to save budgets",
     "My Book": "My Book",
     "Switch Book": "Switch Book",
     "Shared Books": "Shared Books",

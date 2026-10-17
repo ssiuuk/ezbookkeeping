@@ -177,7 +177,8 @@
             "resendValidationEmailTip": "நீங்கள் மின்னஞ்சலைப் பெறவில்லை என்றால், கடவுச்சொல்லை மீண்டும் உள்ளிட்டு கீழே உள்ள பொத்தானை அழுத்தவும், சரிபார்ப்பு மின்னஞ்சல் அனுப்பப்படும்: {email}",
             "oauth2bindTip": "நீங்கள் {providerName} பயன்படுத்தி {userName} பயனராக உள்நுழைகிறீர்கள். உறுதிப்படுத்த உங்கள் ezBookkeeping கடவுச்சொல்லை உள்ளிடவும்.",
             "bookOfUser": "{name}'s Book",
-            "addedByUser": "Added by {name}"
+            "addedByUser": "Added by {name}",
+            "spentWithoutBudget": "{amount} spent in categories without a budget"
         }
     },
     "dataExport": {
@@ -1876,6 +1877,16 @@
     "Forget password is disabled": "Forget password is disabled",
     "Two-Factor Authentication": "இரண்டு காரணி அங்கீகாரம்",
     "Book": "Book",
+    "Budget": "Budget",
+    "Budgets": "Budgets",
+    "Set Budgets": "Set Budgets",
+    "Total Budget": "Total Budget",
+    "Spent": "Spent",
+    "Remaining": "Remaining",
+    "Overspent": "Overspent",
+    "You have saved the budgets": "You have saved the budgets",
+    "Unable to retrieve budgets": "Unable to retrieve budgets",
+    "Unable to save budgets": "Unable to save budgets",
     "My Book": "My Book",
     "Switch Book": "Switch Book",
     "Shared Books": "Shared Books",

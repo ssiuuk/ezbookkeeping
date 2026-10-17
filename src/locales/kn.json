@@ -177,7 +177,8 @@
             "resendValidationEmailTip": "ನೀವು ಇಮೇಲ್ ಪಡೆಯದಿದ್ದರೆ, ದಯವಿಟ್ಟು ಪಾಸ್‌ವರ್ಡ್ ಮರು ನಮೂದಿಸಿ ಮತ್ತು ಕೆಳಗಿನ ಬಟನ್ ಒತ್ತಿ ಮರು ಸರೀಕರಿಸುವ ಇಮೇಲ್ ಕಳುಹಿಸಲಾಗುವುದು: {email}",
             "oauth2bindTip": "ನೀವು {providerName} ಬಳಸಿ {userName} ಬಳಕೆದಾರರಾಗಿ ಲಾಗಿನ್ ಆಗುತ್ತಿದ್ದೀರಿ. ದೃಢೀಕರಿಸಲು ದಯವಿಟ್ಟು ನಿಮ್ಮ ezBookkeeping ಪಾಸ್‌ವರ್ಡ್ ನಮೂದಿಸಿ.",
             "bookOfUser": "{name}'s Book",
-            "addedByUser": "Added by {name}"
+            "addedByUser": "Added by {name}",
+            "spentWithoutBudget": "{amount} spent in categories without a budget"
         }
     },
     "dataExport": {
@@ -1876,6 +1877,16 @@
     "Forget password is disabled": "Forget password is disabled",
     "Two-Factor Authentication": "ಎರಡು ಹಂತದ ದೃಢೀಕರಣ",
     "Book": "Book",
+    "Budget": "Budget",
+    "Budgets": "Budgets",
+    "Set Budgets": "Set Budgets",
+    "Total Budget": "Total Budget",
+    "Spent": "Spent",
+    "Remaining": "Remaining",
+    "Overspent": "Overspent",
+    "You have saved the budgets": "You have saved the budgets",
+    "Unable to retrieve budgets": "Unable to retrieve budgets",
+    "Unable to save budgets": "Unable to save budgets",
     "My Book": "My Book",
     "Switch Book": "Switch Book",
     "Shared Books": "Shared Books",

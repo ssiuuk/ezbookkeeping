@@ -177,7 +177,8 @@
             "resendValidationEmailTip": "Se você não receber o e-mail, por favor, insira a senha novamente e clique no botão abaixo para reenviar o e-mail de validação para: {email}",
             "oauth2bindTip": "Você está fazendo login como {userName} usando {providerName}. Por favor, insira sua senha do ezBookkeeping para verificar.",
             "bookOfUser": "{name}'s Book",
-            "addedByUser": "Added by {name}"
+            "addedByUser": "Added by {name}",
+            "spentWithoutBudget": "{amount} spent in categories without a budget"
         }
     },
     "dataExport": {
@@ -1876,6 +1877,16 @@
     "Forget password is disabled": "Recuperação de senha está desativada",
     "Two-Factor Authentication": "Autenticação de Dois Fatores",
     "Book": "Book",
+    "Budget": "Budget",
+    "Budgets": "Budgets",
+    "Set Budgets": "Set Budgets",
+    "Total Budget": "Total Budget",
+    "Spent": "Spent",
+    "Remaining": "Remaining",
+    "Overspent": "Overspent",
+    "You have saved the budgets": "You have saved the budgets",
+    "Unable to retrieve budgets": "Unable to retrieve budgets",
+    "Unable to save budgets": "Unable to save budgets",
     "My Book": "My Book",
     "Switch Book": "Switch Book",
     "Shared Books": "Shared Books",

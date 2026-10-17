@@ -8,32 +8,8 @@ import type {
 
 import { getCurrentBookId, setCurrentBookId, clearUserTransactionDraft } from '@/lib/userstate.ts';
 import logger from '@/lib/logger.ts';
-import services, { type ApiResponsePromise } from '@/lib/services.ts';
-
-function handleApiResponse<T>(promise: ApiResponsePromise<T>, logMessage: string, defaultErrorMessage: string): Promise<T> {
-    return new Promise((resolve, reject) => {
-        promise.then(response => {
-            const data = response.data;
-
-            if (!data || !data.success || data.result === undefined || data.result === null) {
-                reject({ message: defaultErrorMessage });
-                return;
-            }
-
-            resolve(data.result);
-        }).catch(error => {
-            logger.error(logMessage, error);
-
-            if (error.response && error.response.data && error.response.data.errorMessage) {
-                reject({ error: error.response.data });
-            } else if (!error.processed) {
-                reject({ message: defaultErrorMessage });
-            } else {
-                reject(error);
-            }
-        });
-    });
-}
+import services from '@/lib/services.ts';
+import { handleApiResponse } from '@/lib/api.ts';
 
 export const useBooksStore = defineStore('books', () => {
     const allBooks = ref<BookInfoResponse[]>([]);

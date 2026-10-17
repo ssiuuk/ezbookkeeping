@@ -183,6 +183,10 @@ import type {
     BookLeaveRequest
 } from '@/models/book.ts';
 import type {
+    TransactionCategoryBudgetSaveRequest,
+    TransactionCategoryBudgetInfoResponse
+} from '@/models/transaction_category_budget.ts';
+import type {
     OAuth2CallbackLoginRequest
 } from '@/models/oauth2.ts';
 import type {
@@ -842,6 +846,12 @@ export default {
     },
     removeUnusedTransactionPicture: (req: TransactionPictureUnusedDeleteRequest): ApiResponsePromise<boolean> => {
         return axios.post<ApiResponse<boolean>>('v1/transaction/pictures/remove_unused.json', req);
+    },
+    getTransactionCategoryBudgets: (): ApiResponsePromise<TransactionCategoryBudgetInfoResponse[]> => {
+        return axios.get<ApiResponse<TransactionCategoryBudgetInfoResponse[]>>('v1/transaction/categories/budgets/list.json');
+    },
+    saveTransactionCategoryBudgets: (req: TransactionCategoryBudgetSaveRequest): ApiResponsePromise<TransactionCategoryBudgetInfoResponse[]> => {
+        return axios.post<ApiResponse<TransactionCategoryBudgetInfoResponse[]>>('v1/transaction/categories/budgets/save.json', req);
     },
     getAllTransactionCategories: (): ApiResponsePromise<Record<number, TransactionCategoryInfoResponse[]>> => {
         return axios.get<ApiResponse<Record<number, TransactionCategoryInfoResponse[]>>>('v1/transaction/categories/list.json');

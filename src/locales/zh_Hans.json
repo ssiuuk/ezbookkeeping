@@ -177,7 +177,8 @@
             "resendValidationEmailTip": "如果您没有收到邮件，请再次输入密码并点击下方的按钮重新发送验证邮件到：{email}",
             "oauth2bindTip": "您正在使用 {providerName} 登录 \"{userName}\" 用户，请输入你的 ezBookkeeping 的密码进行验证。",
             "bookOfUser": "{name}的账本",
-            "addedByUser": "由 {name} 添加"
+            "addedByUser": "由 {name} 添加",
+            "spentWithoutBudget": "{amount} 花费在未设置预算的分类中"
         }
     },
     "dataExport": {
@@ -1876,6 +1877,16 @@
     "Forget password is disabled": "忘记密码已禁用",
     "Two-Factor Authentication": "两步验证",
     "Book": "账本",
+    "Budget": "预算",
+    "Budgets": "预算",
+    "Set Budgets": "设置预算",
+    "Total Budget": "总预算",
+    "Spent": "已花费",
+    "Remaining": "剩余",
+    "Overspent": "超支",
+    "You have saved the budgets": "你已保存预算",
+    "Unable to retrieve budgets": "无法获取预算",
+    "Unable to save budgets": "无法保存预算",
     "My Book": "我的账本",
     "Switch Book": "切换账本",
     "Shared Books": "共享账本",
