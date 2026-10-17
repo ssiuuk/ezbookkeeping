@@ -69,7 +69,7 @@ func (a *UserCustomIconsApi) CustomIconListHandler(c *core.WebContext) (any, *er
 // CustomIconUploadHandler saves a new custom icon for current user
 func (a *UserCustomIconsApi) CustomIconUploadHandler(c *core.WebContext) (any, *errs.Error) {
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -276,7 +276,7 @@ func (a *UserCustomIconsApi) CustomIconDeleteHandler(c *core.WebContext) (any, *
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {

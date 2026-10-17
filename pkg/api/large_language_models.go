@@ -56,7 +56,7 @@ func (a *LargeLanguageModelsApi) RecognizeTransactionTextHandler(c *core.WebCont
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -162,7 +162,7 @@ func (a *LargeLanguageModelsApi) RecognizeReceiptImageHandler(c *core.WebContext
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -291,7 +291,7 @@ func (a *LargeLanguageModelsApi) GenerateCodeHandler(c *core.WebContext) (any, *
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {

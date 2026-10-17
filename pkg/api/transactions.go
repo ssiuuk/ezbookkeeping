@@ -132,7 +132,7 @@ func (a *TransactionsApi) TransactionListHandler(c *core.WebContext) (any, *errs
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -243,7 +243,7 @@ func (a *TransactionsApi) TransactionMonthListHandler(c *core.WebContext) (any, 
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -327,7 +327,7 @@ func (a *TransactionsApi) TransactionListAllHandler(c *core.WebContext) (any, *e
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -427,7 +427,7 @@ func (a *TransactionsApi) TransactionReconciliationStatementHandler(c *core.WebC
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -559,7 +559,7 @@ func (a *TransactionsApi) TransactionUnreconciledTransactionCountsHandler(c *cor
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -1130,7 +1130,7 @@ func (a *TransactionsApi) TransactionGetHandler(c *core.WebContext) (any, *errs.
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -1305,7 +1305,7 @@ func (a *TransactionsApi) TransactionCreateHandler(c *core.WebContext) (any, *er
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -1427,7 +1427,7 @@ func (a *TransactionsApi) TransactionModifyHandler(c *core.WebContext) (any, *er
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -1634,7 +1634,7 @@ func (a *TransactionsApi) TransactionBatchUpdateCategoriesHandler(c *core.WebCon
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -1740,7 +1740,7 @@ func (a *TransactionsApi) TransactionBatchUpdateAccountsHandler(c *core.WebConte
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -1910,7 +1910,7 @@ func (a *TransactionsApi) TransactionBatchAddTagsHandler(c *core.WebContext) (an
 	tagIds = utils.ToUniqueInt64Slice(tagIds)
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -2035,7 +2035,7 @@ func (a *TransactionsApi) TransactionBatchRemoveTagsHandler(c *core.WebContext) 
 	tagIds = utils.ToUniqueInt64Slice(tagIds)
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -2127,7 +2127,7 @@ func (a *TransactionsApi) TransactionBatchClearTagsHandler(c *core.WebContext) (
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -2200,7 +2200,7 @@ func (a *TransactionsApi) TransactionMoveAllBetweenAccountsHandler(c *core.WebCo
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -2305,7 +2305,7 @@ func (a *TransactionsApi) TransactionDeleteHandler(c *core.WebContext) (any, *er
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -2376,7 +2376,7 @@ func (a *TransactionsApi) TransactionBatchDeleteHandler(c *core.WebContext) (any
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -2512,6 +2512,10 @@ func (a *TransactionsApi) TransactionParseImportCustomFileDataHandler(c *core.We
 // TransactionParseImportFileHandler returns the parsed transaction data by request parameters for current user
 func (a *TransactionsApi) TransactionParseImportFileHandler(c *core.WebContext) (any, *errs.Error) {
 	uid := c.GetCurrentBookUid()
+
+	if uid != c.GetCurrentUid() {
+		return nil, errs.ErrOperationNotAvailableInSharedBook
+	}
 	form, err := c.MultipartForm()
 
 	if err != nil {
@@ -2801,6 +2805,10 @@ func (a *TransactionsApi) TransactionImportHandler(c *core.WebContext) (any, *er
 	}
 
 	uid := c.GetCurrentBookUid()
+
+	if uid != c.GetCurrentUid() {
+		return nil, errs.ErrOperationNotAvailableInSharedBook
+	}
 
 	if a.CurrentConfig().EnableDuplicateSubmissionsCheck && transactionImportReq.ClientSessionId != "" {
 		found, remark := a.GetSubmissionRemark(duplicatechecker.DUPLICATE_CHECKER_TYPE_IMPORT_TRANSACTIONS, uid, transactionImportReq.ClientSessionId)

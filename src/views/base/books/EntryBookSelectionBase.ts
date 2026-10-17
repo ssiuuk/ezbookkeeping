@@ -53,7 +53,7 @@ export function useEntryBookSelectionBase() {
         if (book.id === booksStore.currentBook?.id) {
             setActiveBookIdOverride(undefined);
         } else {
-            setActiveBookIdOverride(book.isOwner ? null : book.id);
+            setActiveBookIdOverride(book.isPersonal ? null : book.id);
         }
 
         return reloadBookData();

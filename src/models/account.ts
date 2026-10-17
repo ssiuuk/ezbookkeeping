@@ -746,6 +746,7 @@ export interface AccountInfoResponse {
     readonly isAsset?: boolean;
     readonly isLiability?: boolean;
     readonly hidden: boolean;
+    readonly sharedBy?: string;
     readonly subAccounts?: AccountInfoResponse[];
 }
 

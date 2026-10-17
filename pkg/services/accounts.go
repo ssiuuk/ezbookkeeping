@@ -164,7 +164,8 @@ func (s *AccountService) GetAccountsByAccountIds(c core.Context, uid int64, acco
 	}
 
 	var accounts []*models.Account
-	err := s.UserDataDB(uid).NewSession(c).Where("uid=? AND deleted=?", uid, false).In("account_id", accountIds).Find(&accounts)
+	// a shared book can also use the accounts which book members shared to it
+	err := s.UserDataDB(uid).NewSession(c).Where("deleted=? AND (uid=? OR account_id IN (SELECT account_id FROM shared_book_account WHERE book_id=?))", false, uid, uid).In("account_id", accountIds).Find(&accounts)
 
 	if err != nil {
 		return nil, err
@@ -172,6 +173,18 @@ func (s *AccountService) GetAccountsByAccountIds(c core.Context, uid int64, acco
 
 	accountMap := s.GetAccountMapByList(accounts)
 	return accountMap, err
+}
+
+// GetAccountsSharedToBook returns all accounts which book members shared to the given book
+func (s *AccountService) GetAccountsSharedToBook(c core.Context, bookId int64) ([]*models.Account, error) {
+	if bookId <= 0 {
+		return nil, errs.ErrUserIdInvalid
+	}
+
+	var accounts []*models.Account
+	err := s.UserDataDB(bookId).NewSession(c).Where("deleted=? AND account_id IN (SELECT account_id FROM shared_book_account WHERE book_id=?)", false, bookId).OrderBy("category asc, display_order asc").Find(&accounts)
+
+	return accounts, err
 }
 
 // GetMaxDisplayOrder returns the max display order according to account category

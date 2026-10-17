@@ -367,6 +367,12 @@ func startWebServer(c *core.CliContext) error {
 			apiV1Route.POST("/books/members/add.json", bindApi(api.Books.BookMemberAddHandler, config))
 			apiV1Route.POST("/books/members/remove.json", bindApi(api.Books.BookMemberRemoveHandler, config))
 			apiV1Route.POST("/books/leave.json", bindApi(api.Books.BookLeaveHandler, config))
+			apiV1Route.POST("/books/add.json", bindApi(api.Books.BookCreateHandler, config))
+			apiV1Route.POST("/books/modify.json", bindApi(api.Books.BookModifyHandler, config))
+			apiV1Route.POST("/books/delete.json", bindApi(api.Books.BookDeleteHandler, config))
+			apiV1Route.GET("/books/accounts/list.json", bindApi(api.Books.BookSharedAccountListHandler, config))
+			apiV1Route.POST("/books/accounts/share.json", bindApi(api.Books.BookShareAccountHandler, config))
+			apiV1Route.POST("/books/accounts/unshare.json", bindApi(api.Books.BookUnshareAccountHandler, config))
 
 			// External Authentications
 			if config.EnableOAuth2Login {

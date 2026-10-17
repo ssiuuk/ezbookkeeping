@@ -21,6 +21,7 @@ type AccountsApi struct {
 	accounts *services.AccountService
 	users    *services.UserService
 	icons    *services.UserCustomIconService
+	books    *services.BookService
 }
 
 // Initialize an account api singleton instance
@@ -38,6 +39,7 @@ var (
 		accounts: services.Accounts,
 		users:    services.Users,
 		icons:    services.UserCustomIcons,
+		books:    services.Books,
 	}
 )
 
@@ -96,9 +98,63 @@ func (a *AccountsApi) AccountListHandler(c *core.WebContext) (any, *errs.Error) 
 		}
 	}
 
+	if uid != c.GetCurrentUid() {
+		sharedAccountResps, err := a.getAccountsSharedToBook(c, uid)
+
+		if err != nil {
+			log.Errorf(c, "[accounts.AccountListHandler] failed to get shared accounts for book \"id:%d\", because %s", uid, err.Error())
+			return nil, errs.Or(err, errs.ErrOperationFailed)
+		}
+
+		for i := 0; i < len(sharedAccountResps); i++ {
+			if !accountListReq.VisibleOnly || !sharedAccountResps[i].Hidden {
+				userFinalAccountResps = append(userFinalAccountResps, sharedAccountResps[i])
+			}
+		}
+	}
+
 	sort.Sort(userFinalAccountResps)
 
 	return userFinalAccountResps, nil
+}
+
+// getAccountsSharedToBook returns the accounts which book members shared to the given book, with the owner name in sharedBy
+func (a *AccountsApi) getAccountsSharedToBook(c *core.WebContext, bookId int64) ([]*models.AccountInfoResponse, error) {
+	accounts, err := a.accounts.GetAccountsSharedToBook(c, bookId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ownerNames := make(map[int64]string)
+	resps := make([]*models.AccountInfoResponse, 0, len(accounts))
+
+	for i := 0; i < len(accounts); i++ {
+		ownerName, exists := ownerNames[accounts[i].Uid]
+
+		if !exists {
+			owner, err := a.users.GetUserById(c, accounts[i].Uid)
+
+			if err != nil {
+				continue
+			}
+
+			ownerName = owner.Nickname
+
+			if ownerName == "" {
+				ownerName = owner.Username
+			}
+
+			ownerNames[accounts[i].Uid] = ownerName
+		}
+
+		resp := accounts[i].ToAccountInfoResponse()
+		resp.Name = resp.Name + " (" + ownerName + ")"
+		resp.SharedBy = ownerName
+		resps = append(resps, resp)
+	}
+
+	return resps, nil
 }
 
 // AccountGetHandler returns one specific account of current user
@@ -408,7 +464,7 @@ func (a *AccountsApi) AccountModifyHandler(c *core.WebContext) (any, *errs.Error
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -751,7 +807,7 @@ func (a *AccountsApi) AccountUpdateLastReconciledTimeHandler(c *core.WebContext)
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -867,6 +923,15 @@ func (a *AccountsApi) AccountDeleteHandler(c *core.WebContext) (any, *errs.Error
 	}
 
 	uid := c.GetCurrentBookUid()
+	isShared, err := a.books.IsAccountSharedToAnyBook(c, accountDeleteReq.Id)
+
+	if err != nil {
+		log.Errorf(c, "[accounts.AccountDeleteHandler] failed to check whether account \"id:%d\" is shared, because %s", accountDeleteReq.Id, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	} else if isShared {
+		return nil, errs.ErrAccountSharedToBook
+	}
+
 	err = a.accounts.DeleteAccount(c, uid, accountDeleteReq.Id)
 
 	if err != nil {
@@ -970,7 +1035,7 @@ func (a *AccountsApi) getToUpdateAccount(user *models.User, accountModifyReq *mo
 
 	newAccount := &models.Account{
 		AccountId:    oldAccount.AccountId,
-		Uid:          user.Uid,
+		Uid:          oldAccount.Uid,
 		Name:         accountModifyReq.Name,
 		DisplayOrder: oldAccount.DisplayOrder,
 		Category:     accountModifyReq.Category,

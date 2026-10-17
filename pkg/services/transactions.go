@@ -3333,11 +3333,14 @@ func (s *TransactionService) createTransactionByScheduledTransactionTemplate(c c
 	return transaction, tagIds
 }
 
+// accountOfBookCondition matches the accounts of a book, including the accounts which book members shared to it
+const accountOfBookCondition = "deleted=? AND (uid=? OR account_id IN (SELECT account_id FROM shared_book_account WHERE book_id=?))"
+
 func (s *TransactionService) getAccountModels(sess *xorm.Session, transaction *models.Transaction) (sourceAccount *models.Account, destinationAccount *models.Account, err error) {
 	sourceAccount = &models.Account{}
 	destinationAccount = &models.Account{}
 
-	has, err := sess.ID(transaction.AccountId).Where("uid=? AND deleted=?", transaction.Uid, false).Get(sourceAccount)
+	has, err := sess.ID(transaction.AccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(sourceAccount)
 
 	if err != nil {
 		return nil, nil, err
@@ -3362,7 +3365,7 @@ func (s *TransactionService) getAccountModels(sess *xorm.Session, transaction *m
 		if transaction.RelatedAccountId <= 0 {
 			return nil, nil, errs.ErrAccountIdInvalid
 		} else {
-			has, err = sess.ID(transaction.RelatedAccountId).Where("uid=? AND deleted=?", transaction.Uid, false).Get(destinationAccount)
+			has, err = sess.ID(transaction.RelatedAccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(destinationAccount)
 
 			if err != nil {
 				return nil, nil, err
@@ -3430,7 +3433,7 @@ func (s *TransactionService) getOldAccountModels(sess *xorm.Session, transaction
 	if transaction.AccountId == oldTransaction.AccountId {
 		oldSourceAccount = sourceAccount
 	} else {
-		has, err := sess.ID(oldTransaction.AccountId).Where("uid=? AND deleted=?", transaction.Uid, false).Get(oldSourceAccount)
+		has, err := sess.ID(oldTransaction.AccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(oldSourceAccount)
 
 		if err != nil {
 			return nil, nil, err
@@ -3442,7 +3445,7 @@ func (s *TransactionService) getOldAccountModels(sess *xorm.Session, transaction
 	if transaction.RelatedAccountId == oldTransaction.RelatedAccountId {
 		oldDestinationAccount = destinationAccount
 	} else if oldTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT || oldTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_IN {
-		has, err := sess.ID(oldTransaction.RelatedAccountId).Where("uid=? AND deleted=?", transaction.Uid, false).Get(oldDestinationAccount)
+		has, err := sess.ID(oldTransaction.RelatedAccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(oldDestinationAccount)
 
 		if err != nil {
 			return nil, nil, err

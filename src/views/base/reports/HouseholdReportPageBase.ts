@@ -41,6 +41,7 @@ export function useHouseholdReportPageBase() {
     const year = ref<number>(now.year);
     const month0base = ref<number>(now.month0base);
     const bookData = ref<HouseholdBookData[]>([]);
+    const excludedBookIds = ref<Record<string, boolean>>({});
 
     const defaultCurrency = computed<string>(() => userStore.currentUserDefaultCurrency);
 
@@ -52,7 +53,13 @@ export function useHouseholdReportPageBase() {
         return periodType.value === 'year' ? formatDateTimeToGregorianLikeLongYear(dateTime) : formatDateTimeToGregorianLikeLongYearMonth(dateTime);
     });
 
-    const report = computed<HouseholdReport>(() => buildHouseholdReport(bookData.value, (amount, currency) => {
+    const availableBooks = computed<{ id: string, name: string, included: boolean }[]>(() => bookData.value.map(book => ({
+        id: book.bookId,
+        name: book.bookName,
+        included: !excludedBookIds.value[book.bookId]
+    })));
+
+    const report = computed<HouseholdReport>(() => buildHouseholdReport(bookData.value.filter(book => !excludedBookIds.value[book.bookId]), (amount, currency) => {
         if (currency === defaultCurrency.value) {
             return amount;
         }
@@ -62,7 +69,7 @@ export function useHouseholdReportPageBase() {
     }));
 
     function loadBook(book: BookInfoResponse): Promise<HouseholdBookData> {
-        const options = { bookId: book.isOwner ? null : book.id };
+        const options = { bookId: book.isPersonal ? null : book.id };
 
         return Promise.all([
             handleApiResponse(services.getAllAccounts({ visibleOnly: false }, options), 'failed to load accounts for household report', 'Unable to retrieve account list'),
@@ -94,6 +101,15 @@ export function useHouseholdReportPageBase() {
             loading.value = false;
             throw error;
         });
+    }
+
+    function setBookIncluded(bookId: string, included: boolean): void {
+        if (!included && bookData.value.filter(book => !excludedBookIds.value[book.bookId]).length <= 1) {
+            // keep at least one book in the report
+            return;
+        }
+
+        excludedBookIds.value = { ...excludedBookIds.value, [bookId]: !included };
     }
 
     function setPeriodType(type: HouseholdReportPeriodType): Promise<void> {
@@ -139,9 +155,11 @@ export function useHouseholdReportPageBase() {
         periodType,
         // computed states
         periodDisplayName,
+        availableBooks,
         report,
         // functions
         loadReport,
+        setBookIncluded,
         setPeriodType,
         changePeriod,
         formatAmount,

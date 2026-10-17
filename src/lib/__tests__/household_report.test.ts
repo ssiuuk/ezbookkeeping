@@ -81,4 +81,26 @@ describe('buildHouseholdReport', () => {
         expect(report.totalExpense).toBe(0);
         expect(report.savingsRate).toBeNull();
     });
+    test('counts an account shared to another book once in net worth, and its spending in the book that recorded it', () => {
+        const personalBook = {
+            bookId: '10',
+            bookName: 'Mine',
+            accounts: [account('card', 'USD', '-5000')],
+            categories: { 2: [category('e1', 'Food', 2, '0', [category('e11', 'Groceries', 2, 'e1')])] },
+            statisticItems: [{ categoryId: 'e11', accountId: 'card', amount: '2000' }]
+        };
+        const sharedBook = {
+            bookId: '20',
+            bookName: 'Family',
+            accounts: [account('card', 'USD', '-5000'), account('cash', 'USD', '1000')],
+            categories: { 2: [category('f1', 'Food', 2, '0', [category('f11', 'Dining', 2, 'f1')])] },
+            statisticItems: [{ categoryId: 'f11', accountId: 'card', amount: '3000' }]
+        };
+
+        const report = buildHouseholdReport([personalBook, sharedBook], convert);
+
+        expect(report.totalNetWorth).toBe(-4000);
+        expect(report.totalExpense).toBe(5000);
+        expect(report.books[1]!.netWorth).toBe(1000);
+    });
 });

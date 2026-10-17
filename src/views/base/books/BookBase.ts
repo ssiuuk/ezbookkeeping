@@ -18,11 +18,11 @@ export function useBookBase() {
     const currentBookDisplayName = computed<string>(() => currentBook.value ? getBookDisplayName(currentBook.value) : tt('My Book'));
 
     function getBookDisplayName(book: BookInfoResponse): string {
-        if (book.isOwner) {
+        if (book.isPersonal) {
             return tt('My Book');
         }
 
-        return tt('format.misc.bookOfUser', { name: book.ownerNickname || book.ownerUsername });
+        return book.name;
     }
 
     function isCurrentBook(book: BookInfoResponse): boolean {

@@ -84,6 +84,7 @@ export function buildHouseholdReport(books: HouseholdBookData[], convert: Househ
     let totalExpense = 0;
     let totalNetWorth = 0;
     let incomplete = false;
+    const countedAccountIds: Record<string, boolean> = {};
 
     for (const book of books) {
         const leafAccounts = flattenAccounts(book.accounts);
@@ -96,6 +97,13 @@ export function buildHouseholdReport(books: HouseholdBookData[], convert: Househ
 
         for (const account of leafAccounts) {
             accountMap[account.id] = account;
+
+            // an account shared to a book is listed in every book it is used in, count its balance once
+            if (countedAccountIds[account.id]) {
+                continue;
+            }
+
+            countedAccountIds[account.id] = true;
 
             const balance = convert(parseInt(account.balance) || 0, account.currency);
 

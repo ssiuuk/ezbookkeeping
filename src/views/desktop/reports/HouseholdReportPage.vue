@@ -24,7 +24,14 @@
                 </template>
 
                 <v-card-text>
-                    <div class="text-body-medium text-medium-emphasis mb-4">{{ tt('Totals of every book you can open, including books shared with you.') }}</div>
+                    <div class="text-body-medium text-medium-emphasis mb-2">{{ tt('Choose the books to include. Your own book holds your personal records, and each shared book holds the records of its members.') }}</div>
+                    <div class="d-flex flex-wrap mb-4" v-if="availableBooks.length > 1">
+                        <v-checkbox density="compact" hide-details class="me-4 flex-grow-0"
+                                    :key="book.id" :label="book.name" :model-value="book.included"
+                                    :disabled="loading"
+                                    @update:model-value="setBookIncluded(book.id, !!$event)"
+                                    v-for="book in availableBooks" />
+                    </div>
                     <v-row>
                         <v-col cols="6" md="">
                             <div class="text-body-medium text-medium-emphasis">{{ tt('Income') }}</div>
@@ -114,8 +121,10 @@ const {
     loading,
     periodType,
     periodDisplayName,
+    availableBooks,
     report,
     loadReport,
+    setBookIncluded,
     setPeriodType,
     changePeriod,
     formatAmount,

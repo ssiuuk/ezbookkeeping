@@ -2,67 +2,91 @@
     <f7-page @page:afterin="onPageAfterIn">
         <f7-navbar :title="tt('Shared Books')" :back-link="tt('Back')"></f7-navbar>
 
-        <f7-block-title class="margin-top">{{ tt('Switch Book') }}</f7-block-title>
+        <f7-block class="margin-top-half margin-bottom-half">
+            <small>{{ tt('A shared book sits next to your own book. Add family members to it, and share the accounts they may spend from. Your own book stays private.') }}</small>
+        </f7-block>
+
+        <f7-block-title>{{ tt('Switch Book') }}</f7-block-title>
         <f7-list strong inset dividers :class="{ 'skeleton-text': loading }">
             <f7-list-item radio
+                          :title="tt('My Book')"
+                          :checked="isCurrentBook(personalBook)"
+                          v-if="personalBook"
+                          @change="switchBook(personalBook)">
+            </f7-list-item>
+            <f7-list-item radio
                           :key="book.id"
-                          :title="getBookDisplayName(book)"
+                          :title="book.name"
+                          :footer="book.ownerNickname || book.ownerUsername"
                           :checked="isCurrentBook(book)"
-                          v-for="book in allBooks"
+                          v-for="book in sharedBooks"
                           @change="switchBook(book)">
             </f7-list-item>
         </f7-list>
 
-        <f7-block-title>{{ isInSharedBook ? tt('Book Members') : tt('Share My Book') }}</f7-block-title>
-        <f7-block class="no-margin-top margin-bottom-half">
-            <small v-if="!isInSharedBook">{{ tt('Members of your book can view and record transactions in it, for example a shared family budget. Each member keeps their own login and their own book.') }}</small>
-            <small v-else-if="isInSharedBook">{{ tt('You are working in a book shared with you. Only its owner can add or remove members.') }}</small>
-        </f7-block>
-        <f7-list strong inset dividers :class="{ 'skeleton-text': loading }">
-            <f7-list-item swipeout
-                          :id="getMemberDomId(member)"
-                          :key="member.id"
-                          :title="member.nickname"
-                          :footer="member.username"
-                          :after="member.isOwner ? tt('Owner') : tt('Member')"
-                          v-for="member in members">
-                <f7-swipeout-actions :left="textDirection === TextDirection.RTL"
-                                     :right="textDirection === TextDirection.LTR"
-                                     v-if="!isInSharedBook && !member.isOwner">
-                    <f7-swipeout-button color="red" :text="tt('Remove')" @click="removeMember(member)"></f7-swipeout-button>
-                </f7-swipeout-actions>
-            </f7-list-item>
-        </f7-list>
-
-        <f7-list strong inset dividers v-if="!isInSharedBook">
+        <f7-list strong inset dividers>
             <f7-list-input
                 type="text"
                 autocomplete="off"
                 clear-button
-                :label="tt('Username')"
-                :placeholder="tt('Username of the user to add')"
-                v-model:value="newMemberUsername"
+                :label="tt('Book Name')"
+                :placeholder="tt('Name of the new shared book, e.g. Family')"
+                v-model:value="newBookName"
             ></f7-list-input>
-            <f7-list-button :class="{ 'disabled': !newMemberUsername || adding }" @click="addMember">{{ tt('Add Member') }}</f7-list-button>
+            <f7-list-button :class="{ 'disabled': !newBookName.trim() }" @click="create">{{ tt('Create Shared Book') }}</f7-list-button>
         </f7-list>
 
-        <f7-list strong inset dividers v-if="isInSharedBook && currentBook">
-            <f7-list-button color="red" :class="{ 'disabled': leaving }" @click="leave(currentBook)">{{ tt('Leave This Book') }}</f7-list-button>
-        </f7-list>
+        <template :key="book.id" v-for="book in sharedBooks">
+            <f7-block-title>{{ book.name }}</f7-block-title>
+            <f7-list strong inset dividers :class="{ 'skeleton-text': getBookDetail(book).loading }">
+                <f7-list-item :title="member.nickname || member.username"
+                              :footer="member.username"
+                              :key="member.id"
+                              v-for="member in getBookDetail(book).members">
+                    <template #after>
+                        <span v-if="member.isOwner || !book.isOwner">{{ member.isOwner ? tt('Owner') : tt('Member') }}</span>
+                        <f7-link color="red" v-else @click="removeBookMember(book, member)">{{ tt('Remove') }}</f7-link>
+                    </template>
+                </f7-list-item>
+                <f7-list-button v-if="book.isOwner" @click="addBookMember(book)">{{ tt('Add Member') }}</f7-list-button>
+            </f7-list>
+
+            <f7-block-header>{{ tt('Members of this book can record transactions with these accounts, and see their balances.') }}</f7-block-header>
+            <f7-list strong inset dividers>
+                <f7-list-item :title="account.name"
+                              :key="account.accountId"
+                              v-for="account in getBookDetail(book).sharedAccounts.filter(item => !item.isMine)">
+                    <template #after>
+                        <f7-link color="red" v-if="book.isOwner" @click="toggleAccount(book, account.accountId, false)">{{ tt('Stop Sharing') }}</f7-link>
+                    </template>
+                </f7-list-item>
+                <f7-list-item checkbox
+                              :key="account.id"
+                              :title="account.name"
+                              :checked="isAccountShared(book, account.id)"
+                              v-for="account in myAccounts"
+                              @change="toggleAccount(book, account.id, $event.target.checked)">
+                </f7-list-item>
+                <f7-list-item :title="tt('You have no account which can be shared.')" v-if="!myAccounts.length"></f7-list-item>
+            </f7-list>
+
+            <f7-list strong inset dividers>
+                <f7-list-button v-if="book.isOwner" @click="rename(book)">{{ tt('Rename') }}</f7-list-button>
+                <f7-list-button color="red" v-if="book.isOwner" @click="remove(book)">{{ tt('Delete') }}</f7-list-button>
+                <f7-list-button color="red" v-if="!book.isOwner" @click="leave(book)">{{ tt('Leave This Book') }}</f7-list-button>
+            </f7-list>
+        </template>
     </f7-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import type { Router } from 'framework7/types';
 
 import { useI18n } from '@/locales/helpers.ts';
-import { useI18nUIComponents, showLoading, hideLoading, onSwipeoutDeleted } from '@/lib/ui/mobile.ts';
-import { useBookBase } from '@/views/base/books/BookBase.ts';
+import { useI18nUIComponents, showLoading, hideLoading } from '@/lib/ui/mobile.ts';
+import { useSharedBooksPageBase } from '@/views/base/books/SharedBooksPageBase.ts';
 
-import { useBooksStore } from '@/stores/book.ts';
-
-import { TextDirection } from '@/core/text.ts';
 import type { BookInfoResponse, BookMemberInfoResponse } from '@/models/book.ts';
 
 import { setCurrentBookId } from '@/lib/userstate.ts';
@@ -71,67 +95,42 @@ const props = defineProps<{
     f7router: Router.Router;
 }>();
 
-const { tt, getCurrentLanguageTextDirection } = useI18n();
-const { showConfirm, showToast, routeBackOnError } = useI18nUIComponents();
+const { tt } = useI18n();
+const { showConfirm, showPrompt, showToast, routeBackOnError } = useI18nUIComponents();
 const {
-    allBooks,
-    currentBook,
-    isInSharedBook,
-    getBookDisplayName,
+    loading,
+    myAccounts,
+    personalBook,
+    sharedBooks,
     isCurrentBook,
-    switchBook
-} = useBookBase();
+    switchBook,
+    getBookDetail,
+    isAccountShared,
+    reloadAll,
+    createBook,
+    renameBook,
+    deleteBook,
+    leaveBook,
+    addMember,
+    removeMember,
+    setAccountShared
+} = useSharedBooksPageBase();
 
-const booksStore = useBooksStore();
-
-const loading = ref<boolean>(true);
 const loadingError = ref<unknown | null>(null);
-const adding = ref<boolean>(false);
-const leaving = ref<boolean>(false);
-const newMemberUsername = ref<string>('');
+const newBookName = ref<string>('');
 
-const textDirection = computed<TextDirection>(() => getCurrentLanguageTextDirection());
-const members = computed<BookMemberInfoResponse[]>(() => booksStore.currentBookMembers);
-
-function getMemberDomId(member: BookMemberInfoResponse): string {
-    return 'book_member_' + member.id;
-}
-
-function init(): void {
-    loading.value = true;
-
-    Promise.all([
-        booksStore.loadAllBooks(),
-        booksStore.loadCurrentBookMembers()
-    ]).then(() => {
-        loading.value = false;
-    }).catch(error => {
-        if (error.processed) {
-            loading.value = false;
-        } else {
-            loadingError.value = error;
-            showToast(error.message || error);
-        }
-    });
-}
-
-function addMember(): void {
-    const username = newMemberUsername.value.trim();
-
-    if (!username) {
-        return;
-    }
-
-    adding.value = true;
+function runWithLoading<T>(promise: () => Promise<T>, successMessage?: string): Promise<T | void> {
     showLoading();
 
-    booksStore.addBookMember(username).then(() => {
-        adding.value = false;
+    return promise().then(result => {
         hideLoading();
-        newMemberUsername.value = '';
-        showToast('You have added a member to your book');
+
+        if (successMessage) {
+            showToast(successMessage);
+        }
+
+        return result;
     }).catch(error => {
-        adding.value = false;
         hideLoading();
 
         if (!error.processed) {
@@ -140,20 +139,42 @@ function addMember(): void {
     });
 }
 
-function removeMember(member: BookMemberInfoResponse): void {
-    showConfirm('Are you sure you want to remove this member from your book?', () => {
-        showLoading();
+function backToPersonalBookIfCurrent(book: BookInfoResponse): void {
+    if (isCurrentBook(book)) {
+        setCurrentBookId(null);
+        window.location.reload();
+    }
+}
 
-        booksStore.removeBookMember(member.id).then(() => {
-            hideLoading();
-            onSwipeoutDeleted(getMemberDomId(member), () => {
-                showToast('You have removed this member from your book');
-            });
-        }).catch(error => {
-            hideLoading();
+function create(): void {
+    const name = newBookName.value.trim();
 
-            if (!error.processed) {
-                showToast(error.message || error);
+    if (!name) {
+        return;
+    }
+
+    runWithLoading(() => createBook(name), 'You have created a shared book').then(book => {
+        if (book) {
+            newBookName.value = '';
+        }
+    });
+}
+
+function rename(book: BookInfoResponse): void {
+    showPrompt('Book Name', book.name, value => {
+        const name = (value || '').trim();
+
+        if (name && name !== book.name) {
+            runWithLoading(() => renameBook(book.id, name), 'You have renamed this book');
+        }
+    });
+}
+
+function remove(book: BookInfoResponse): void {
+    showConfirm('Are you sure you want to delete this shared book?', () => {
+        runWithLoading(() => deleteBook(book.id), 'You have deleted this shared book').then(result => {
+            if (result) {
+                backToPersonalBookIfCurrent(book);
             }
         });
     });
@@ -161,27 +182,42 @@ function removeMember(member: BookMemberInfoResponse): void {
 
 function leave(book: BookInfoResponse): void {
     showConfirm('Are you sure you want to leave this book?', () => {
-        leaving.value = true;
-        showLoading();
-
-        booksStore.leaveBook(book.id).then(() => {
-            hideLoading();
-            setCurrentBookId(null);
-            window.location.reload();
-        }).catch(error => {
-            leaving.value = false;
-            hideLoading();
-
-            if (!error.processed) {
-                showToast(error.message || error);
+        runWithLoading(() => leaveBook(book.id), 'You have left this book').then(result => {
+            if (result) {
+                backToPersonalBookIfCurrent(book);
             }
         });
     });
+}
+
+function addBookMember(book: BookInfoResponse): void {
+    showPrompt('Username of the user to add', '', value => {
+        const username = (value || '').trim();
+
+        if (username) {
+            runWithLoading(() => addMember(book, username), 'You have added a member to your book');
+        }
+    });
+}
+
+function removeBookMember(book: BookInfoResponse, member: BookMemberInfoResponse): void {
+    showConfirm('Are you sure you want to remove this member from your book?', () => {
+        runWithLoading(() => removeMember(book, member), 'You have removed this member from your book');
+    });
+}
+
+function toggleAccount(book: BookInfoResponse, accountId: string, shared: boolean): void {
+    runWithLoading(() => setAccountShared(book, accountId, shared));
 }
 
 function onPageAfterIn(): void {
     routeBackOnError(props.f7router, loadingError);
 }
 
-init();
+reloadAll().catch(error => {
+    if (!error.processed) {
+        loadingError.value = error;
+        showToast(error.message || error);
+    }
+});
 </script>

@@ -3,60 +3,44 @@
         <v-col cols="12">
             <v-card :class="{ 'disabled': loading }">
                 <template #title>
-                    <span>{{ isInSharedBook ? tt('Book Members') : tt('Share My Book') }}</span>
+                    <span>{{ tt('Shared Books') }}</span>
                     <v-progress-circular indeterminate size="20" class="ms-3" v-if="loading"></v-progress-circular>
                 </template>
 
                 <v-card-text class="mt-2">
-                    <span class="text-body-large" v-if="!isInSharedBook">
-                        {{ tt('Members of your book can view and record transactions in it, for example a shared family budget. Each member keeps their own login and their own book.') }}
-                    </span>
-                    <span class="text-body-large" v-else-if="isInSharedBook">
-                        {{ tt('You are working in a book shared with you. Only its owner can add or remove members.') }}
-                    </span>
+                    <span class="text-body-large">{{ tt('A shared book sits next to your own book. Add family members to it, and share the accounts they may spend from. Your own book stays private.') }}</span>
                 </v-card-text>
 
-                <v-card-text class="pt-0" v-if="!isInSharedBook">
+                <v-card-text class="pt-0">
                     <v-row>
                         <v-col cols="12" md="6">
                             <v-text-field
                                 autocomplete="off"
                                 variant="underlined"
-                                :disabled="loading || adding"
-                                :placeholder="tt('Username of the user to add')"
-                                v-model="newMemberUsername"
-                                @keyup.enter="addMember"
+                                :disabled="loading || creating"
+                                :placeholder="tt('Name of the new shared book, e.g. Family')"
+                                v-model="newBookName"
+                                @keyup.enter="create"
                             />
                         </v-col>
                         <v-col cols="12" md="6" class="d-flex align-center">
-                            <v-btn :disabled="!newMemberUsername || loading || adding" @click="addMember">
-                                {{ tt('Add Member') }}
-                                <v-progress-circular indeterminate size="22" class="ms-2" v-if="adding"></v-progress-circular>
+                            <v-btn :disabled="!newBookName.trim() || loading || creating" @click="create">
+                                {{ tt('Create Shared Book') }}
+                                <v-progress-circular indeterminate size="22" class="ms-2" v-if="creating"></v-progress-circular>
                             </v-btn>
                         </v-col>
                     </v-row>
                 </v-card-text>
 
-                <v-table class="text-no-wrap">
-                    <thead>
-                    <tr>
-                        <th>{{ tt('Nickname') }}</th>
-                        <th>{{ tt('Username') }}</th>
-                        <th>{{ tt('Role') }}</th>
-                        <th class="text-right" v-if="!isInSharedBook">{{ tt('Operation') }}</th>
-                    </tr>
-                    </thead>
+                <v-table class="text-no-wrap" v-if="personalBook">
                     <tbody>
-                    <tr :key="member.id" v-for="member in members">
-                        <td>{{ member.nickname }}</td>
-                        <td>{{ member.username }}</td>
-                        <td>{{ member.isOwner ? tt('Owner') : tt('Member') }}</td>
-                        <td class="text-right" v-if="!isInSharedBook">
-                            <v-btn density="comfortable" color="error" variant="tonal"
-                                   :disabled="loading || removing[member.id]"
-                                   v-if="!member.isOwner"
-                                   @click="removeMember(member)">
-                                {{ tt('Remove') }}
+                    <tr>
+                        <td>{{ tt('My Book') }}</td>
+                        <td class="text-right">
+                            <v-btn density="comfortable" variant="tonal"
+                                   :disabled="loading || isCurrentBook(personalBook)"
+                                   @click="switchBook(personalBook)">
+                                {{ isCurrentBook(personalBook) ? tt('Current Book') : tt('Switch to This Book') }}
                             </v-btn>
                         </td>
                     </tr>
@@ -65,35 +49,113 @@
             </v-card>
         </v-col>
 
-        <v-col cols="12">
-            <v-card :class="{ 'disabled': loading }">
+        <v-col cols="12" :key="book.id" v-for="book in sharedBooks">
+            <v-card :class="{ 'disabled': loading || getBookDetail(book).loading }">
                 <template #title>
-                    <span>{{ tt('Books Shared with Me') }}</span>
+                    <span>{{ book.name }}</span>
+                    <v-chip class="ms-3" size="small" v-if="isCurrentBook(book)">{{ tt('Current Book') }}</v-chip>
+                </template>
+                <template #subtitle>
+                    <span>{{ tt('Owner') }}: {{ book.ownerNickname || book.ownerUsername }}</span>
+                </template>
+                <template #append>
+                    <v-btn density="comfortable" variant="tonal" class="me-2"
+                           :disabled="isCurrentBook(book)"
+                           @click="switchBook(book)">
+                        {{ tt('Switch to This Book') }}
+                    </v-btn>
+                    <v-btn density="comfortable" color="error" variant="tonal"
+                           v-if="book.isOwner" @click="remove(book)">
+                        {{ tt('Delete') }}
+                    </v-btn>
+                    <v-btn density="comfortable" color="error" variant="tonal"
+                           v-if="!book.isOwner" @click="leave(book)">
+                        {{ tt('Leave') }}
+                    </v-btn>
                 </template>
 
-                <v-card-text class="mt-2" v-if="!sharedBooks.length">
-                    <span class="text-body-large">{{ tt('No book has been shared with you yet.') }}</span>
+                <v-card-text class="pt-2" v-if="book.isOwner">
+                    <v-row>
+                        <v-col cols="12" md="6">
+                            <v-text-field
+                                autocomplete="off"
+                                variant="underlined"
+                                :label="tt('Book Name')"
+                                v-model="bookNames[book.id]"
+                            />
+                        </v-col>
+                        <v-col cols="12" md="6" class="d-flex align-center">
+                            <v-btn variant="tonal"
+                                   :disabled="!bookNames[book.id] || !bookNames[book.id]!.trim() || bookNames[book.id] === book.name"
+                                   @click="rename(book)">
+                                {{ tt('Rename') }}
+                            </v-btn>
+                        </v-col>
+                    </v-row>
                 </v-card-text>
 
-                <v-table class="text-no-wrap" v-if="sharedBooks.length">
-                    <tbody>
-                    <tr :key="book.id" v-for="book in sharedBooks">
-                        <td>{{ getBookDisplayName(book) }}</td>
-                        <td class="text-right">
-                            <v-btn density="comfortable" variant="tonal" class="me-2"
-                                   :disabled="loading || isCurrentBook(book)"
-                                   @click="switchBook(book)">
-                                {{ isCurrentBook(book) ? tt('Current Book') : tt('Switch to This Book') }}
+                <v-card-text>
+                    <div class="text-title-medium mb-2">{{ tt('Book Members') }}</div>
+                    <v-table class="text-no-wrap" density="compact">
+                        <tbody>
+                        <tr :key="member.id" v-for="member in getBookDetail(book).members">
+                            <td>{{ member.nickname || member.username }}</td>
+                            <td>{{ member.username }}</td>
+                            <td>{{ member.isOwner ? tt('Owner') : tt('Member') }}</td>
+                            <td class="text-right">
+                                <v-btn density="comfortable" color="error" variant="text"
+                                       v-if="book.isOwner && !member.isOwner"
+                                       @click="removeBookMember(book, member)">
+                                    {{ tt('Remove') }}
+                                </v-btn>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </v-table>
+                    <v-row class="mt-1" v-if="book.isOwner">
+                        <v-col cols="12" md="6">
+                            <v-text-field
+                                autocomplete="off"
+                                variant="underlined"
+                                :placeholder="tt('Username of the user to add')"
+                                v-model="newMemberUsernames[book.id]"
+                                @keyup.enter="addBookMember(book)"
+                            />
+                        </v-col>
+                        <v-col cols="12" md="6" class="d-flex align-center">
+                            <v-btn variant="tonal" :disabled="!newMemberUsernames[book.id] || !newMemberUsernames[book.id]!.trim()" @click="addBookMember(book)">
+                                {{ tt('Add Member') }}
                             </v-btn>
-                            <v-btn density="comfortable" color="error" variant="tonal"
-                                   :disabled="loading || leaving[book.id]"
-                                   @click="leave(book)">
-                                {{ tt('Leave') }}
-                            </v-btn>
-                        </td>
-                    </tr>
-                    </tbody>
-                </v-table>
+                        </v-col>
+                    </v-row>
+                </v-card-text>
+
+                <v-card-text>
+                    <div class="text-title-medium mb-1">{{ tt('Shared Accounts') }}</div>
+                    <div class="text-body-medium mb-2">{{ tt('Members of this book can record transactions with these accounts, and see their balances.') }}</div>
+                    <v-table class="text-no-wrap" density="compact" v-if="getBookDetail(book).sharedAccounts.some(account => !account.isMine)">
+                        <tbody>
+                        <tr :key="account.accountId" v-for="account in getBookDetail(book).sharedAccounts.filter(item => !item.isMine)">
+                            <td>{{ account.name }}</td>
+                            <td class="text-right">
+                                <v-btn density="comfortable" color="error" variant="text"
+                                       v-if="book.isOwner"
+                                       @click="toggleAccount(book, account.accountId, false)">
+                                    {{ tt('Stop Sharing') }}
+                                </v-btn>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </v-table>
+                    <div class="text-body-medium mt-3 mb-1">{{ tt('My accounts to share') }}</div>
+                    <div class="text-body-medium" v-if="!myAccounts.length">{{ tt('You have no account which can be shared.') }}</div>
+                    <v-switch density="compact" hide-details color="primary"
+                              :key="account.id"
+                              :label="account.name"
+                              :model-value="isAccountShared(book, account.id)"
+                              @update:model-value="toggleAccount(book, account.id, !!$event)"
+                              v-for="account in myAccounts" />
+                </v-card-text>
             </v-card>
         </v-col>
     </v-row>
@@ -106,12 +168,10 @@
 import ConfirmDialog from '@/components/desktop/ConfirmDialog.vue';
 import SnackBar from '@/components/desktop/SnackBar.vue';
 
-import { ref, computed, useTemplateRef } from 'vue';
+import { ref, watch, useTemplateRef } from 'vue';
 
 import { useI18n } from '@/locales/helpers.ts';
-import { useBookBase } from '@/views/base/books/BookBase.ts';
-
-import { useBooksStore } from '@/stores/book.ts';
+import { useSharedBooksPageBase } from '@/views/base/books/SharedBooksPageBase.ts';
 
 import type { BookInfoResponse, BookMemberInfoResponse } from '@/models/book.ts';
 
@@ -122,90 +182,91 @@ type SnackBarType = InstanceType<typeof SnackBar>;
 
 const { tt } = useI18n();
 const {
-    allBooks,
-    isInSharedBook,
-    getBookDisplayName,
+    loading,
+    myAccounts,
+    personalBook,
+    sharedBooks,
     isCurrentBook,
-    switchBook
-} = useBookBase();
-
-const booksStore = useBooksStore();
+    switchBook,
+    getBookDetail,
+    isAccountShared,
+    reloadAll,
+    createBook,
+    renameBook,
+    deleteBook,
+    leaveBook,
+    addMember,
+    removeMember,
+    setAccountShared
+} = useSharedBooksPageBase();
 
 const confirmDialog = useTemplateRef<ConfirmDialogType>('confirmDialog');
 const snackbar = useTemplateRef<SnackBarType>('snackbar');
 
-const loading = ref<boolean>(true);
-const adding = ref<boolean>(false);
-const removing = ref<Record<string, boolean>>({});
-const leaving = ref<Record<string, boolean>>({});
-const newMemberUsername = ref<string>('');
+const creating = ref<boolean>(false);
+const newBookName = ref<string>('');
+const bookNames = ref<Record<string, string>>({});
+const newMemberUsernames = ref<Record<string, string>>({});
 
-const members = computed<BookMemberInfoResponse[]>(() => booksStore.currentBookMembers);
-const sharedBooks = computed<BookInfoResponse[]>(() => allBooks.value.filter(book => !book.isOwner));
-
-function reload(): void {
-    loading.value = true;
-
-    Promise.all([
-        booksStore.loadAllBooks(),
-        booksStore.loadCurrentBookMembers()
-    ]).then(() => {
-        loading.value = false;
-    }).catch(error => {
-        loading.value = false;
-
-        if (!error.processed) {
-            snackbar.value?.showError(error);
+watch(sharedBooks, books => {
+    for (const book of books) {
+        if (bookNames.value[book.id] === undefined) {
+            bookNames.value[book.id] = book.name;
         }
-    });
+    }
+}, { immediate: true });
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function showError(error: any): void {
+    if (!error.processed) {
+        snackbar.value?.showError(error);
+    }
 }
 
-function addMember(): void {
-    const username = newMemberUsername.value.trim();
+function create(): void {
+    const name = newBookName.value.trim();
 
-    if (!username) {
+    if (!name) {
         return;
     }
 
-    adding.value = true;
+    creating.value = true;
 
-    booksStore.addBookMember(username).then(() => {
-        adding.value = false;
-        newMemberUsername.value = '';
-        snackbar.value?.showMessage('You have added a member to your book');
+    createBook(name).then(() => {
+        creating.value = false;
+        newBookName.value = '';
+        snackbar.value?.showMessage('You have created a shared book');
     }).catch(error => {
-        adding.value = false;
-
-        if (!error.processed) {
-            snackbar.value?.showError(error);
-        }
+        creating.value = false;
+        showError(error);
     });
 }
 
-function removeMember(member: BookMemberInfoResponse): void {
-    confirmDialog.value?.open('Are you sure you want to remove this member from your book?', { color: 'error' }).then(() => {
-        removing.value[member.id] = true;
+function rename(book: BookInfoResponse): void {
+    const name = (bookNames.value[book.id] || '').trim();
 
-        booksStore.removeBookMember(member.id).then(() => {
-            removing.value[member.id] = false;
-            snackbar.value?.showMessage('You have removed this member from your book');
-        }).catch(error => {
-            removing.value[member.id] = false;
+    renameBook(book.id, name).then(() => {
+        snackbar.value?.showMessage('You have renamed this book');
+    }).catch(showError);
+}
 
-            if (!error.processed) {
-                snackbar.value?.showError(error);
+function remove(book: BookInfoResponse): void {
+    confirmDialog.value?.open('Are you sure you want to delete this shared book?', { color: 'error' }).then(() => {
+        deleteBook(book.id).then(() => {
+            if (isCurrentBook(book)) {
+                setCurrentBookId(null);
+                window.location.reload();
+                return;
             }
-        });
+
+            snackbar.value?.showMessage('You have deleted this shared book');
+        }).catch(showError);
     });
 }
 
 function leave(book: BookInfoResponse): void {
     confirmDialog.value?.open('Are you sure you want to leave this book?', { color: 'error' }).then(() => {
-        leaving.value[book.id] = true;
-
-        booksStore.leaveBook(book.id).then(() => {
-            leaving.value[book.id] = false;
-
+        leaveBook(book.id).then(() => {
             if (isCurrentBook(book)) {
                 setCurrentBookId(null);
                 window.location.reload();
@@ -213,15 +274,34 @@ function leave(book: BookInfoResponse): void {
             }
 
             snackbar.value?.showMessage('You have left this book');
-        }).catch(error => {
-            leaving.value[book.id] = false;
-
-            if (!error.processed) {
-                snackbar.value?.showError(error);
-            }
-        });
+        }).catch(showError);
     });
 }
 
-reload();
+function addBookMember(book: BookInfoResponse): void {
+    const username = (newMemberUsernames.value[book.id] || '').trim();
+
+    if (!username) {
+        return;
+    }
+
+    addMember(book, username).then(() => {
+        newMemberUsernames.value[book.id] = '';
+        snackbar.value?.showMessage('You have added a member to your book');
+    }).catch(showError);
+}
+
+function removeBookMember(book: BookInfoResponse, member: BookMemberInfoResponse): void {
+    confirmDialog.value?.open('Are you sure you want to remove this member from your book?', { color: 'error' }).then(() => {
+        removeMember(book, member).then(() => {
+            snackbar.value?.showMessage('You have removed this member from your book');
+        }).catch(showError);
+    });
+}
+
+function toggleAccount(book: BookInfoResponse, accountId: string, shared: boolean): void {
+    setAccountShared(book, accountId, shared).catch(showError);
+}
+
+reloadAll().catch(showError);
 </script>

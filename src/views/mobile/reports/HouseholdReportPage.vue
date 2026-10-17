@@ -38,13 +38,24 @@
                     <span>{{ formatAmount(report.totalNetWorth) }}</span>
                 </div>
                 <div class="margin-top-half text-color-gray">
-                    <small>{{ tt('Totals of every book you can open, including books shared with you.') }}</small>
+                    <small>{{ tt('Choose the books to include. Your own book holds your personal records, and each shared book holds the records of its members.') }}</small>
                 </div>
                 <div class="text-color-gray" v-if="report.incomplete">
                     <small>{{ tt('Some amounts are left out because their currency has no exchange rate.') }}</small>
                 </div>
             </f7-card-content>
         </f7-card>
+
+        <f7-list strong inset dividers v-if="availableBooks.length > 1">
+            <f7-list-item checkbox
+                          :key="book.id"
+                          :title="book.name"
+                          :checked="book.included"
+                          :disabled="loading"
+                          v-for="book in availableBooks"
+                          @change="setBookIncluded(book.id, $event.target.checked)">
+            </f7-list-item>
+        </f7-list>
 
         <f7-block-title>{{ tt('Book') }}</f7-block-title>
         <f7-list strong inset dividers media-list :class="{ 'skeleton-text': loading }">
@@ -89,8 +100,10 @@ const {
     loading,
     periodType,
     periodDisplayName,
+    availableBooks,
     report,
     loadReport,
+    setBookIncluded,
     setPeriodType,
     changePeriod,
     formatAmount,

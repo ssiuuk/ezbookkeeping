@@ -3,7 +3,8 @@ import { defineStore } from 'pinia';
 
 import type {
     BookInfoResponse,
-    BookMemberInfoResponse
+    BookMemberInfoResponse,
+    BookSharedAccountInfoResponse
 } from '@/models/book.ts';
 
 import { getCurrentBookId, setCurrentBookId, clearUserTransactionDraft } from '@/lib/userstate.ts';
@@ -21,7 +22,7 @@ export const useBooksStore = defineStore('books', () => {
             return allBooks.value.find(book => book.id === currentBookId.value);
         }
 
-        return allBooks.value.find(book => book.isOwner);
+        return allBooks.value.find(book => book.isPersonal);
     });
 
     const isInSharedBook = computed<boolean>(() => !!currentBookId.value);
@@ -36,8 +37,12 @@ export const useBooksStore = defineStore('books', () => {
         return member ? (member.nickname || member.username) : '';
     }
 
+    function getRequestBookId(book: BookInfoResponse): string | null {
+        return book.isPersonal ? null : book.id;
+    }
+
     function switchBook(book: BookInfoResponse): void {
-        setCurrentBookId(book.isOwner ? null : book.id);
+        setCurrentBookId(getRequestBookId(book));
         clearUserTransactionDraft();
         window.location.reload();
     }
@@ -46,7 +51,7 @@ export const useBooksStore = defineStore('books', () => {
         return handleApiResponse(services.getBooks(), 'failed to load book list', 'Unable to retrieve book list').then(books => {
             allBooks.value = books;
 
-            if (currentBookId.value && !books.some(book => book.id === currentBookId.value && !book.isOwner)) {
+            if (currentBookId.value && !books.some(book => book.id === currentBookId.value && !book.isPersonal)) {
                 // the shared book is no longer accessible, go back to the user's own book
                 setCurrentBookId(null);
                 currentBookId.value = null;
@@ -78,18 +83,37 @@ export const useBooksStore = defineStore('books', () => {
         });
     }
 
-    function addBookMember(username: string): Promise<BookMemberInfoResponse> {
-        return handleApiResponse(services.addBookMember({ username }), 'failed to add book member', 'Unable to add book member').then(member => {
-            currentBookMembers.value.push(member);
-            return member;
+    function createBook(name: string): Promise<BookInfoResponse> {
+        return handleApiResponse(services.addBook({ name }), 'failed to create shared book', 'Unable to create shared book').then(book => {
+            allBooks.value.push(book);
+            return book;
         });
     }
 
-    function removeBookMember(memberId: string): Promise<boolean> {
-        return handleApiResponse(services.removeBookMember({ memberId }), 'failed to remove book member', 'Unable to remove book member').then(result => {
-            currentBookMembers.value = currentBookMembers.value.filter(member => member.id !== memberId);
+    function renameBook(bookId: string, name: string): Promise<boolean> {
+        return handleApiResponse(services.modifyBook({ id: bookId, name }), 'failed to rename shared book', 'Unable to rename shared book').then(result => {
+            allBooks.value = allBooks.value.map(book => book.id === bookId ? { ...book, name } : book);
             return result;
         });
+    }
+
+    function deleteBook(bookId: string): Promise<boolean> {
+        return handleApiResponse(services.deleteBook({ id: bookId }), 'failed to delete shared book', 'Unable to delete shared book').then(result => {
+            allBooks.value = allBooks.value.filter(book => book.id !== bookId);
+            return result;
+        });
+    }
+
+    function loadBookMembers(bookId: string): Promise<BookMemberInfoResponse[]> {
+        return handleApiResponse(services.getBookMembers({ bookId }), 'failed to load book members', 'Unable to retrieve book members');
+    }
+
+    function addBookMember(bookId: string, username: string): Promise<BookMemberInfoResponse> {
+        return handleApiResponse(services.addBookMember({ username }, { bookId }), 'failed to add book member', 'Unable to add book member');
+    }
+
+    function removeBookMember(bookId: string, memberId: string): Promise<boolean> {
+        return handleApiResponse(services.removeBookMember({ memberId }, { bookId }), 'failed to remove book member', 'Unable to remove book member');
     }
 
     function leaveBook(bookId: string): Promise<boolean> {
@@ -97,6 +121,18 @@ export const useBooksStore = defineStore('books', () => {
             allBooks.value = allBooks.value.filter(book => book.id !== bookId);
             return result;
         });
+    }
+
+    function loadBookSharedAccounts(bookId: string): Promise<BookSharedAccountInfoResponse[]> {
+        return handleApiResponse(services.getBookSharedAccounts({ bookId }), 'failed to load shared accounts', 'Unable to retrieve shared accounts');
+    }
+
+    function shareAccountToBook(bookId: string, accountId: string): Promise<boolean> {
+        return handleApiResponse(services.shareAccountToBook({ accountId }, { bookId }), 'failed to share account', 'Unable to share account');
+    }
+
+    function unshareAccountFromBook(bookId: string, accountId: string): Promise<boolean> {
+        return handleApiResponse(services.unshareAccountFromBook({ accountId }, { bookId }), 'failed to stop sharing account', 'Unable to stop sharing account');
     }
 
     return {
@@ -110,13 +146,21 @@ export const useBooksStore = defineStore('books', () => {
         hasSharedBooks,
         // functions
         getMemberDisplayName,
+        getRequestBookId,
         initBooks,
         switchBook,
         loadAllBooks,
         loadCurrentBookMembers,
         resetBooks,
+        createBook,
+        renameBook,
+        deleteBook,
+        loadBookMembers,
         addBookMember,
         removeBookMember,
-        leaveBook
+        leaveBook,
+        loadBookSharedAccounts,
+        shareAccountToBook,
+        unshareAccountFromBook
     };
 });

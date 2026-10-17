@@ -50,7 +50,7 @@ func (a *ExchangeRatesApi) UserCustomExchangeRateUpdateHandler(c *core.WebContex
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		log.Errorf(c, "[exchange_rates.UserCustomExchangeRateUpdateHandler] failed to get user \"uid:%d\", because %s", uid, err.Error())
@@ -83,7 +83,7 @@ func (a *ExchangeRatesApi) UserCustomExchangeRateDeleteHandler(c *core.WebContex
 	}
 
 	uid := c.GetCurrentBookUid()
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		log.Errorf(c, "[exchange_rates.UserCustomExchangeRateDeleteHandler] failed to get user \"uid:%d\", because %s", uid, err.Error())

@@ -180,7 +180,12 @@ import type {
     BookMemberInfoResponse,
     BookMemberAddRequest,
     BookMemberRemoveRequest,
-    BookLeaveRequest
+    BookLeaveRequest,
+    BookSharedAccountInfoResponse,
+    BookCreateRequest,
+    BookModifyRequest,
+    BookDeleteRequest,
+    BookAccountShareRequest
 } from '@/models/book.ts';
 import type {
     TransactionCategoryBudgetSaveRequest,
@@ -450,17 +455,35 @@ export default {
     getBooks: (): ApiResponsePromise<BookInfoResponse[]> => {
         return axios.get<ApiResponse<BookInfoResponse[]>>('v1/books/list.json');
     },
-    getBookMembers: (): ApiResponsePromise<BookMemberInfoResponse[]> => {
-        return axios.get<ApiResponse<BookMemberInfoResponse[]>>('v1/books/members/list.json');
+    addBook: (req: BookCreateRequest): ApiResponsePromise<BookInfoResponse> => {
+        return axios.post<ApiResponse<BookInfoResponse>>('v1/books/add.json', req);
     },
-    addBookMember: (req: BookMemberAddRequest): ApiResponsePromise<BookMemberInfoResponse> => {
-        return axios.post<ApiResponse<BookMemberInfoResponse>>('v1/books/members/add.json', req);
+    modifyBook: (req: BookModifyRequest): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/books/modify.json', req);
     },
-    removeBookMember: (req: BookMemberRemoveRequest): ApiResponsePromise<boolean> => {
-        return axios.post<ApiResponse<boolean>>('v1/books/members/remove.json', req);
+    deleteBook: (req: BookDeleteRequest): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/books/delete.json', req);
+    },
+    getBookMembers: (options?: BookRequestOptions): ApiResponsePromise<BookMemberInfoResponse[]> => {
+        return axios.get<ApiResponse<BookMemberInfoResponse[]>>('v1/books/members/list.json', options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    addBookMember: (req: BookMemberAddRequest, options?: BookRequestOptions): ApiResponsePromise<BookMemberInfoResponse> => {
+        return axios.post<ApiResponse<BookMemberInfoResponse>>('v1/books/members/add.json', req, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    removeBookMember: (req: BookMemberRemoveRequest, options?: BookRequestOptions): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/books/members/remove.json', req, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },
     leaveBook: (req: BookLeaveRequest): ApiResponsePromise<boolean> => {
-        return axios.post<ApiResponse<boolean>>('v1/books/leave.json', req);
+        return axios.post<ApiResponse<boolean>>('v1/books/leave.json', req, { bookId: null } as ApiRequestConfig);
+    },
+    getBookSharedAccounts: (options?: BookRequestOptions): ApiResponsePromise<BookSharedAccountInfoResponse[]> => {
+        return axios.get<ApiResponse<BookSharedAccountInfoResponse[]>>('v1/books/accounts/list.json', options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    shareAccountToBook: (req: BookAccountShareRequest, options?: BookRequestOptions): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/books/accounts/share.json', req, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    unshareAccountFromBook: (req: BookAccountShareRequest, options?: BookRequestOptions): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/books/accounts/unshare.json', req, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },
     getExternalAuths: (): ApiResponsePromise<UserExternalAuthInfoResponse[]> => {
         return axios.get<ApiResponse<UserExternalAuthInfoResponse[]>>('v1/users/external_auth/list.json');
