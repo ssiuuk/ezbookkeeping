@@ -197,6 +197,7 @@ func startWebServer(c *core.CliContext) error {
 	if config.EnableTransactionPictures {
 		pictureRoute := router.Group("/pictures")
 		pictureRoute.Use(bindMiddleware(middlewares.JWTAuthorizationByQueryString(config), config))
+		pictureRoute.Use(bindMiddleware(middlewares.BookAccess(config), config))
 		{
 			pictureRoute.GET("/:fileName", bindImage(api.TransactionPictures.TransactionPictureGetHandler, config))
 		}
@@ -205,6 +206,7 @@ func startWebServer(c *core.CliContext) error {
 	if config.EnableUserCustomIcon {
 		customIconRoute := router.Group("/icons")
 		customIconRoute.Use(bindMiddleware(middlewares.JWTAuthorizationByQueryString(config), config))
+		customIconRoute.Use(bindMiddleware(middlewares.BookAccess(config), config))
 		{
 			customIconRoute.GET("/:fileName", bindImage(api.UserCustomIcons.CustomIconGetHandler, config))
 		}
@@ -336,6 +338,7 @@ func startWebServer(c *core.CliContext) error {
 		apiV1Route := apiRoute.Group("/v1")
 		apiV1Route.Use(bindMiddleware(middlewares.JWTAuthorizationByHeader(config), config))
 		apiV1Route.Use(bindMiddleware(middlewares.APITokenIpLimit(config), config))
+		apiV1Route.Use(bindMiddleware(middlewares.BookAccess(config), config))
 		{
 			// Tokens
 			apiV1Route.GET("/tokens/list.json", bindApi(api.Tokens.TokenListHandler, config))
