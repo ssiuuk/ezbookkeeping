@@ -77,6 +77,17 @@
                                     </v-btn>
                                 </router-link>
 
+                                <router-link to="/reports/household"
+                                             :aria-current="isTopNavigationActive('/reports/household') ? 'page' : undefined">
+                                    <v-btn class="top-navigation-button ms-1" density="comfortable" variant="text"
+                                           :aria-label="tt('Household Report')" :icon="true"
+                                           :active="isTopNavigationActive('/reports/household')"
+                                           :color="isTopNavigationActive('/reports/household') ? 'primary' : 'default'">
+                                        <v-icon :icon="mdiHomeGroup" size="24" />
+                                        <v-tooltip activator="parent">{{ tt('Household Report') }}</v-tooltip>
+                                    </v-btn>
+                                </router-link>
+
                                 <router-link to="/insights/explorer"
                                              :aria-current="isTopNavigationActive('/insights/explorer') ? 'page' : undefined">
                                     <v-btn class="top-navigation-button ms-1" density="comfortable" variant="text"
@@ -250,6 +261,7 @@ import {
     mdiCompassOutline,
     mdiPiggyBank,
     mdiPiggyBankOutline,
+    mdiHomeGroup,
     mdiPlus,
     mdiCellphone,
     mdiThemeLightDark,

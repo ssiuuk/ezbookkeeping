@@ -1,5 +1,5 @@
 <template>
-    <v-row class="match-height">
+    <v-row>
         <v-col cols="12">
             <v-card>
                 <template #title>
