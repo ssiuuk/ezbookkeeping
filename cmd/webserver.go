@@ -451,6 +451,8 @@ func startWebServer(c *core.CliContext) error {
 			apiV1Route.GET("/transaction/categories/list.json", bindApi(api.TransactionCategories.CategoryListHandler, config))
 			apiV1Route.GET("/transaction/categories/get.json", bindApi(api.TransactionCategories.CategoryGetHandler, config))
 			apiV1Route.POST("/transaction/categories/add.json", bindApi(api.TransactionCategories.CategoryCreateHandler, config))
+			apiV1Route.GET("/transaction/categories/budgets/list.json", bindApi(api.TransactionCategoryBudgets.BudgetListHandler, config))
+			apiV1Route.POST("/transaction/categories/budgets/save.json", bindApi(api.TransactionCategoryBudgets.BudgetSaveHandler, config))
 			apiV1Route.POST("/transaction/categories/add_batch.json", bindApi(api.TransactionCategories.CategoryCreateBatchHandler, config))
 			apiV1Route.POST("/transaction/categories/modify.json", bindApi(api.TransactionCategories.CategoryModifyHandler, config))
 			apiV1Route.POST("/transaction/categories/hide.json", bindApi(api.TransactionCategories.CategoryHideHandler, config))

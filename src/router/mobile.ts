@@ -40,6 +40,7 @@ import UserProfilePage from '@/views/mobile/users/UserProfilePage.vue';
 import DataManagementPage from '@/views/mobile/users/DataManagementPage.vue';
 import TwoFactorAuthPage from '@/views/mobile/users/TwoFactorAuthPage.vue';
 import SharedBooksPage from '@/views/mobile/users/SharedBooksPage.vue';
+import BudgetPage from '@/views/mobile/budgets/BudgetPage.vue';
 import SessionListPage from '@/views/mobile/users/SessionListPage.vue';
 
 import CategoryAllPage from '@/views/mobile/categories/AllPage.vue';
@@ -312,6 +313,11 @@ const routes: Router.RouteParameters[] = [
     {
         path: '/user/books',
         async: asyncResolve(SharedBooksPage),
+        beforeEnter: [checkLogin]
+    },
+    {
+        path: '/budgets',
+        async: asyncResolve(BudgetPage),
         beforeEnter: [checkLogin]
     },
     {
