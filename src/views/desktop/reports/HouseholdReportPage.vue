@@ -1,95 +1,99 @@
 <template>
-    <v-row align-content="start">
-        <v-col cols="12">
-            <v-card>
-                <template #title>
-                    <div class="d-flex align-center flex-wrap">
-                        <span>{{ tt('Household Report') }}</span>
-                        <v-btn-toggle class="ms-3" density="compact" variant="outlined" mandatory divided
-                                      :disabled="loading" :model-value="periodType"
-                                      @update:model-value="setPeriod">
-                            <v-btn value="month">{{ tt('Monthly') }}</v-btn>
-                            <v-btn value="year">{{ tt('Yearly') }}</v-btn>
-                        </v-btn-toggle>
-                        <v-spacer/>
-                        <div class="d-flex align-center">
-                            <v-btn density="comfortable" variant="text" :icon="mdiChevronLeft"
-                                   :aria-label="tt('Previous')" :disabled="loading" @click="changePeriodBy(-1)"/>
-                            <span class="text-body-large mx-2">{{ periodDisplayName }}</span>
-                            <v-btn density="comfortable" variant="text" :icon="mdiChevronRight"
-                                   :aria-label="tt('Next')" :disabled="loading" @click="changePeriodBy(1)"/>
-                        </div>
-                        <v-progress-circular indeterminate size="20" class="ms-3" v-if="loading"></v-progress-circular>
-                    </div>
-                </template>
+    <main-page-layout no-navbar>
+        <template #content>
+            <v-row align-content="start">
+                <v-col cols="12">
+                    <v-card>
+                        <template #title>
+                            <div class="d-flex align-center flex-wrap">
+                                <span>{{ tt('Household Report') }}</span>
+                                <v-btn-toggle class="ms-3" density="compact" variant="outlined" mandatory divided
+                                              :disabled="loading" :model-value="periodType"
+                                              @update:model-value="setPeriod">
+                                    <v-btn value="month">{{ tt('Monthly') }}</v-btn>
+                                    <v-btn value="year">{{ tt('Yearly') }}</v-btn>
+                                </v-btn-toggle>
+                                <v-spacer/>
+                                <div class="d-flex align-center">
+                                    <v-btn density="comfortable" variant="text" :icon="mdiChevronLeft"
+                                           :aria-label="tt('Previous')" :disabled="loading" @click="changePeriodBy(-1)"/>
+                                    <span class="text-body-large mx-2">{{ periodDisplayName }}</span>
+                                    <v-btn density="comfortable" variant="text" :icon="mdiChevronRight"
+                                           :aria-label="tt('Next')" :disabled="loading" @click="changePeriodBy(1)"/>
+                                </div>
+                                <v-progress-circular indeterminate size="20" class="ms-3" v-if="loading"></v-progress-circular>
+                            </div>
+                        </template>
 
-                <v-card-text>
-                    <div class="text-body-medium text-medium-emphasis mb-4">{{ tt('Totals of every book you can open, including books shared with you.') }}</div>
-                    <v-row>
-                        <v-col cols="6" md="">
-                            <div class="text-body-medium text-medium-emphasis">{{ tt('Income') }}</div>
-                            <div class="text-h6 text-income">{{ formatAmount(report.totalIncome) }}</div>
-                        </v-col>
-                        <v-col cols="6" md="">
-                            <div class="text-body-medium text-medium-emphasis">{{ tt('Expense') }}</div>
-                            <div class="text-h6 text-expense">{{ formatAmount(report.totalExpense) }}</div>
-                        </v-col>
-                        <v-col cols="6" md="">
-                            <div class="text-body-medium text-medium-emphasis">{{ tt('Net Cash Flow') }}</div>
-                            <div class="text-h6" :class="{ 'text-error': report.totalNet < 0 }">{{ formatAmount(report.totalNet) }}</div>
-                        </v-col>
-                        <v-col cols="6" md="">
-                            <div class="text-body-medium text-medium-emphasis">{{ tt('Savings Rate') }}</div>
-                            <div class="text-h6">{{ formatSavingsRate(report.savingsRate) }}</div>
-                        </v-col>
-                        <v-col cols="6" md="">
-                            <div class="text-body-medium text-medium-emphasis">{{ tt('Net Worth') }}</div>
-                            <div class="text-h6">{{ formatAmount(report.totalNetWorth) }}</div>
-                        </v-col>
-                    </v-row>
-                    <div class="text-body-small text-medium-emphasis mt-2" v-if="report.incomplete">
-                        {{ tt('Some amounts are left out because their currency has no exchange rate.') }}
-                    </div>
-                </v-card-text>
+                        <v-card-text>
+                            <div class="text-body-medium text-medium-emphasis mb-4">{{ tt('Totals of every book you can open, including books shared with you.') }}</div>
+                            <v-row>
+                                <v-col cols="6" md="">
+                                    <div class="text-body-medium text-medium-emphasis">{{ tt('Income') }}</div>
+                                    <div class="text-h6 text-income">{{ formatAmount(report.totalIncome) }}</div>
+                                </v-col>
+                                <v-col cols="6" md="">
+                                    <div class="text-body-medium text-medium-emphasis">{{ tt('Expense') }}</div>
+                                    <div class="text-h6 text-expense">{{ formatAmount(report.totalExpense) }}</div>
+                                </v-col>
+                                <v-col cols="6" md="">
+                                    <div class="text-body-medium text-medium-emphasis">{{ tt('Net Cash Flow') }}</div>
+                                    <div class="text-h6" :class="{ 'text-error': report.totalNet < 0 }">{{ formatAmount(report.totalNet) }}</div>
+                                </v-col>
+                                <v-col cols="6" md="">
+                                    <div class="text-body-medium text-medium-emphasis">{{ tt('Savings Rate') }}</div>
+                                    <div class="text-h6">{{ formatSavingsRate(report.savingsRate) }}</div>
+                                </v-col>
+                                <v-col cols="6" md="">
+                                    <div class="text-body-medium text-medium-emphasis">{{ tt('Net Worth') }}</div>
+                                    <div class="text-h6">{{ formatAmount(report.totalNetWorth) }}</div>
+                                </v-col>
+                            </v-row>
+                            <div class="text-body-small text-medium-emphasis mt-2" v-if="report.incomplete">
+                                {{ tt('Some amounts are left out because their currency has no exchange rate.') }}
+                            </div>
+                        </v-card-text>
 
-                <v-table class="text-no-wrap">
-                    <thead>
-                    <tr>
-                        <th>{{ tt('Book') }}</th>
-                        <th class="text-right">{{ tt('Income') }}</th>
-                        <th class="text-right">{{ tt('Expense') }}</th>
-                        <th class="text-right">{{ tt('Net Cash Flow') }}</th>
-                        <th class="text-right">{{ tt('Net Worth') }}</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr :key="book.bookId" v-for="book in report.books">
-                        <td>{{ book.bookName }}</td>
-                        <td class="text-right">{{ formatAmount(book.income) }}</td>
-                        <td class="text-right">{{ formatAmount(book.expense) }}</td>
-                        <td class="text-right" :class="{ 'text-error': book.net < 0 }">{{ formatAmount(book.net) }}</td>
-                        <td class="text-right">{{ formatAmount(book.netWorth) }}</td>
-                    </tr>
-                    </tbody>
-                </v-table>
-            </v-card>
-        </v-col>
+                        <v-table class="text-no-wrap">
+                            <thead>
+                            <tr>
+                                <th>{{ tt('Book') }}</th>
+                                <th class="text-right">{{ tt('Income') }}</th>
+                                <th class="text-right">{{ tt('Expense') }}</th>
+                                <th class="text-right">{{ tt('Net Cash Flow') }}</th>
+                                <th class="text-right">{{ tt('Net Worth') }}</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr :key="book.bookId" v-for="book in report.books">
+                                <td>{{ book.bookName }}</td>
+                                <td class="text-right">{{ formatAmount(book.income) }}</td>
+                                <td class="text-right">{{ formatAmount(book.expense) }}</td>
+                                <td class="text-right" :class="{ 'text-error': book.net < 0 }">{{ formatAmount(book.net) }}</td>
+                                <td class="text-right">{{ formatAmount(book.netWorth) }}</td>
+                            </tr>
+                            </tbody>
+                        </v-table>
+                    </v-card>
+                </v-col>
 
-        <v-col cols="12">
-            <v-card :title="tt('Expense by Category')">
-                <v-card-text>
-                    <div class="text-body-medium text-medium-emphasis" v-if="!loading && !report.expenseByCategory.length">{{ tt('No data') }}</div>
-                    <div class="mb-3" :key="item.name" v-for="item in report.expenseByCategory">
-                        <div class="d-flex justify-space-between text-body-medium">
-                            <span>{{ item.name }}</span>
-                            <span>{{ formatAmount(item.amount) }}</span>
-                        </div>
-                        <v-progress-linear rounded height="6" color="expense" :model-value="item.percent"/>
-                    </div>
-                </v-card-text>
-            </v-card>
-        </v-col>
-    </v-row>
+                <v-col cols="12">
+                    <v-card :title="tt('Expense by Category')">
+                        <v-card-text>
+                            <div class="text-body-medium text-medium-emphasis" v-if="!loading && !report.expenseByCategory.length">{{ tt('No data') }}</div>
+                            <div class="mb-3" :key="item.name" v-for="item in report.expenseByCategory">
+                                <div class="d-flex justify-space-between text-body-medium">
+                                    <span>{{ item.name }}</span>
+                                    <span>{{ formatAmount(item.amount) }}</span>
+                                </div>
+                                <v-progress-linear rounded height="6" color="expense" :model-value="item.percent"/>
+                            </div>
+                        </v-card-text>
+                    </v-card>
+                </v-col>
+            </v-row>
+        </template>
+    </main-page-layout>
 
     <snack-bar ref="snackbar" />
 </template>

@@ -407,6 +407,29 @@
             </f7-list-item>
 
             <f7-list-item
+                link="#"
+                :no-chevron="mode === TransactionEditPageMode.View"
+                class="list-item-with-header-and-title list-item-title-hide-overflow"
+                :class="{ 'readonly': mode === TransactionEditPageMode.View }"
+                :header="tt('Project')"
+                :title="transactionProjectName"
+                v-if="showProjectField"
+                @click="showProjectPopup = true"
+            >
+                <list-item-selection-popup value-type="item"
+                                           key-field="id" value-field="id"
+                                           title-field="name"
+                                           :title="tt('Project')"
+                                           :enable-filter="allProjectSelectItems.length > 8"
+                                           :filter-placeholder="tt('Project')"
+                                           :filter-no-items-text="tt('No results')"
+                                           :items="allProjectSelectItems"
+                                           v-model="transaction.projectId"
+                                           v-model:show="showProjectPopup">
+                </list-item-selection-popup>
+            </f7-list-item>
+
+            <f7-list-item
                 link="#" no-chevron
                 :header="tt('Pictures')"
                 v-if="showTransactionPictures || (transaction.pictures && transaction.pictures.length > 0)"
@@ -577,6 +600,7 @@ import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 import { useTransactionsStore } from '@/stores/transaction.ts';
 import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
 import { useBooksStore } from '@/stores/book.ts';
+import { useProjectsStore } from '@/stores/project.ts';
 import { useEntryBookSelectionBase } from '@/views/base/books/EntryBookSelectionBase.ts';
 import type { BookInfoResponse } from '@/models/book.ts';
 
@@ -658,6 +682,9 @@ const {
     numeralSystem,
     currentTimezoneOffsetMinutes,
     defaultCurrency,
+    showProjectField,
+    allProjectSelectItems,
+    transactionProjectName,
     firstDayOfWeek,
     imageUploadQualityType,
     allTimezones,
@@ -706,6 +733,7 @@ const transactionTagsStore = useTransactionTagsStore();
 const transactionsStore = useTransactionsStore();
 const transactionTemplatesStore = useTransactionTemplatesStore();
 const booksStore = useBooksStore();
+const projectsStore = useProjectsStore();
 
 const {
     allBooks,
@@ -746,6 +774,7 @@ const showScheduledStartDateSheet = ref<boolean>(false);
 const showScheduledEndDateSheet = ref<boolean>(false);
 const showGeoLocationMapSheet = ref<boolean>(false);
 const showTransactionTagSheet = ref<boolean>(false);
+const showProjectPopup = ref<boolean>(false);
 const showTransactionPictures = ref<boolean>(pageTypeAndMode?.type === TransactionEditPageType.Transaction
     && (pageTypeAndMode?.mode === TransactionEditPageMode.Add || pageTypeAndMode?.mode === TransactionEditPageMode.Edit)
     && settingsStore.appSettings.alwaysShowTransactionPicturesInMobileTransactionEditPage);
@@ -1009,6 +1038,9 @@ function init(): void {
         transactionTagsStore.loadAllTags({ force: false }),
         transactionTemplatesStore.loadAllTemplates({ force: false, templateType: TemplateType.Normal.type })
     ];
+
+    // projects are optional for a transaction, so failing to load them should not block the page
+    projectsStore.loadAllProjects({ force: false }).catch(error => logger.warn('failed to load projects', error));
 
     if (pageTypeAndMode.type === TransactionEditPageType.Transaction) {
         if (query['id']) {

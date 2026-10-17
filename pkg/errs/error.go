@@ -47,6 +47,7 @@ const (
 	NormalSubcategoryTagGroup               = 19
 	NormalSubcategoryUserCustomIcon         = 20
 	NormalSubcategoryBook                   = 21
+	NormalSubcategoryProject                = 22
 )
 
 // Error represents the specific error returned to user

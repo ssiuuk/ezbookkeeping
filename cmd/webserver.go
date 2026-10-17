@@ -459,6 +459,15 @@ func startWebServer(c *core.CliContext) error {
 			apiV1Route.POST("/transaction/categories/move.json", bindApi(api.TransactionCategories.CategoryMoveHandler, config))
 			apiV1Route.POST("/transaction/categories/delete.json", bindApi(api.TransactionCategories.CategoryDeleteHandler, config))
 
+			// Projects
+			apiV1Route.GET("/projects/list.json", bindApi(api.Projects.ProjectListHandler, config))
+			apiV1Route.GET("/projects/get.json", bindApi(api.Projects.ProjectGetHandler, config))
+			apiV1Route.POST("/projects/add.json", bindApi(api.Projects.ProjectCreateHandler, config))
+			apiV1Route.POST("/projects/modify.json", bindApi(api.Projects.ProjectModifyHandler, config))
+			apiV1Route.POST("/projects/hide.json", bindApi(api.Projects.ProjectHideHandler, config))
+			apiV1Route.POST("/projects/move.json", bindApi(api.Projects.ProjectMoveHandler, config))
+			apiV1Route.POST("/projects/delete.json", bindApi(api.Projects.ProjectDeleteHandler, config))
+
 			// Transaction Tag Groups
 			apiV1Route.GET("/transaction/tags/groups/list.json", bindApi(api.TransactionTagGroups.TagGroupListHandler, config))
 			apiV1Route.GET("/transaction/tags/groups/get.json", bindApi(api.TransactionTagGroups.TagGroupGetHandler, config))

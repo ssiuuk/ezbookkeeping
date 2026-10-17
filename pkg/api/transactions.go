@@ -100,7 +100,7 @@ func (a *TransactionsApi) TransactionCountHandler(c *core.WebContext) (any, *err
 		}
 	}
 
-	totalCount, err := a.transactions.GetTransactionCount(c, uid, transactionCountReq.MaxTime, transactionCountReq.MinTime, transactionCountReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionCountReq.AmountFilter, transactionCountReq.Keyword, transactionCountReq.MatchMode, transactionCountReq.MustHavePictures)
+	totalCount, err := a.transactions.GetTransactionCount(c, uid, transactionCountReq.MaxTime, transactionCountReq.MinTime, transactionCountReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionCountReq.AmountFilter, transactionCountReq.Keyword, transactionCountReq.MatchMode, transactionCountReq.MustHavePictures, transactionCountReq.ProjectId)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionCountHandler] failed to get transaction count for user \"uid:%d\", because %s", uid, err.Error())
@@ -171,7 +171,7 @@ func (a *TransactionsApi) TransactionListHandler(c *core.WebContext) (any, *errs
 	var totalCount int64
 
 	if transactionListReq.WithCount {
-		totalCount, err = a.transactions.GetTransactionCount(c, uid, transactionListReq.MaxTime, transactionListReq.MinTime, transactionListReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionListReq.AmountFilter, transactionListReq.Keyword, transactionListReq.MatchMode, transactionListReq.MustHavePictures)
+		totalCount, err = a.transactions.GetTransactionCount(c, uid, transactionListReq.MaxTime, transactionListReq.MinTime, transactionListReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionListReq.AmountFilter, transactionListReq.Keyword, transactionListReq.MatchMode, transactionListReq.MustHavePictures, transactionListReq.ProjectId)
 
 		if err != nil {
 			log.Errorf(c, "[transactions.TransactionListHandler] failed to get transaction count for user \"uid:%d\", because %s", uid, err.Error())
@@ -179,7 +179,7 @@ func (a *TransactionsApi) TransactionListHandler(c *core.WebContext) (any, *errs
 		}
 	}
 
-	transactions, err := a.transactions.GetTransactionsByMaxTime(c, uid, transactionListReq.MaxTime, transactionListReq.MinTime, transactionListReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionListReq.AmountFilter, transactionListReq.Keyword, transactionListReq.MatchMode, transactionListReq.MustHavePictures, transactionListReq.Page, transactionListReq.Count, true, true)
+	transactions, err := a.transactions.GetTransactionsByMaxTime(c, uid, transactionListReq.MaxTime, transactionListReq.MinTime, transactionListReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionListReq.AmountFilter, transactionListReq.Keyword, transactionListReq.MatchMode, transactionListReq.MustHavePictures, transactionListReq.ProjectId, transactionListReq.Page, transactionListReq.Count, true, true)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionListHandler] failed to get transactions earlier than \"%d\" for user \"uid:%d\", because %s", transactionListReq.MaxTime, uid, err.Error())
@@ -279,7 +279,7 @@ func (a *TransactionsApi) TransactionMonthListHandler(c *core.WebContext) (any, 
 		}
 	}
 
-	transactions, err := a.transactions.GetTransactionsInMonthByPage(c, uid, transactionListReq.Year, transactionListReq.Month, transactionListReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionListReq.AmountFilter, transactionListReq.Keyword, transactionListReq.MatchMode, transactionListReq.MustHavePictures)
+	transactions, err := a.transactions.GetTransactionsInMonthByPage(c, uid, transactionListReq.Year, transactionListReq.Month, transactionListReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionListReq.AmountFilter, transactionListReq.Keyword, transactionListReq.MatchMode, transactionListReq.MustHavePictures, transactionListReq.ProjectId)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionMonthListHandler] failed to get transactions in month \"%d-%d\" for user \"uid:%d\", because %s", transactionListReq.Year, transactionListReq.Month, uid, err.Error())
@@ -640,7 +640,7 @@ func (a *TransactionsApi) TransactionStatisticsHandler(c *core.WebContext) (any,
 	}
 
 	uid := c.GetCurrentBookUid()
-	totalAmounts, err := a.transactions.GetAccountsAndCategoriesTotalInflowAndOutflow(c, uid, statisticReq.StartTime, statisticReq.EndTime, tagFilters, noTags, statisticReq.Keyword, statisticReq.MatchMode, clientTimezone, statisticReq.UseTransactionTimezone)
+	totalAmounts, err := a.transactions.GetAccountsAndCategoriesTotalInflowAndOutflow(c, uid, statisticReq.StartTime, statisticReq.EndTime, tagFilters, noTags, statisticReq.Keyword, statisticReq.MatchMode, statisticReq.ProjectId, clientTimezone, statisticReq.UseTransactionTimezone)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionStatisticsHandler] failed to get accounts and categories total income and expense for user \"uid:%d\", because %s", uid, err.Error())
@@ -708,7 +708,7 @@ func (a *TransactionsApi) TransactionStatisticsTrendsHandler(c *core.WebContext)
 	}
 
 	uid := c.GetCurrentBookUid()
-	allMonthlyTotalAmounts, err := a.transactions.GetAccountsAndCategoriesMonthlyInflowAndOutflow(c, uid, startYear, startMonth, endYear, endMonth, tagFilters, noTags, statisticTrendsReq.Keyword, statisticTrendsReq.MatchMode, clientTimezone, statisticTrendsReq.UseTransactionTimezone)
+	allMonthlyTotalAmounts, err := a.transactions.GetAccountsAndCategoriesMonthlyInflowAndOutflow(c, uid, startYear, startMonth, endYear, endMonth, tagFilters, noTags, statisticTrendsReq.Keyword, statisticTrendsReq.MatchMode, statisticTrendsReq.ProjectId, clientTimezone, statisticTrendsReq.UseTransactionTimezone)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionStatisticsTrendsHandler] failed to get accounts and categories total income and expense for user \"uid:%d\", because %s", uid, err.Error())
@@ -1504,6 +1504,7 @@ func (a *TransactionsApi) TransactionModifyHandler(c *core.WebContext) (any, *er
 		Amount:            transactionModifyReq.SourceAmount,
 		HideAmount:        transactionModifyReq.HideAmount,
 		Comment:           transactionModifyReq.Comment,
+		ProjectId:         transactionModifyReq.ProjectId,
 	}
 
 	if newTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT {
@@ -1526,6 +1527,7 @@ func (a *TransactionsApi) TransactionModifyHandler(c *core.WebContext) (any, *er
 		(newTransaction.Type != models.TRANSACTION_DB_TYPE_TRANSFER_OUT || newTransaction.RelatedAccountAmount == transaction.RelatedAccountAmount) &&
 		newTransaction.HideAmount == transaction.HideAmount &&
 		newTransaction.Comment == transaction.Comment &&
+		newTransaction.ProjectId == transaction.ProjectId &&
 		newTransaction.GeoLongitude == transaction.GeoLongitude &&
 		newTransaction.GeoLatitude == transaction.GeoLatitude &&
 		utils.Int64SliceEquals(tagIds, transactionTagIds) &&
@@ -3274,6 +3276,7 @@ func (a *TransactionsApi) createNewTransactionModel(uid int64, creatorUid int64,
 		Amount:            transactionCreateReq.SourceAmount,
 		HideAmount:        transactionCreateReq.HideAmount,
 		Comment:           transactionCreateReq.Comment,
+		ProjectId:         transactionCreateReq.ProjectId,
 		CreatedIp:         clientIp,
 		CreatedByUid:      creatorUid,
 	}

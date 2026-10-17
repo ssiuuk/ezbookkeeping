@@ -183,6 +183,14 @@ import type {
     BookLeaveRequest
 } from '@/models/book.ts';
 import type {
+    ProjectCreateRequest,
+    ProjectModifyRequest,
+    ProjectHideRequest,
+    ProjectMoveRequest,
+    ProjectDeleteRequest,
+    ProjectInfoResponse
+} from '@/models/project.ts';
+import type {
     TransactionCategoryBudgetSaveRequest,
     TransactionCategoryBudgetInfoResponse
 } from '@/models/transaction_category_budget.ts';
@@ -605,13 +613,13 @@ export default {
         const tagFilter = encodeURIComponent(req.tagFilter);
         const amountFilter = encodeURIComponent(req.amountFilter);
         const keyword = encodeURIComponent(req.keyword);
-        return axios.get<ApiResponse<TransactionInfoPageWrapperResponse>>(`v1/transactions/list.json?max_time=${req.maxTime}&min_time=${req.minTime}&type=${req.type}&category_ids=${req.categoryIds}&account_ids=${req.accountIds}&tag_filter=${tagFilter}&amount_filter=${amountFilter}&keyword=${keyword}&match_mode=${req.matchMode}&must_have_pictures=${!!req.mustHavePictures}&count=${req.count}&page=${req.page}&with_count=${req.withCount}&with_pictures=${!!req.withPictures}&trim_account=true&trim_category=true&trim_tag=true`);
+        return axios.get<ApiResponse<TransactionInfoPageWrapperResponse>>(`v1/transactions/list.json?max_time=${req.maxTime}&min_time=${req.minTime}&type=${req.type}&category_ids=${req.categoryIds}&account_ids=${req.accountIds}&tag_filter=${tagFilter}&amount_filter=${amountFilter}&keyword=${keyword}&match_mode=${req.matchMode}&must_have_pictures=${!!req.mustHavePictures}&count=${req.count}&page=${req.page}&with_count=${req.withCount}&with_pictures=${!!req.withPictures}&trim_account=true&trim_category=true&trim_tag=true` + (req.projectId ? `&project_id=${req.projectId}` : ''));
     },
     getAllTransactionsByMonth: (req: TransactionListInMonthByPageRequest): ApiResponsePromise<TransactionInfoPageWrapperResponse2> => {
         const tagFilter = encodeURIComponent(req.tagFilter);
         const amountFilter = encodeURIComponent(req.amountFilter);
         const keyword = encodeURIComponent(req.keyword);
-        return axios.get<ApiResponse<TransactionInfoPageWrapperResponse2>>(`v1/transactions/list/by_month.json?year=${req.year}&month=${req.month}&type=${req.type}&category_ids=${req.categoryIds}&account_ids=${req.accountIds}&tag_filter=${tagFilter}&amount_filter=${amountFilter}&keyword=${keyword}&match_mode=${req.matchMode}&must_have_pictures=${!!req.mustHavePictures}&with_pictures=${!!req.withPictures}&trim_account=true&trim_category=true&trim_tag=true`);
+        return axios.get<ApiResponse<TransactionInfoPageWrapperResponse2>>(`v1/transactions/list/by_month.json?year=${req.year}&month=${req.month}&type=${req.type}&category_ids=${req.categoryIds}&account_ids=${req.accountIds}&tag_filter=${tagFilter}&amount_filter=${amountFilter}&keyword=${keyword}&match_mode=${req.matchMode}&must_have_pictures=${!!req.mustHavePictures}&with_pictures=${!!req.withPictures}&trim_account=true&trim_category=true&trim_tag=true` + (req.projectId ? `&project_id=${req.projectId}` : ''));
     },
     getAllTransactions: (req: TransactionAllListRequest): ApiResponsePromise<TransactionInfoResponse[]> => {
         return axios.get<ApiResponse<TransactionInfoResponse[]>>(`v1/transactions/list/all.json?trim_account=true&with_pictures=${!!req.withPictures}&trim_category=true&trim_tag=true&start_time=${req.startTime}&end_time=${req.endTime}`);
@@ -645,6 +653,10 @@ export default {
             queryParams.push(`match_mode=${req.matchMode}`);
         }
 
+        if (req.projectId) {
+            queryParams.push(`project_id=${req.projectId}`);
+        }
+
         return axios.get<ApiResponse<TransactionStatisticResponse>>(`v1/transactions/statistics.json?use_transaction_timezone=${req.useTransactionTimezone}` + (queryParams.length ? '&' + queryParams.join('&') : ''), options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },
     getTransactionStatisticsTrends: (req: TransactionStatisticTrendsRequest): ApiResponsePromise<TransactionStatisticTrendsResponseItem[]> => {
@@ -668,6 +680,10 @@ export default {
 
         if (req.matchMode) {
             queryParams.push(`match_mode=${req.matchMode}`);
+        }
+
+        if (req.projectId) {
+            queryParams.push(`project_id=${req.projectId}`);
         }
 
         return axios.get<ApiResponse<TransactionStatisticTrendsResponseItem[]>>(`v1/transactions/statistics/trends.json?use_transaction_timezone=${req.useTransactionTimezone}` + (queryParams.length ? '&' + queryParams.join('&') : ''));
@@ -857,6 +873,27 @@ export default {
     },
     saveTransactionCategoryBudgets: (req: TransactionCategoryBudgetSaveRequest): ApiResponsePromise<TransactionCategoryBudgetInfoResponse[]> => {
         return axios.post<ApiResponse<TransactionCategoryBudgetInfoResponse[]>>('v1/transaction/categories/budgets/save.json', req);
+    },
+    getAllProjects: (): ApiResponsePromise<ProjectInfoResponse[]> => {
+        return axios.get<ApiResponse<ProjectInfoResponse[]>>('v1/projects/list.json');
+    },
+    getProject: ({ id }: { id: string }): ApiResponsePromise<ProjectInfoResponse> => {
+        return axios.get<ApiResponse<ProjectInfoResponse>>('v1/projects/get.json?id=' + id);
+    },
+    addProject: (req: ProjectCreateRequest): ApiResponsePromise<ProjectInfoResponse> => {
+        return axios.post<ApiResponse<ProjectInfoResponse>>('v1/projects/add.json', req);
+    },
+    modifyProject: (req: ProjectModifyRequest): ApiResponsePromise<ProjectInfoResponse> => {
+        return axios.post<ApiResponse<ProjectInfoResponse>>('v1/projects/modify.json', req);
+    },
+    hideProject: (req: ProjectHideRequest): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/projects/hide.json', req);
+    },
+    moveProject: (req: ProjectMoveRequest): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/projects/move.json', req);
+    },
+    deleteProject: (req: ProjectDeleteRequest): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/projects/delete.json', req);
     },
     getAllTransactionCategories: (options?: BookRequestOptions): ApiResponsePromise<Record<number, TransactionCategoryInfoResponse[]>> => {
         return axios.get<ApiResponse<Record<number, TransactionCategoryInfoResponse[]>>>('v1/transaction/categories/list.json', options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
