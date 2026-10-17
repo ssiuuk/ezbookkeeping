@@ -197,6 +197,7 @@ func startWebServer(c *core.CliContext) error {
 	if config.EnableTransactionPictures {
 		pictureRoute := router.Group("/pictures")
 		pictureRoute.Use(bindMiddleware(middlewares.JWTAuthorizationByQueryString(config), config))
+		pictureRoute.Use(bindMiddleware(middlewares.BookAccess(config), config))
 		{
 			pictureRoute.GET("/:fileName", bindImage(api.TransactionPictures.TransactionPictureGetHandler, config))
 		}
@@ -205,6 +206,7 @@ func startWebServer(c *core.CliContext) error {
 	if config.EnableUserCustomIcon {
 		customIconRoute := router.Group("/icons")
 		customIconRoute.Use(bindMiddleware(middlewares.JWTAuthorizationByQueryString(config), config))
+		customIconRoute.Use(bindMiddleware(middlewares.BookAccess(config), config))
 		{
 			customIconRoute.GET("/:fileName", bindImage(api.UserCustomIcons.CustomIconGetHandler, config))
 		}
@@ -336,6 +338,7 @@ func startWebServer(c *core.CliContext) error {
 		apiV1Route := apiRoute.Group("/v1")
 		apiV1Route.Use(bindMiddleware(middlewares.JWTAuthorizationByHeader(config), config))
 		apiV1Route.Use(bindMiddleware(middlewares.APITokenIpLimit(config), config))
+		apiV1Route.Use(bindMiddleware(middlewares.BookAccess(config), config))
 		{
 			// Tokens
 			apiV1Route.GET("/tokens/list.json", bindApi(api.Tokens.TokenListHandler, config))
@@ -357,6 +360,13 @@ func startWebServer(c *core.CliContext) error {
 			if config.EnableUserVerifyEmail {
 				apiV1Route.POST("/users/verify_email/resend.json", bindApi(api.Users.UserSendVerifyEmailByLoginedUserHandler, config))
 			}
+
+			// Shared Books
+			apiV1Route.GET("/books/list.json", bindApi(api.Books.BookListHandler, config))
+			apiV1Route.GET("/books/members/list.json", bindApi(api.Books.BookMemberListHandler, config))
+			apiV1Route.POST("/books/members/add.json", bindApi(api.Books.BookMemberAddHandler, config))
+			apiV1Route.POST("/books/members/remove.json", bindApi(api.Books.BookMemberRemoveHandler, config))
+			apiV1Route.POST("/books/leave.json", bindApi(api.Books.BookLeaveHandler, config))
 
 			// External Authentications
 			if config.EnableOAuth2Login {

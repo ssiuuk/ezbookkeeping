@@ -30,7 +30,7 @@ var (
 
 // LatestExchangeRateHandler returns latest exchange rate data
 func (a *ExchangeRatesApi) LatestExchangeRateHandler(c *core.WebContext) (any, *errs.Error) {
-	exchangeRateResponse, err := exchangerates.Container.GetLatestExchangeRates(c, c.GetCurrentUid(), a.CurrentConfig())
+	exchangeRateResponse, err := exchangerates.Container.GetLatestExchangeRates(c, c.GetCurrentBookUid(), a.CurrentConfig())
 
 	if err != nil {
 		return nil, errs.Or(err, errs.ErrOperationFailed)
@@ -49,7 +49,7 @@ func (a *ExchangeRatesApi) UserCustomExchangeRateUpdateHandler(c *core.WebContex
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -82,7 +82,7 @@ func (a *ExchangeRatesApi) UserCustomExchangeRateDeleteHandler(c *core.WebContex
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {

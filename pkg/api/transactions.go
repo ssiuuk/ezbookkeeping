@@ -72,7 +72,7 @@ func (a *TransactionsApi) TransactionCountHandler(c *core.WebContext) (any, *err
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	allAccountIds, err := a.accounts.GetAccountOrSubAccountIds(c, transactionCountReq.AccountIds, uid)
 
@@ -131,7 +131,7 @@ func (a *TransactionsApi) TransactionListHandler(c *core.WebContext) (any, *errs
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -242,7 +242,7 @@ func (a *TransactionsApi) TransactionMonthListHandler(c *core.WebContext) (any, 
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -326,7 +326,7 @@ func (a *TransactionsApi) TransactionListAllHandler(c *core.WebContext) (any, *e
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -426,7 +426,7 @@ func (a *TransactionsApi) TransactionReconciliationStatementHandler(c *core.WebC
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -558,7 +558,7 @@ func (a *TransactionsApi) TransactionUnreconciledTransactionCountsHandler(c *cor
 		}
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -639,7 +639,7 @@ func (a *TransactionsApi) TransactionStatisticsHandler(c *core.WebContext) (any,
 		}
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	totalAmounts, err := a.transactions.GetAccountsAndCategoriesTotalInflowAndOutflow(c, uid, statisticReq.StartTime, statisticReq.EndTime, tagFilters, noTags, statisticReq.Keyword, statisticReq.MatchMode, clientTimezone, statisticReq.UseTransactionTimezone)
 
 	if err != nil {
@@ -707,7 +707,7 @@ func (a *TransactionsApi) TransactionStatisticsTrendsHandler(c *core.WebContext)
 		}
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	allMonthlyTotalAmounts, err := a.transactions.GetAccountsAndCategoriesMonthlyInflowAndOutflow(c, uid, startYear, startMonth, endYear, endMonth, tagFilters, noTags, statisticTrendsReq.Keyword, statisticTrendsReq.MatchMode, clientTimezone, statisticTrendsReq.UseTransactionTimezone)
 
 	if err != nil {
@@ -763,7 +763,7 @@ func (a *TransactionsApi) TransactionStatisticsAssetTrendsHandler(c *core.WebCon
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	maxTransactionTime := int64(0)
 
@@ -871,7 +871,7 @@ func (a *TransactionsApi) TransactionAmountsHandler(c *core.WebContext) (any, *e
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	accounts, err := a.accounts.GetAllAccountsByUid(c, uid)
 	accountMap := a.accounts.GetAccountMapByList(accounts)
@@ -1008,7 +1008,7 @@ func (a *TransactionsApi) TransactionDailyAmountsHandler(c *core.WebContext) (an
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	accounts, err := a.accounts.GetAllAccountsByUid(c, uid)
 	accountMap := a.accounts.GetAccountMapByList(accounts)
 
@@ -1129,7 +1129,7 @@ func (a *TransactionsApi) TransactionGetHandler(c *core.WebContext) (any, *errs.
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -1304,7 +1304,7 @@ func (a *TransactionsApi) TransactionCreateHandler(c *core.WebContext) (any, *er
 		return nil, errs.ErrTransactionDestinationAmountCannotBeSet
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -1315,7 +1315,7 @@ func (a *TransactionsApi) TransactionCreateHandler(c *core.WebContext) (any, *er
 		return nil, errs.ErrUserNotFound
 	}
 
-	transaction := a.createNewTransactionModel(uid, &transactionCreateReq, c.ClientIP())
+	transaction := a.createNewTransactionModel(uid, c.GetCurrentUid(), &transactionCreateReq, c.ClientIP())
 
 	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, []*models.Transaction{transaction})
 
@@ -1426,7 +1426,7 @@ func (a *TransactionsApi) TransactionModifyHandler(c *core.WebContext) (any, *er
 		return nil, errs.ErrTransactionHasTooManyPictures
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -1633,7 +1633,7 @@ func (a *TransactionsApi) TransactionBatchUpdateCategoriesHandler(c *core.WebCon
 		return nil, errs.ErrTransactionIdInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -1739,7 +1739,7 @@ func (a *TransactionsApi) TransactionBatchUpdateAccountsHandler(c *core.WebConte
 		return nil, errs.ErrTransactionIdInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -1909,7 +1909,7 @@ func (a *TransactionsApi) TransactionBatchAddTagsHandler(c *core.WebContext) (an
 
 	tagIds = utils.ToUniqueInt64Slice(tagIds)
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -2034,7 +2034,7 @@ func (a *TransactionsApi) TransactionBatchRemoveTagsHandler(c *core.WebContext) 
 
 	tagIds = utils.ToUniqueInt64Slice(tagIds)
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -2126,7 +2126,7 @@ func (a *TransactionsApi) TransactionBatchClearTagsHandler(c *core.WebContext) (
 		return nil, errs.ErrTransactionIdInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -2199,7 +2199,7 @@ func (a *TransactionsApi) TransactionMoveAllBetweenAccountsHandler(c *core.WebCo
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -2304,7 +2304,7 @@ func (a *TransactionsApi) TransactionDeleteHandler(c *core.WebContext) (any, *er
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -2375,7 +2375,7 @@ func (a *TransactionsApi) TransactionBatchDeleteHandler(c *core.WebContext) (any
 		return nil, errs.ErrTransactionIdInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -2434,7 +2434,7 @@ func (a *TransactionsApi) TransactionBatchDeleteHandler(c *core.WebContext) (any
 
 // TransactionParseImportCustomFileDataHandler returns the parsed file data by request parameters for current user
 func (a *TransactionsApi) TransactionParseImportCustomFileDataHandler(c *core.WebContext) (any, *errs.Error) {
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	form, err := c.MultipartForm()
 
 	if err != nil {
@@ -2511,7 +2511,7 @@ func (a *TransactionsApi) TransactionParseImportCustomFileDataHandler(c *core.We
 
 // TransactionParseImportFileHandler returns the parsed transaction data by request parameters for current user
 func (a *TransactionsApi) TransactionParseImportFileHandler(c *core.WebContext) (any, *errs.Error) {
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	form, err := c.MultipartForm()
 
 	if err != nil {
@@ -2800,7 +2800,7 @@ func (a *TransactionsApi) TransactionImportHandler(c *core.WebContext) (any, *er
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	if a.CurrentConfig().EnableDuplicateSubmissionsCheck && transactionImportReq.ClientSessionId != "" {
 		found, remark := a.GetSubmissionRemark(duplicatechecker.DUPLICATE_CHECKER_TYPE_IMPORT_TRANSACTIONS, uid, transactionImportReq.ClientSessionId)
@@ -2875,7 +2875,7 @@ func (a *TransactionsApi) TransactionImportHandler(c *core.WebContext) (any, *er
 
 	for i := 0; i < len(transactionImportReq.Transactions); i++ {
 		transactionCreateReq := transactionImportReq.Transactions[i]
-		transaction := a.createNewTransactionModel(uid, transactionCreateReq, c.ClientIP())
+		transaction := a.createNewTransactionModel(uid, c.GetCurrentUid(), transactionCreateReq, c.ClientIP())
 		newTransactions[i] = transaction
 	}
 
@@ -2957,7 +2957,7 @@ func (a *TransactionsApi) TransactionImportProcessHandler(c *core.WebContext) (a
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	if !a.CurrentConfig().EnableDuplicateSubmissionsCheck {
 		return nil, nil
@@ -3251,7 +3251,7 @@ func (a *TransactionsApi) setTransactionImportResult(uid int64, clientSessionId 
 	}
 }
 
-func (a *TransactionsApi) createNewTransactionModel(uid int64, transactionCreateReq *models.TransactionCreateRequest, clientIp string) *models.Transaction {
+func (a *TransactionsApi) createNewTransactionModel(uid int64, creatorUid int64, transactionCreateReq *models.TransactionCreateRequest, clientIp string) *models.Transaction {
 	var transactionDbType models.TransactionDbType
 
 	if transactionCreateReq.Type == models.TRANSACTION_TYPE_MODIFY_BALANCE {
@@ -3275,6 +3275,7 @@ func (a *TransactionsApi) createNewTransactionModel(uid int64, transactionCreate
 		HideAmount:        transactionCreateReq.HideAmount,
 		Comment:           transactionCreateReq.Comment,
 		CreatedIp:         clientIp,
+		CreatedByUid:      creatorUid,
 	}
 
 	if transactionCreateReq.Type == models.TRANSACTION_TYPE_TRANSFER {

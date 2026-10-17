@@ -36,6 +36,7 @@ import UserBasicSettingPage from '@/views/desktop/users/UserBasicSettingPage.vue
 import UserSecuritySettingPage from '@/views/desktop/users/UserSecuritySettingPage.vue';
 import TwoFactorAuthPage from '@/views/desktop/users/TwoFactorAuthPage.vue';
 import DataManagementPage from '@/views/desktop/users/DataManagementPage.vue';
+import SharedBooksPage from '@/views/desktop/users/SharedBooksPage.vue';
 import PreferencesSettingsPage from '@/views/desktop/settings/PreferencesSettingsPage.vue';
 import ApplicationLockPage from '@/views/desktop/settings/ApplicationLockPage.vue';
 import StatisticsSettingPage from '@/views/desktop/settings/StatisticsSettingPage.vue';
@@ -212,6 +213,11 @@ const router = createRouter({
                 {
                     path: '/settings/user/two_factor',
                     component: TwoFactorAuthPage,
+                    beforeEnter: checkLogin
+                },
+                {
+                    path: '/settings/user/shared_books',
+                    component: SharedBooksPage,
                     beforeEnter: checkLogin
                 },
                 {

@@ -176,6 +176,13 @@ import type {
     UserExternalAuthInfoResponse
 } from '@/models/user_external_auth.ts';
 import type {
+    BookInfoResponse,
+    BookMemberInfoResponse,
+    BookMemberAddRequest,
+    BookMemberRemoveRequest,
+    BookLeaveRequest
+} from '@/models/book.ts';
+import type {
     OAuth2CallbackLoginRequest
 } from '@/models/oauth2.ts';
 import type {
@@ -194,6 +201,8 @@ import type {
 
 import {
     getCurrentToken,
+    getCurrentBookId,
+    setCurrentBookId,
     clearCurrentTokenAndUserInfo
 } from './userstate.ts';
 
@@ -231,6 +240,26 @@ interface ApiRequestConfig extends AxiosRequestConfig {
 
 export type ApiResponsePromise<T> = Promise<AxiosResponse<ApiResponse<T>>>;
 
+// book used by requests instead of the selected book, e.g. while adding a transaction to another book
+let activeBookIdOverride: string | null | undefined = undefined;
+
+export function setActiveBookIdOverride(bookId: string | null | undefined): void {
+    activeBookIdOverride = bookId;
+}
+
+export function hasActiveBookIdOverride(): boolean {
+    return activeBookIdOverride !== undefined;
+}
+
+function getActiveBookId(): string | null {
+    return activeBookIdOverride !== undefined ? activeBookIdOverride : getCurrentBookId();
+}
+
+function getBookIdQueryString(): string {
+    const bookId = getActiveBookId();
+    return bookId ? `&book_id=${bookId}` : '';
+}
+
 let needBlockRequest = false;
 const blockedRequests: ((token: string | undefined) => void)[] = [];
 const cancelableRequests: Record<string, boolean> = {};
@@ -253,6 +282,12 @@ axios.interceptors.request.use((config: ApiRequestConfig) => {
     }
 
     config.headers['X-Timezone-Name'] = timezoneName;
+
+    const bookId = getActiveBookId();
+
+    if (bookId && !config.noAuth) {
+        config.headers['X-Book-Id'] = bookId;
+    }
 
     if (needBlockRequest && !config.ignoreBlocked) {
         return new Promise(resolve => {
@@ -298,6 +333,14 @@ axios.interceptors.response.use(response => {
             || errorCode === 202012 // token is empty
         ) {
             clearCurrentTokenAndUserInfo(false);
+            location.reload();
+            return Promise.reject({ processed: true });
+        }
+
+        if (getActiveBookId() && (errorCode === 221000 // book id is invalid
+            || errorCode === 221001 // you are not a member of this book
+        )) {
+            setCurrentBookId(null);
             location.reload();
             return Promise.reject({ processed: true });
         }
@@ -394,6 +437,21 @@ export default {
                 blockedRequests.length = 0;
             });
         });
+    },
+    getBooks: (): ApiResponsePromise<BookInfoResponse[]> => {
+        return axios.get<ApiResponse<BookInfoResponse[]>>('v1/books/list.json');
+    },
+    getBookMembers: (): ApiResponsePromise<BookMemberInfoResponse[]> => {
+        return axios.get<ApiResponse<BookMemberInfoResponse[]>>('v1/books/members/list.json');
+    },
+    addBookMember: (req: BookMemberAddRequest): ApiResponsePromise<BookMemberInfoResponse> => {
+        return axios.post<ApiResponse<BookMemberInfoResponse>>('v1/books/members/add.json', req);
+    },
+    removeBookMember: (req: BookMemberRemoveRequest): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/books/members/remove.json', req);
+    },
+    leaveBook: (req: BookLeaveRequest): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/books/leave.json', req);
     },
     getExternalAuths: (): ApiResponsePromise<UserExternalAuthInfoResponse[]> => {
         return axios.get<ApiResponse<UserExternalAuthInfoResponse[]>>('v1/users/external_auth/list.json');
@@ -1025,7 +1083,7 @@ export default {
         }
     },
     getUserCustomIconUrlWithToken(iconId: string | number): string {
-        return `${getBasePath()}/icons/${iconId}.png?token=${getCurrentToken()}`;
+        return `${getBasePath()}/icons/${iconId}.png?token=${getCurrentToken()}${getBookIdQueryString()}`;
     },
     getTransactionPictureUrlWithToken(pictureUrl: string, disableBrowserCache?: boolean | string): string {
         if (!pictureUrl) {
@@ -1034,6 +1092,12 @@ export default {
 
         const params: string[] = [];
         params.push('token=' + getCurrentToken());
+
+        const bookId = getActiveBookId();
+
+        if (bookId) {
+            params.push('book_id=' + bookId);
+        }
 
         if (disableBrowserCache) {
             if (isBoolean(disableBrowserCache)) {

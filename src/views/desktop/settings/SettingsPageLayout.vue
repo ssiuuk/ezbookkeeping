@@ -24,6 +24,12 @@
                     <span class="nav-item-title">{{ tt('Two-Factor Authentication') }}</span>
                 </router-link>
             </li>
+            <li class="nav-link">
+                <router-link to="/settings/user/shared_books">
+                    <v-icon class="nav-item-icon" :icon="mdiAccountMultipleOutline"/>
+                    <span class="nav-item-title">{{ tt('Shared Books') }}</span>
+                </router-link>
+            </li>
 
             <li class="nav-section-title">
                 <div class="title-wrapper">
@@ -138,6 +144,7 @@ import {
     mdiAccountOutline,
     mdiShieldAccountOutline,
     mdiOnepassword,
+    mdiAccountMultipleOutline,
     mdiRhombusSplitOutline,
     mdiPoundBoxOutline,
     mdiClipboardTextOutline,

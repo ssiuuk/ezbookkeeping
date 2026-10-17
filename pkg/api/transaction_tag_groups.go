@@ -24,7 +24,7 @@ var (
 
 // TagGroupListHandler returns transaction tag group list of current user
 func (a *TransactionTagGroupsApi) TagGroupListHandler(c *core.WebContext) (any, *errs.Error) {
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	tagGroups, err := a.tagGroups.GetAllTagGroupsByUid(c, uid)
 
 	if err != nil {
@@ -53,7 +53,7 @@ func (a *TransactionTagGroupsApi) TagGroupGetHandler(c *core.WebContext) (any, *
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	tagGroup, err := a.tagGroups.GetTagGroupByTagGroupId(c, uid, tagGroupGetReq.Id)
 
 	if err != nil {
@@ -76,7 +76,7 @@ func (a *TransactionTagGroupsApi) TagGroupCreateHandler(c *core.WebContext) (any
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	maxOrderId, err := a.tagGroups.GetMaxDisplayOrder(c, uid)
 
@@ -111,7 +111,7 @@ func (a *TransactionTagGroupsApi) TagGroupModifyHandler(c *core.WebContext) (any
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	tagGroup, err := a.tagGroups.GetTagGroupByTagGroupId(c, uid, tagGroupModifyReq.Id)
 
 	if err != nil {
@@ -154,7 +154,7 @@ func (a *TransactionTagGroupsApi) TagGroupMoveHandler(c *core.WebContext) (any, 
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	tagGroups := make([]*models.TransactionTagGroup, len(tagGroupMoveReq.NewDisplayOrders))
 
 	for i := 0; i < len(tagGroupMoveReq.NewDisplayOrders); i++ {
@@ -189,7 +189,7 @@ func (a *TransactionTagGroupsApi) TagGroupDeleteHandler(c *core.WebContext) (any
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	err = a.tagGroups.DeleteTagGroup(c, uid, tagGroupDeleteReq.Id)
 
 	if err != nil {

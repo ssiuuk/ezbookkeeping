@@ -16,6 +16,7 @@ const webContextTextualTokenFieldKey = "TOKEN_STRING"
 const webContextTokenClaimsFieldKey = "TOKEN_CLAIMS"
 const webContextTokenContextFieldKey = "TOKEN_CONTEXT"
 const webContextResponseErrorFieldKey = "RESPONSE_ERROR"
+const webContextCurrentBookUidFieldKey = "CURRENT_BOOK_UID"
 
 // AcceptLanguageHeaderName represents the header name of accept language
 const AcceptLanguageHeaderName = "Accept-Language"
@@ -146,6 +147,23 @@ func (c *WebContext) GetCurrentUid() int64 {
 	}
 
 	return claims.Uid
+}
+
+// SetCurrentBookUid sets the uid of the book owner which current request operates on
+func (c *WebContext) SetCurrentBookUid(bookUid int64) {
+	c.Set(webContextCurrentBookUidFieldKey, bookUid)
+}
+
+// GetCurrentBookUid returns the uid of the book owner which current request operates on,
+// it is the current user uid unless the user is working in a book shared with them
+func (c *WebContext) GetCurrentBookUid() int64 {
+	bookUid, exists := c.Get(webContextCurrentBookUidFieldKey)
+
+	if exists {
+		return bookUid.(int64)
+	}
+
+	return c.GetCurrentUid()
 }
 
 // GetTokenStringFromHeader returns the token string from the request header

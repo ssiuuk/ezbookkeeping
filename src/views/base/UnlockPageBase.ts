@@ -8,6 +8,7 @@ import { useUserStore } from '@/stores/user.ts';
 import { useTokensStore } from '@/stores/token.ts';
 import { useTransactionsStore } from '@/stores/transaction.ts';
 import { useExchangeRatesStore } from '@/stores/exchangeRates.ts';
+import { useBooksStore } from '@/stores/book.ts';
 
 import { isWebAuthnSupported } from '@/lib/webauthn.ts';
 import { hasWebAuthnConfig } from '@/lib/userstate.ts';
@@ -24,6 +25,7 @@ export function useUnlockPageBase() {
     const tokensStore = useTokensStore();
     const transactionsStore = useTransactionsStore();
     const exchangeRatesStore = useExchangeRatesStore();
+    const booksStore = useBooksStore();
 
     const version: string = `${getClientDisplayVersion()}`;
 
@@ -52,6 +54,7 @@ export function useUnlockPageBase() {
             updateMapCacheExpiration(settingsStore.appSettings.mapCacheExpiration);
             exchangeRatesStore.removeExpiredExchangeRates(true);
             exchangeRatesStore.autoUpdateExchangeRatesData();
+            booksStore.initBooks();
 
             if (response.notificationContent) {
                 rootStore.setNotificationContent(response.notificationContent);

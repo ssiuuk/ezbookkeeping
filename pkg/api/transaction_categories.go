@@ -50,7 +50,7 @@ func (a *TransactionCategoriesApi) CategoryListHandler(c *core.WebContext) (any,
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	categories, err := a.categories.GetAllCategoriesByUid(c, uid, categoryListReq.Type, categoryListReq.ParentId)
 
 	if err != nil {
@@ -71,7 +71,7 @@ func (a *TransactionCategoriesApi) CategoryGetHandler(c *core.WebContext) (any, 
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	category, err := a.categories.GetCategoryByCategoryId(c, uid, categoryGetReq.Id)
 
 	if err != nil {
@@ -99,7 +99,7 @@ func (a *TransactionCategoriesApi) CategoryCreateHandler(c *core.WebContext) (an
 		return nil, errs.ErrTransactionCategoryTypeInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	if categoryCreateReq.ParentId > 0 {
 		parentCategory, err := a.categories.GetCategoryByCategoryId(c, uid, categoryCreateReq.ParentId)
@@ -188,7 +188,7 @@ func (a *TransactionCategoriesApi) CategoryCreateBatchHandler(c *core.WebContext
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	categories, err := a.createBatchCategories(c, uid, &categoryCreateBatchReq)
 
@@ -209,7 +209,7 @@ func (a *TransactionCategoriesApi) CategoryModifyHandler(c *core.WebContext) (an
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	category, err := a.categories.GetCategoryByCategoryId(c, uid, categoryModifyReq.Id)
 
 	if err != nil {
@@ -313,7 +313,7 @@ func (a *TransactionCategoriesApi) CategoryHideHandler(c *core.WebContext) (any,
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	err = a.categories.HideCategory(c, uid, []int64{categoryHideReq.Id}, categoryHideReq.Hidden)
 
 	if err != nil {
@@ -335,7 +335,7 @@ func (a *TransactionCategoriesApi) CategoryMoveHandler(c *core.WebContext) (any,
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	categories := make([]*models.TransactionCategory, len(categoryMoveReq.NewDisplayOrders))
 
 	for i := 0; i < len(categoryMoveReq.NewDisplayOrders); i++ {
@@ -370,7 +370,7 @@ func (a *TransactionCategoriesApi) CategoryDeleteHandler(c *core.WebContext) (an
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	err = a.categories.DeleteCategory(c, uid, categoryDeleteReq.Id)
 
 	if err != nil {
