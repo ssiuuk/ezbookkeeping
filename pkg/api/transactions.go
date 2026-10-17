@@ -3035,7 +3035,7 @@ func (a *TransactionsApi) getTransactionTagInfoResponses(tagIds []int64, allTran
 }
 
 func (a *TransactionsApi) getTransactionAllEssentialData(c *core.WebContext, user *models.User, withPictures bool, trimCategory bool, trimTag bool) (accountMap map[int64]*models.Account, categoryMap map[int64]*models.TransactionCategory, tagMap map[int64]*models.TransactionTag, allTransactionTagIds map[int64][]int64, pictureInfoMap map[int64][]*models.TransactionPictureInfo, err error) {
-	uid := user.Uid
+	uid := c.GetCurrentBookUid()
 	allAccounts, err := a.accounts.GetAllAccountsByUid(c, uid)
 
 	if err != nil {
@@ -3089,7 +3089,7 @@ func (a *TransactionsApi) getTransactionAllEssentialData(c *core.WebContext, use
 }
 
 func (a *TransactionsApi) getTransactionEssentialDataByTransactionIds(c *core.WebContext, user *models.User, transactions []*models.Transaction, withPictures bool, trimCategory bool, trimTag bool) (accountMap map[int64]*models.Account, categoryMap map[int64]*models.TransactionCategory, tagMap map[int64]*models.TransactionTag, allTransactionTagIds map[int64][]int64, pictureInfoMap map[int64][]*models.TransactionPictureInfo, err error) {
-	uid := user.Uid
+	uid := c.GetCurrentBookUid()
 	transactionIds := make([]int64, len(transactions))
 	accountIds := make([]int64, 0, len(transactions)*2)
 	categoryIds := make([]int64, 0, len(transactions))
