@@ -17,6 +17,7 @@
                                   :enable-time-picker="false"
                                   :clearable="true"
                                   :show-alternate-dates="true"
+                                  :max-years-after-current-year="maxYearsAfterCurrentYear"
                                   v-model="dateTime">
                 </date-time-picker>
             </div>
@@ -41,6 +42,7 @@ import {
 const props = defineProps<{
     modelValue?: TextualYearMonthDay;
     show: boolean;
+    maxYearsAfterCurrentYear?: number;
 }>();
 
 const emit = defineEmits<{

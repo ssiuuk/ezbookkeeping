@@ -308,6 +308,7 @@
                                         :clearable="true"
                                         :label="tt('Start Date')"
                                         :no-data-text="tt('No limit')"
+                                        :max-years-after-current-year="SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR"
                                         v-model="transaction.scheduledStartDate" />
                                 </v-col>
                                 <v-col cols="12" md="6" v-if="type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate && transaction.templateType === TemplateType.Schedule.type">
@@ -317,6 +318,7 @@
                                         :clearable="true"
                                         :label="tt('End Date')"
                                         :no-data-text="tt('No limit')"
+                                        :max-years-after-current-year="SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR"
                                         v-model="transaction.scheduledEndDate" />
                                 </v-col>
                                 <v-col cols="12" md="12" v-if="type === TransactionEditPageType.Transaction">
@@ -536,6 +538,7 @@ import { KnownFileType } from '@/core/file.ts';
 
 import { KnownErrorCode } from '@/consts/api.ts';
 import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
+import { SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR } from '@/consts/transaction.ts';
 
 import { TransactionTemplate } from '@/models/transaction_template.ts';
 import type { TransactionPictureInfoBasicResponse } from '@/models/transaction_picture_info.ts';
