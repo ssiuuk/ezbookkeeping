@@ -47,7 +47,7 @@ var (
 
 // CustomIconListHandler returns all custom icon infos of current user
 func (a *UserCustomIconsApi) CustomIconListHandler(c *core.WebContext) (any, *errs.Error) {
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	customIcons, err := a.icons.GetAllCustomIconInfosByUid(c, uid)
 
 	if err != nil {
@@ -68,7 +68,7 @@ func (a *UserCustomIconsApi) CustomIconListHandler(c *core.WebContext) (any, *er
 
 // CustomIconUploadHandler saves a new custom icon for current user
 func (a *UserCustomIconsApi) CustomIconUploadHandler(c *core.WebContext) (any, *errs.Error) {
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -218,7 +218,7 @@ func (a *UserCustomIconsApi) CustomIconGetHandler(c *core.WebContext) ([]byte, s
 		return nil, "", errs.ErrUserCustomIconIdInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	customIconData, err := a.icons.GetCustomIconByIconId(c, uid, iconId)
 
 	if err != nil {
@@ -242,7 +242,7 @@ func (a *UserCustomIconsApi) CustomIconMoveHandler(c *core.WebContext) (any, *er
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	customIcons := make([]*models.UserCustomIcon, len(iconMoveReq.NewDisplayOrders))
 
 	for i := 0; i < len(iconMoveReq.NewDisplayOrders); i++ {
@@ -275,7 +275,7 @@ func (a *UserCustomIconsApi) CustomIconDeleteHandler(c *core.WebContext) (any, *
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {

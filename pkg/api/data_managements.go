@@ -70,6 +70,10 @@ func (a *DataManagementsApi) ExportDataToEzbookkeepingTSVHandler(c *core.WebCont
 // DataStatisticsHandler returns user data statistics
 func (a *DataManagementsApi) DataStatisticsHandler(c *core.WebContext) (any, *errs.Error) {
 	uid := c.GetCurrentUid()
+
+	if c.GetCurrentBookUid() != uid {
+		return nil, errs.ErrOperationNotAvailableInSharedBook
+	}
 	totalAccountCount, err := a.accounts.GetTotalAccountCountByUid(c, uid)
 
 	if err != nil {
@@ -159,6 +163,10 @@ func (a *DataManagementsApi) ClearAllDataHandler(c *core.WebContext) (any, *errs
 	}
 
 	uid := c.GetCurrentUid()
+
+	if c.GetCurrentBookUid() != uid {
+		return nil, errs.ErrOperationNotAvailableInSharedBook
+	}
 	claims := c.GetTokenClaims()
 
 	if claims == nil {
@@ -258,6 +266,10 @@ func (a *DataManagementsApi) ClearAllTransactionsHandler(c *core.WebContext) (an
 	}
 
 	uid := c.GetCurrentUid()
+
+	if c.GetCurrentBookUid() != uid {
+		return nil, errs.ErrOperationNotAvailableInSharedBook
+	}
 	claims := c.GetTokenClaims()
 
 	if claims == nil {
@@ -308,6 +320,10 @@ func (a *DataManagementsApi) ClearAllTransactionsByAccountHandler(c *core.WebCon
 	}
 
 	uid := c.GetCurrentUid()
+
+	if c.GetCurrentBookUid() != uid {
+		return nil, errs.ErrOperationNotAvailableInSharedBook
+	}
 	claims := c.GetTokenClaims()
 
 	if claims == nil {
@@ -383,6 +399,10 @@ func (a *DataManagementsApi) getExportedFileContent(c *core.WebContext, fileType
 	}
 
 	uid := c.GetCurrentUid()
+
+	if c.GetCurrentBookUid() != uid {
+		return nil, "", errs.ErrOperationNotAvailableInSharedBook
+	}
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {

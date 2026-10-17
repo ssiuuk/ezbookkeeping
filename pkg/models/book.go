@@ -35,5 +35,6 @@ type BookMemberInfoResponse struct {
 	Id        int64  `json:"id,string"`
 	Username  string `json:"username"`
 	Nickname  string `json:"nickname"`
+	IsOwner   bool   `json:"isOwner"`
 	CreatedAt int64  `json:"createdAt"`
 }

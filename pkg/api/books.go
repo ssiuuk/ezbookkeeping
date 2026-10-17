@@ -68,17 +68,33 @@ func (a *BooksApi) BookListHandler(c *core.WebContext) (any, *errs.Error) {
 	return bookResps, nil
 }
 
-// BookMemberListHandler returns the members of current user's own book
+// BookMemberListHandler returns the owner and members of the current book
 func (a *BooksApi) BookMemberListHandler(c *core.WebContext) (any, *errs.Error) {
-	uid := c.GetCurrentUid()
-	members, err := a.books.GetBookMembers(c, uid)
+	bookUid := c.GetCurrentBookUid()
+	owner, err := a.users.GetUserById(c, bookUid)
 
 	if err != nil {
-		log.Errorf(c, "[books.BookMemberListHandler] failed to get book members for user \"uid:%d\", because %s", uid, err.Error())
+		if !errs.IsCustomError(err) {
+			log.Errorf(c, "[books.BookMemberListHandler] failed to get book owner \"uid:%d\", because %s", bookUid, err.Error())
+		}
+
+		return nil, errs.ErrUserNotFound
+	}
+
+	members, err := a.books.GetBookMembers(c, bookUid)
+
+	if err != nil {
+		log.Errorf(c, "[books.BookMemberListHandler] failed to get book members for book \"uid:%d\", because %s", bookUid, err.Error())
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
-	memberResps := make([]*models.BookMemberInfoResponse, 0, len(members))
+	memberResps := make([]*models.BookMemberInfoResponse, 0, len(members)+1)
+	memberResps = append(memberResps, &models.BookMemberInfoResponse{
+		Id:       owner.Uid,
+		Username: owner.Username,
+		Nickname: owner.Nickname,
+		IsOwner:  true,
+	})
 
 	for i := 0; i < len(members); i++ {
 		member, err := a.users.GetUserById(c, members[i].MemberUid)

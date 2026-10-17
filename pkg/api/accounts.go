@@ -51,7 +51,7 @@ func (a *AccountsApi) AccountListHandler(c *core.WebContext) (any, *errs.Error) 
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	accounts, err := a.accounts.GetAllAccountsByUid(c, uid)
 
 	if err != nil {
@@ -111,7 +111,7 @@ func (a *AccountsApi) AccountGetHandler(c *core.WebContext) (any, *errs.Error) {
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	accountAndSubAccounts, err := a.accounts.GetAccountAndSubAccountsByAccountId(c, uid, accountGetReq.Id)
 
 	if err != nil {
@@ -285,7 +285,7 @@ func (a *AccountsApi) AccountCreateHandler(c *core.WebContext) (any, *errs.Error
 		return nil, errs.ErrAccountTypeInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	maxOrderId, err := a.accounts.GetMaxDisplayOrder(c, uid, accountCreateReq.Category)
 
 	if err != nil {
@@ -407,7 +407,7 @@ func (a *AccountsApi) AccountModifyHandler(c *core.WebContext) (any, *errs.Error
 		}
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -750,7 +750,7 @@ func (a *AccountsApi) AccountUpdateLastReconciledTimeHandler(c *core.WebContext)
 		return nil, errs.ErrAccountIdInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -809,7 +809,7 @@ func (a *AccountsApi) AccountHideHandler(c *core.WebContext) (any, *errs.Error) 
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	err = a.accounts.HideAccount(c, uid, []int64{accountHideReq.Id}, accountHideReq.Hidden)
 
 	if err != nil {
@@ -831,7 +831,7 @@ func (a *AccountsApi) AccountMoveHandler(c *core.WebContext) (any, *errs.Error) 
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	accounts := make([]*models.Account, len(accountMoveReq.NewDisplayOrders))
 
 	for i := 0; i < len(accountMoveReq.NewDisplayOrders); i++ {
@@ -866,7 +866,7 @@ func (a *AccountsApi) AccountDeleteHandler(c *core.WebContext) (any, *errs.Error
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	err = a.accounts.DeleteAccount(c, uid, accountDeleteReq.Id)
 
 	if err != nil {
@@ -888,7 +888,7 @@ func (a *AccountsApi) SubAccountDeleteHandler(c *core.WebContext) (any, *errs.Er
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	err = a.accounts.DeleteSubAccount(c, uid, accountDeleteReq.Id)
 
 	if err != nil {

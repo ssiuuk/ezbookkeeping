@@ -26,7 +26,7 @@ var (
 
 // TagListHandler returns transaction tag list of current user
 func (a *TransactionTagsApi) TagListHandler(c *core.WebContext) (any, *errs.Error) {
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	tags, err := a.tags.GetAllTagsByUid(c, uid)
 
 	if err != nil {
@@ -55,7 +55,7 @@ func (a *TransactionTagsApi) TagGetHandler(c *core.WebContext) (any, *errs.Error
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	tag, err := a.tags.GetTagByTagId(c, uid, tagGetReq.Id)
 
 	if err != nil {
@@ -78,7 +78,7 @@ func (a *TransactionTagsApi) TagCreateHandler(c *core.WebContext) (any, *errs.Er
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	if tagCreateReq.GroupId > 0 {
 		tagGroup, err := a.tagGroups.GetTagGroupByTagGroupId(c, uid, tagCreateReq.GroupId)
@@ -134,7 +134,7 @@ func (a *TransactionTagsApi) TagCreateBatchHandler(c *core.WebContext) (any, *er
 		}
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	if tagCreateBatchReq.GroupId > 0 {
 		tagGroup, err := a.tagGroups.GetTagGroupByTagGroupId(c, uid, tagCreateBatchReq.GroupId)
@@ -189,7 +189,7 @@ func (a *TransactionTagsApi) TagModifyHandler(c *core.WebContext) (any, *errs.Er
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	tag, err := a.tags.GetTagByTagId(c, uid, tagModifyReq.Id)
 
 	if err != nil {
@@ -263,7 +263,7 @@ func (a *TransactionTagsApi) TagHideHandler(c *core.WebContext) (any, *errs.Erro
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	err = a.tags.HideTag(c, uid, []int64{tagHideReq.Id}, tagHideReq.Hidden)
 
 	if err != nil {
@@ -285,7 +285,7 @@ func (a *TransactionTagsApi) TagMoveHandler(c *core.WebContext) (any, *errs.Erro
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	tags := make([]*models.TransactionTag, len(tagMoveReq.NewDisplayOrders))
 
 	for i := 0; i < len(tagMoveReq.NewDisplayOrders); i++ {
@@ -320,7 +320,7 @@ func (a *TransactionTagsApi) TagDeleteHandler(c *core.WebContext) (any, *errs.Er
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	err = a.tags.DeleteTag(c, uid, tagDeleteReq.Id)
 
 	if err != nil {

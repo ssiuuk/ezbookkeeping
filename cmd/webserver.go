@@ -361,6 +361,13 @@ func startWebServer(c *core.CliContext) error {
 				apiV1Route.POST("/users/verify_email/resend.json", bindApi(api.Users.UserSendVerifyEmailByLoginedUserHandler, config))
 			}
 
+			// Shared Books
+			apiV1Route.GET("/books/list.json", bindApi(api.Books.BookListHandler, config))
+			apiV1Route.GET("/books/members/list.json", bindApi(api.Books.BookMemberListHandler, config))
+			apiV1Route.POST("/books/members/add.json", bindApi(api.Books.BookMemberAddHandler, config))
+			apiV1Route.POST("/books/members/remove.json", bindApi(api.Books.BookMemberRemoveHandler, config))
+			apiV1Route.POST("/books/leave.json", bindApi(api.Books.BookLeaveHandler, config))
+
 			// External Authentications
 			if config.EnableOAuth2Login {
 				apiV1Route.GET("/users/external_auth/list.json", bindApi(api.UserExternalAuths.ExternalAuthListHandler, config))

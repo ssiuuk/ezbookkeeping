@@ -59,7 +59,7 @@ func (a *TransactionTemplatesApi) TemplateListHandler(c *core.WebContext) (any, 
 		return nil, errs.ErrScheduledTransactionNotEnabled
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	templates, err := a.templates.GetAllTemplatesByUid(c, uid, templateListReq.TemplateType)
 
 	if err != nil {
@@ -89,7 +89,7 @@ func (a *TransactionTemplatesApi) TemplateGetHandler(c *core.WebContext) (any, *
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	template, err := a.templates.GetTemplateByTemplateId(c, uid, templateGetReq.Id)
 
 	if err != nil {
@@ -166,7 +166,7 @@ func (a *TransactionTemplatesApi) TemplateCreateHandler(c *core.WebContext) (any
 		return nil, errs.ErrTransactionTemplateHasTooManyTags
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	maxOrderId, err := a.templates.GetMaxDisplayOrder(c, uid, templateCreateReq.TemplateType)
 
@@ -235,7 +235,7 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 		return nil, errs.ErrTransactionTypeInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	template, err := a.templates.GetTemplateByTemplateId(c, uid, templateModifyReq.Id)
 
 	if err != nil {
@@ -394,7 +394,7 @@ func (a *TransactionTemplatesApi) TemplateHideHandler(c *core.WebContext) (any, 
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	template, err := a.templates.GetTemplateByTemplateId(c, uid, templateHideReq.Id)
 
@@ -428,7 +428,7 @@ func (a *TransactionTemplatesApi) TemplateMoveHandler(c *core.WebContext) (any, 
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	if len(templateMoveReq.NewDisplayOrders) > 0 {
 		template, err := a.templates.GetTemplateByTemplateId(c, uid, templateMoveReq.NewDisplayOrders[0].Id)
@@ -477,7 +477,7 @@ func (a *TransactionTemplatesApi) TemplateDeleteHandler(c *core.WebContext) (any
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	template, err := a.templates.GetTemplateByTemplateId(c, uid, templateDeleteReq.Id)
 
