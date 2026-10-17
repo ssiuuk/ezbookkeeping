@@ -106,6 +106,18 @@
                     <v-window-item value="basicInfo">
                         <v-form class="my-4">
                             <v-row>
+                                <v-col cols="12" v-if="type === TransactionEditPageType.Transaction && mode === TransactionEditPageMode.Add && showEntryBookSelection">
+                                    <v-select
+                                        item-value="id"
+                                        persistent-placeholder
+                                        :disabled="loading || submitting || recognizing"
+                                        :label="tt('Book')"
+                                        :items="allBooks"
+                                        :item-title="getBookDisplayName"
+                                        :model-value="entryBookId"
+                                        @update:model-value="onEntryBookChanged"
+                                    />
+                                </v-col>
                                 <v-col cols="12" v-if="type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate">
                                     <v-text-field
                                         type="text"
@@ -532,6 +544,7 @@ import { useAccountsStore } from '@/stores/account.ts';
 import { useTransactionCategoriesStore } from '@/stores/transactionCategory.ts';
 import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 import { useBooksStore } from '@/stores/book.ts';
+import { useEntryBookSelectionBase } from '@/views/base/books/EntryBookSelectionBase.ts';
 import { useTransactionsStore } from '@/stores/transaction.ts';
 import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
 
@@ -658,6 +671,7 @@ const {
     inputIsEmpty,
     createNewTransactionModel,
     setTransactionModel,
+    resetTransactionBookRelatedFields,
     updateTransactionModelFromRecognizedResponse,
     updateTransactionModelByAfterSaveAction,
     updateTransactionTime,
@@ -672,6 +686,16 @@ const accountsStore = useAccountsStore();
 const transactionCategoriesStore = useTransactionCategoriesStore();
 const transactionTagsStore = useTransactionTagsStore();
 const booksStore = useBooksStore();
+
+const {
+    entryBookId,
+    allBooks,
+    showEntryBookSelection,
+    getBookDisplayName,
+    initEntryBook,
+    changeEntryBook,
+    restoreEntryBook
+} = useEntryBookSelectionBase();
 const transactionsStore = useTransactionsStore();
 const transactionTemplatesStore = useTransactionTemplatesStore();
 
@@ -748,6 +772,7 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
     noTransactionDraft.value = options.noTransactionDraft || false;
 
     initOptions.value = options;
+    initEntryBook();
 
     const newTransaction = createNewTransactionModel(options.type);
     setTransactionModel(newTransaction, options, true);
@@ -896,8 +921,34 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
     });
 
     return new Promise((resolve, reject) => {
-        resolveFunc = resolve;
-        rejectFunc = reject;
+        // switch requests back to the selected book before the caller reloads its data
+        resolveFunc = response => {
+            restoreEntryBook().finally(() => resolve(response));
+        };
+        rejectFunc = reason => {
+            restoreEntryBook().finally(() => reject(reason));
+        };
+    });
+}
+
+function onEntryBookChanged(bookId: string): void {
+    const book = allBooks.value.find(item => item.id === bookId);
+
+    if (!book) {
+        return;
+    }
+
+    loading.value = true;
+
+    changeEntryBook(book).then(() => {
+        resetTransactionBookRelatedFields();
+        loading.value = false;
+    }).catch(error => {
+        loading.value = false;
+
+        if (!error.processed) {
+            snackbar.value?.showError(error);
+        }
     });
 }
 
@@ -1297,6 +1348,12 @@ function onUploadPicture(event: Event): void {
 function onShowDateTimeError(error: string): void {
     snackbar.value?.showError(error);
 }
+
+watch(showState, (newValue) => {
+    if (!newValue) {
+        restoreEntryBook();
+    }
+});
 
 watch(activeTab, (newValue) => {
     if (newValue === 'map') {

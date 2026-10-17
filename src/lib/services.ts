@@ -240,8 +240,23 @@ interface ApiRequestConfig extends AxiosRequestConfig {
 
 export type ApiResponsePromise<T> = Promise<AxiosResponse<ApiResponse<T>>>;
 
+// book used by requests instead of the selected book, e.g. while adding a transaction to another book
+let activeBookIdOverride: string | null | undefined = undefined;
+
+export function setActiveBookIdOverride(bookId: string | null | undefined): void {
+    activeBookIdOverride = bookId;
+}
+
+export function hasActiveBookIdOverride(): boolean {
+    return activeBookIdOverride !== undefined;
+}
+
+function getActiveBookId(): string | null {
+    return activeBookIdOverride !== undefined ? activeBookIdOverride : getCurrentBookId();
+}
+
 function getBookIdQueryString(): string {
-    const bookId = getCurrentBookId();
+    const bookId = getActiveBookId();
     return bookId ? `&book_id=${bookId}` : '';
 }
 
@@ -268,7 +283,7 @@ axios.interceptors.request.use((config: ApiRequestConfig) => {
 
     config.headers['X-Timezone-Name'] = timezoneName;
 
-    const bookId = getCurrentBookId();
+    const bookId = getActiveBookId();
 
     if (bookId && !config.noAuth) {
         config.headers['X-Book-Id'] = bookId;
@@ -322,7 +337,7 @@ axios.interceptors.response.use(response => {
             return Promise.reject({ processed: true });
         }
 
-        if (getCurrentBookId() && (errorCode === 221000 // book id is invalid
+        if (getActiveBookId() && (errorCode === 221000 // book id is invalid
             || errorCode === 221001 // you are not a member of this book
         )) {
             setCurrentBookId(null);
@@ -1078,7 +1093,7 @@ export default {
         const params: string[] = [];
         params.push('token=' + getCurrentToken());
 
-        const bookId = getCurrentBookId();
+        const bookId = getActiveBookId();
 
         if (bookId) {
             params.push('book_id=' + bookId);

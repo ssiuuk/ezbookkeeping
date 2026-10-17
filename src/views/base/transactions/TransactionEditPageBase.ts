@@ -453,6 +453,20 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         );
     }
 
+    function resetTransactionBookRelatedFields(): void {
+        const currentTransaction = transaction.value;
+
+        currentTransaction.expenseCategoryId = '';
+        currentTransaction.incomeCategoryId = '';
+        currentTransaction.transferCategoryId = '';
+        currentTransaction.sourceAccountId = '';
+        currentTransaction.destinationAccountId = '';
+        currentTransaction.tagIds = [];
+        currentTransaction.clearPictures();
+
+        setTransactionModel(null, { type: currentTransaction.type }, false);
+    }
+
     function updateTransactionModelFromRecognizedResponse(response: RecognizedTransactionResponse): void {
         const options: SetTransactionOptions = {
             type: response.type,
@@ -630,6 +644,7 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         // functions
         createNewTransactionModel,
         setTransactionModel,
+        resetTransactionBookRelatedFields,
         updateTransactionModelFromRecognizedResponse,
         updateTransactionModelByAfterSaveAction,
         updateTransactionTime,

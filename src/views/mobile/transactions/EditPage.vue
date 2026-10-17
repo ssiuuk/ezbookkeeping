@@ -67,6 +67,16 @@
             ></f7-list-input>
 
             <f7-list-item
+                class="list-item-with-header-and-title"
+                link="#"
+                :header="tt('Book')"
+                :title="entryBookDisplayName"
+                @click="showEntryBookSheet = true"
+                v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction && mode === TransactionEditPageMode.Add && showEntryBookSelection"
+            >
+            </f7-list-item>
+
+            <f7-list-item
                 class="transaction-edit-amount"
                 link="#" no-chevron
                 :class="sourceAmountClass"
@@ -445,6 +455,19 @@
                           v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction && mode !== TransactionEditPageMode.Add && transactionCreatorName"></f7-list-item>
         </f7-list>
 
+        <f7-actions close-by-outside-click close-on-escape :opened="showEntryBookSheet" @actions:closed="showEntryBookSheet = false">
+            <f7-actions-group>
+                <f7-actions-label>{{ tt('Book') }}</f7-actions-label>
+                <f7-actions-button :key="book.id"
+                                   :class="{ 'color-theme': book.id === entryBook?.id }"
+                                   v-for="book in allBooks"
+                                   @click="onEntryBookChanged(book)">{{ getBookDisplayName(book) }}</f7-actions-button>
+            </f7-actions-group>
+            <f7-actions-group>
+                <f7-actions-button bold close>{{ tt('Cancel') }}</f7-actions-button>
+            </f7-actions-group>
+        </f7-actions>
+
         <f7-actions close-by-outside-click close-on-escape :opened="showGeoLocationActionSheet" @actions:closed="showGeoLocationActionSheet = false">
             <f7-actions-group>
                 <f7-actions-button v-if="mode !== TransactionEditPageMode.View" @click="updateGeoLocation(true)">{{ tt('Update Geographic Location') }}</f7-actions-button>
@@ -545,6 +568,8 @@ import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 import { useTransactionsStore } from '@/stores/transaction.ts';
 import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
 import { useBooksStore } from '@/stores/book.ts';
+import { useEntryBookSelectionBase } from '@/views/base/books/EntryBookSelectionBase.ts';
+import type { BookInfoResponse } from '@/models/book.ts';
 
 import { CategoryType } from '@/core/category.ts';
 import {
@@ -651,6 +676,7 @@ const {
     inputEmptyProblemMessage,
     inputIsEmpty,
     setTransactionModel,
+    resetTransactionBookRelatedFields,
     updateTransactionModelFromRecognizedResponse,
     updateTransactionModelByAfterSaveAction,
     updateTransactionTime,
@@ -670,6 +696,19 @@ const transactionTagsStore = useTransactionTagsStore();
 const transactionsStore = useTransactionsStore();
 const transactionTemplatesStore = useTransactionTemplatesStore();
 const booksStore = useBooksStore();
+
+const {
+    allBooks,
+    showEntryBookSelection,
+    entryBook,
+    entryBookDisplayName,
+    getBookDisplayName,
+    initEntryBook,
+    changeEntryBook,
+    restoreEntryBook
+} = useEntryBookSelectionBase();
+
+const showEntryBookSheet = ref<boolean>(false);
 
 const transactionCreatorName = computed<string>(() => booksStore.currentBookMembers.length > 1 ? booksStore.getMemberDisplayName(transaction.value.createdByUid) : '');
 
@@ -951,6 +990,7 @@ function init(): void {
     }
 
     loading.value = true;
+    initEntryBook();
 
     const promises: Promise<unknown>[] = [
         accountsStore.loadAllAccounts({ force: false }),
@@ -1464,7 +1504,28 @@ function onPageAfterIn(): void {
     }
 }
 
-function onPageBeforeOut(): void {
+function onEntryBookChanged(book: BookInfoResponse): void {
+    showEntryBookSheet.value = false;
+    showLoading();
+
+    changeEntryBook(book).then(() => {
+        resetTransactionBookRelatedFields();
+        hideLoading();
+    }).catch(error => {
+        hideLoading();
+
+        if (!error.processed) {
+            showToast(error.message || error);
+        }
+    });
+}
+
+function onPageBeforeOut(page: Router.Page): void {
+    if (page.direction === 'backward') {
+        // switch requests back to the selected book before the previous page reloads its data
+        restoreEntryBook();
+    }
+
     if (submitted.value || pageTypeAndMode?.type !== TransactionEditPageType.Transaction || mode.value !== TransactionEditPageMode.Add || query['noTransactionDraft'] === 'true' || addByTemplateId.value || duplicateFromId.value) {
         return;
     }
