@@ -4,6 +4,7 @@
             <f7-nav-title :title="tt('global.app.title')"></f7-nav-title>
             <f7-nav-right class="navbar-compact-icons">
                 <f7-link icon-f7="briefcase" href="/projects" :aria-label="tt('Projects')"></f7-link>
+                <f7-link icon-f7="bag" href="/merchants/report" :aria-label="tt('Merchant Report')"></f7-link>
                 <f7-link icon-f7="house" href="/reports/household" :aria-label="tt('Household Report')"></f7-link>
                 <f7-link icon-f7="money_dollar_circle" href="/budgets" :aria-label="tt('Budgets')"></f7-link>
             </f7-nav-right>

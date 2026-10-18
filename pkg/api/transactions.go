@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 const pageCountForAccountStatement = 1000
 const pageCountForMovingAccountTransactions = 1000
 const transactionImportResultExpiration = 1 * time.Hour
+const maxRecentMerchantCount = 200
 
 // TransactionsApi represents transaction api
 type TransactionsApi struct {
@@ -671,6 +673,63 @@ func (a *TransactionsApi) TransactionStatisticsHandler(c *core.WebContext) (any,
 	return statisticResp, nil
 }
 
+// TransactionMerchantListHandler returns the merchant names recently used in transactions of current book
+func (a *TransactionsApi) TransactionMerchantListHandler(c *core.WebContext) (any, *errs.Error) {
+	uid := c.GetCurrentBookUid()
+	merchants, err := a.transactions.GetRecentMerchants(c, uid, maxRecentMerchantCount)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionMerchantListHandler] failed to get merchants for user \"uid:%d\", because %s", uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	return merchants, nil
+}
+
+// TransactionMerchantStatisticsHandler returns the income and expense amounts of every merchant of current book
+func (a *TransactionsApi) TransactionMerchantStatisticsHandler(c *core.WebContext) (any, *errs.Error) {
+	var statisticReq models.TransactionMerchantStatisticRequest
+	err := c.ShouldBindQuery(&statisticReq)
+
+	if err != nil {
+		log.Warnf(c, "[transactions.TransactionMerchantStatisticsHandler] parse request failed, because %s", err.Error())
+		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
+	}
+
+	uid := c.GetCurrentBookUid()
+	totalAmounts, err := a.transactions.GetMerchantsTotalIncomeAndExpense(c, uid, statisticReq.StartTime, statisticReq.EndTime)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionMerchantStatisticsHandler] failed to get merchants total income and expense for user \"uid:%d\", because %s", uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	statisticResp := &models.TransactionMerchantStatisticResponse{
+		StartTime: statisticReq.StartTime,
+		EndTime:   statisticReq.EndTime,
+		Items:     make([]*models.TransactionMerchantStatisticResponseItem, 0, len(totalAmounts)),
+	}
+
+	for i := 0; i < len(totalAmounts); i++ {
+		totalAmountItem := totalAmounts[i]
+		transactionType, err := totalAmountItem.Type.ToTransactionType()
+
+		if err != nil {
+			continue
+		}
+
+		statisticResp.Items = append(statisticResp.Items, &models.TransactionMerchantStatisticResponseItem{
+			Merchant:  totalAmountItem.Merchant,
+			Type:      transactionType,
+			AccountId: totalAmountItem.AccountId,
+			Amount:    strconv.FormatInt(totalAmountItem.TotalAmount, 10),
+			Count:     totalAmountItem.TransactionCount,
+		})
+	}
+
+	return statisticResp, nil
+}
+
 // TransactionStatisticsTrendsHandler returns transaction statistics trends of current user
 func (a *TransactionsApi) TransactionStatisticsTrendsHandler(c *core.WebContext) (any, *errs.Error) {
 	var statisticTrendsReq models.TransactionStatisticTrendsRequest
@@ -1112,6 +1171,48 @@ func (a *TransactionsApi) TransactionDailyAmountsHandler(c *core.WebContext) (an
 	return result, nil
 }
 
+// TransactionLaterScheduledListHandler returns the ids of transactions which the same scheduled transaction template created after the given transaction
+func (a *TransactionsApi) TransactionLaterScheduledListHandler(c *core.WebContext) (any, *errs.Error) {
+	var transactionGetReq models.TransactionGetRequest
+	err := c.ShouldBindQuery(&transactionGetReq)
+
+	if err != nil {
+		log.Warnf(c, "[transactions.TransactionLaterScheduledListHandler] parse request failed, because %s", err.Error())
+		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
+	}
+
+	uid := c.GetCurrentBookUid()
+	transaction, err := a.transactions.GetTransactionByTransactionId(c, uid, transactionGetReq.Id)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionLaterScheduledListHandler] failed to get transaction \"id:%d\" for user \"uid:%d\", because %s", transactionGetReq.Id, uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	if transaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_IN {
+		transaction = a.transactions.GetRelatedTransferTransaction(transaction)
+	}
+
+	transactionIds := make([]string, 0)
+
+	if transaction.SourceTemplateId <= 0 {
+		return transactionIds, nil
+	}
+
+	transactions, err := a.transactions.GetTransactionsCreatedByTemplateAfterTime(c, uid, transaction.SourceTemplateId, transaction.TransactionTime)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionLaterScheduledListHandler] failed to get later transactions of template \"id:%d\" for user \"uid:%d\", because %s", transaction.SourceTemplateId, uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	for i := 0; i < len(transactions); i++ {
+		transactionIds = append(transactionIds, utils.Int64ToString(transactions[i].TransactionId))
+	}
+
+	return transactionIds, nil
+}
+
 // TransactionGetHandler returns one specific transaction of current user
 func (a *TransactionsApi) TransactionGetHandler(c *core.WebContext) (any, *errs.Error) {
 	var transactionGetReq models.TransactionGetRequest
@@ -1504,6 +1605,7 @@ func (a *TransactionsApi) TransactionModifyHandler(c *core.WebContext) (any, *er
 		Amount:            transactionModifyReq.SourceAmount,
 		HideAmount:        transactionModifyReq.HideAmount,
 		Comment:           transactionModifyReq.Comment,
+		Merchant:          strings.TrimSpace(transactionModifyReq.Merchant),
 		ProjectId:         transactionModifyReq.ProjectId,
 	}
 
@@ -1527,6 +1629,7 @@ func (a *TransactionsApi) TransactionModifyHandler(c *core.WebContext) (any, *er
 		(newTransaction.Type != models.TRANSACTION_DB_TYPE_TRANSFER_OUT || newTransaction.RelatedAccountAmount == transaction.RelatedAccountAmount) &&
 		newTransaction.HideAmount == transaction.HideAmount &&
 		newTransaction.Comment == transaction.Comment &&
+		newTransaction.Merchant == transaction.Merchant &&
 		newTransaction.ProjectId == transaction.ProjectId &&
 		newTransaction.GeoLongitude == transaction.GeoLongitude &&
 		newTransaction.GeoLatitude == transaction.GeoLatitude &&
@@ -3284,6 +3387,7 @@ func (a *TransactionsApi) createNewTransactionModel(uid int64, creatorUid int64,
 		Amount:            transactionCreateReq.SourceAmount,
 		HideAmount:        transactionCreateReq.HideAmount,
 		Comment:           transactionCreateReq.Comment,
+		Merchant:          strings.TrimSpace(transactionCreateReq.Merchant),
 		ProjectId:         transactionCreateReq.ProjectId,
 		CreatedIp:         clientIp,
 		CreatedByUid:      creatorUid,

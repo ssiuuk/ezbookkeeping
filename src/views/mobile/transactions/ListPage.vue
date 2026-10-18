@@ -270,8 +270,10 @@
                                             </div>
                                         </div>
                                         <div class="item-text">
-                                            <div class="transaction-description" v-if="transaction.comment">
-                                                <span>{{ transaction.comment }}</span>
+                                            <div class="transaction-description" v-if="transaction.merchant || transaction.comment">
+                                                <span v-if="transaction.merchant">{{ transaction.merchant }}</span>
+                                                <span v-if="transaction.merchant && transaction.comment"> · </span>
+                                                <span v-if="transaction.comment">{{ transaction.comment }}</span>
                                             </div>
                                         </div>
                                         <div class="item-footer">

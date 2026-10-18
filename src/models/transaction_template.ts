@@ -54,6 +54,7 @@ export class TransactionTemplate extends Transaction implements TransactionTempl
             destinationAmount: this.type === TransactionType.Transfer ? this.destinationAmount : 0,
             hideAmount: this.hideAmount,
             tagIds: this.tagIds,
+            merchant: this.merchant.trim(),
             comment: this.comment,
             scheduledFrequencyType: this.templateType === TemplateType.Schedule.type ? this.scheduledFrequencyType : undefined,
             scheduledFrequency: this.templateType === TemplateType.Schedule.type ? this.scheduledFrequency : undefined,
@@ -77,6 +78,7 @@ export class TransactionTemplate extends Transaction implements TransactionTempl
             destinationAmount: this.type === TransactionType.Transfer ? this.destinationAmount : 0,
             hideAmount: this.hideAmount,
             tagIds: this.tagIds,
+            merchant: this.merchant.trim(),
             comment: this.comment,
             scheduledFrequencyType: this.templateType === TemplateType.Schedule.type ? this.scheduledFrequencyType : undefined,
             scheduledFrequency: this.templateType === TemplateType.Schedule.type ? this.scheduledFrequency : undefined,
@@ -88,7 +90,7 @@ export class TransactionTemplate extends Transaction implements TransactionTempl
     }
 
     public static createNewTransactionTemplate(transaction: Transaction): TransactionTemplate {
-        return new TransactionTemplate(
+        const template = new TransactionTemplate(
             transaction.id,
             0, // templateType
             '', // name
@@ -112,10 +114,14 @@ export class TransactionTemplate extends Transaction implements TransactionTempl
             0,
             false
         );
+
+        template.merchant = transaction.merchant;
+
+        return template;
     }
 
     public static ofTemplate(templateResponse: TransactionTemplateInfoResponse): TransactionTemplate {
-        return new TransactionTemplate(
+        const template = new TransactionTemplate(
             templateResponse.id,
             templateResponse.templateType,
             templateResponse.name,
@@ -139,6 +145,10 @@ export class TransactionTemplate extends Transaction implements TransactionTempl
             templateResponse.displayOrder,
             templateResponse.hidden
         );
+
+        template.merchant = templateResponse.merchant || '';
+
+        return template;
     }
 
     public static ofMultiTemplates(templateResponses: TransactionTemplateInfoResponse[]): TransactionTemplate[] {
@@ -163,6 +173,7 @@ export interface TransactionTemplateCreateRequest {
     readonly destinationAmount: number;
     readonly hideAmount: boolean;
     readonly tagIds: string[];
+    readonly merchant?: string;
     readonly comment: string;
     readonly scheduledFrequencyType?: number;
     readonly scheduledFrequency?: string;
@@ -184,6 +195,7 @@ export interface TransactionTemplateModifyRequest {
     readonly destinationAmount: number;
     readonly hideAmount: boolean;
     readonly tagIds: string[];
+    readonly merchant?: string;
     readonly comment: string;
     readonly scheduledFrequencyType?: number;
     readonly scheduledFrequency?: string;
@@ -191,6 +203,7 @@ export interface TransactionTemplateModifyRequest {
     readonly scheduledEndDate?: string;
     readonly timeZone?: string;
     readonly utcOffset?: number;
+    readonly sourceBookId?: string;
 }
 
 export interface TransactionTemplateHideRequest {

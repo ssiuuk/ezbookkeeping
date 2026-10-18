@@ -52,6 +52,7 @@
                     </f7-block>
                 </template>
             </f7-list-item>
+            <f7-list-input label="Merchant" placeholder="Merchant name (optional)" v-if="transaction.type !== TransactionType.ModifyBalance"></f7-list-input>
             <f7-list-input type="textarea" label="Description" placeholder="Your transaction description (optional)"></f7-list-input>
         </f7-list>
 
@@ -72,7 +73,7 @@
                 :header="tt('Book')"
                 :title="entryBookDisplayName"
                 @click="showEntryBookSheet = true"
-                v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction && mode === TransactionEditPageMode.Add && showEntryBookSelection"
+                v-if="((pageTypeAndMode?.type === TransactionEditPageType.Transaction && mode === TransactionEditPageMode.Add) || (pageTypeAndMode?.type === TransactionEditPageType.Template && mode !== TransactionEditPageMode.View)) && showEntryBookSelection"
             >
             </f7-list-item>
 
@@ -356,6 +357,21 @@
             </f7-list-item>
 
             <f7-list-item
+                class="list-item-with-header-and-title"
+                link="#" no-chevron
+                :header="tt('Repeat')"
+                :title="getFrequencyDisplayText(repeatFrequencyType, repeatFrequency, tt('Does not repeat'))"
+                @click="showRepeatFrequencySheet = true"
+                v-if="showRepeatField"
+            >
+                <schedule-frequency-sheet :disabled-text="tt('Does not repeat')"
+                                          v-model:show="showRepeatFrequencySheet"
+                                          v-model:type="repeatFrequencyType"
+                                          v-model="repeatFrequency">
+                </schedule-frequency-sheet>
+            </f7-list-item>
+
+            <f7-list-item
                 link="#" no-chevron
                 class="list-item-with-header-and-title list-item-title-hide-overflow"
                 :class="{ 'readonly': mode === TransactionEditPageMode.View && !transaction.geoLocation }"
@@ -405,6 +421,35 @@
                     </f7-block>
                 </template>
             </f7-list-item>
+
+            <f7-list-input
+                type="text"
+                autocomplete="off"
+                :clear-button="mode !== TransactionEditPageMode.View"
+                :class="{ 'readonly': mode === TransactionEditPageMode.View }"
+                :label="tt('Merchant')"
+                :placeholder="mode !== TransactionEditPageMode.View ? tt('Merchant name (optional)') : ''"
+                :maxlength="TRANSACTION_MAX_MERCHANT_LENGTH"
+                v-model:value="transaction.merchant"
+                v-if="showMerchantField"
+            >
+                <template #content-end>
+                    <f7-link class="transaction-edit-merchant-suggestions" icon-f7="list_bullet" :aria-label="tt('Used Merchants')"
+                             v-if="mode !== TransactionEditPageMode.View && allMerchantSelectItems.length"
+                             @click="showMerchantPopup = true"></f7-link>
+                    <list-item-selection-popup value-type="item"
+                                               key-field="name" value-field="name"
+                                               title-field="name"
+                                               :title="tt('Used Merchants')"
+                                               :enable-filter="allMerchantSelectItems.length > 8"
+                                               :filter-placeholder="tt('Merchant')"
+                                               :filter-no-items-text="tt('No results')"
+                                               :items="allMerchantSelectItems"
+                                               v-model="transaction.merchant"
+                                               v-model:show="showMerchantPopup">
+                    </list-item-selection-popup>
+                </template>
+            </f7-list-input>
 
             <f7-list-item
                 link="#"
@@ -584,6 +629,7 @@ import type { PhotoBrowser, Router } from 'framework7/types';
 import type { TwoLevelItemAddEvent } from '@/components/base/TwoLevelItemSelectionBase.ts';
 import { useI18n } from '@/locales/helpers.ts';
 import { useI18nUIComponents, isiOS, showLoading, hideLoading, closeAllDialog } from '@/lib/ui/mobile.ts';
+import { useScheduleFrequencySelectionBase } from '@/components/base/ScheduleFrequencySelectionBase.ts';
 import {
     TransactionEditPageMode,
     TransactionEditPageType,
@@ -602,6 +648,8 @@ import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
 import { useBooksStore } from '@/stores/book.ts';
 import { useProjectsStore } from '@/stores/project.ts';
 import { useEntryBookSelectionBase } from '@/views/base/books/EntryBookSelectionBase.ts';
+import { useScheduledChangeBase, SCHEDULED_CHANGE_CONFIRM_MESSAGE, SCHEDULED_CHANGE_NOT_APPLIED_MESSAGE } from '@/views/base/transactions/ScheduledChangeBase.ts';
+import { REPEAT_NOT_SET_UP_MESSAGE, useTransactionRepeatBase } from '@/views/base/transactions/TransactionRepeatBase.ts';
 import type { BookInfoResponse } from '@/models/book.ts';
 
 import { entries, keys } from '@/core/base.ts';
@@ -615,7 +663,7 @@ import {
 import { ScheduledTemplateFrequencyType, TemplateType } from '@/core/template.ts';
 import { KnownFileType } from '@/core/file.ts';
 
-import { TRANSACTION_MAX_AMOUNT, TRANSACTION_MIN_AMOUNT, SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR } from '@/consts/transaction.ts';
+import { TRANSACTION_MAX_AMOUNT, TRANSACTION_MIN_AMOUNT, TRANSACTION_MAX_MERCHANT_LENGTH, SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR } from '@/consts/transaction.ts';
 import { KnownErrorCode } from '@/consts/api.ts';
 import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
 
@@ -679,10 +727,12 @@ const {
     geoLocationStatus,
     setGeoLocationByClickMap,
     transaction,
+    allMerchantNames,
     numeralSystem,
     currentTimezoneOffsetMinutes,
     defaultCurrency,
     showProjectField,
+    showMerchantField,
     allProjectSelectItems,
     transactionProjectName,
     firstDayOfWeek,
@@ -713,6 +763,7 @@ const {
     inputEmptyProblemMessage,
     inputIsEmpty,
     setTransactionModel,
+    loadMerchantNames,
     resetTransactionBookRelatedFields,
     updateTransactionModelFromRecognizedResponse,
     updateTransactionModelByAfterSaveAction,
@@ -722,6 +773,16 @@ const {
     getDisplayAmount,
     getTransactionPictureUrl
 } = useTransactionEditPageBase(pageTypeAndMode?.type || TransactionEditPageType.Transaction, pageTypeAndMode?.mode, query['type'] ? parseInt(query['type']) : undefined);
+
+const {
+    repeatFrequencyType,
+    repeatFrequency,
+    showRepeatField,
+    resetRepeat,
+    buildRepeatTemplate,
+    saveRepeatTemplate
+} = useTransactionRepeatBase(pageTypeAndMode?.type || TransactionEditPageType.Transaction, mode, transaction);
+const { getFrequencyDisplayText } = useScheduleFrequencySelectionBase();
 
 const isSupportClipboard = !!navigator.clipboard;
 
@@ -743,11 +804,17 @@ const {
     getBookDisplayName,
     initEntryBook,
     changeEntryBook,
-    restoreEntryBook
+    restoreEntryBook,
+    getMovingFromBookId
 } = useEntryBookSelectionBase();
+const { hasScheduledFieldChanges, applyToScheduleAndLaterTransactions } = useScheduledChangeBase();
+
+// the transaction as loaded, to find out whether a transaction created by a scheduled transaction has changed
+const originalTransaction = ref<Transaction | null>(null);
 
 const showEntryBookSheet = ref<boolean>(false);
 
+const allMerchantSelectItems = computed<{ name: string }[]>(() => allMerchantNames.value.map(name => ({ name })));
 const transactionCreatorName = computed<string>(() => booksStore.currentBookMembers.length > 1 ? booksStore.getMemberDisplayName(transaction.value.createdByUid) : '');
 
 const pictureBrowser = useTemplateRef<PhotoBrowser.PhotoBrowser>('pictureBrowser');
@@ -772,9 +839,11 @@ const showTransactionDateTimeSheet = ref<boolean>(false);
 const showTransactionScheduledFrequencySheet = ref<boolean>(false);
 const showScheduledStartDateSheet = ref<boolean>(false);
 const showScheduledEndDateSheet = ref<boolean>(false);
+const showRepeatFrequencySheet = ref<boolean>(false);
 const showGeoLocationMapSheet = ref<boolean>(false);
 const showTransactionTagSheet = ref<boolean>(false);
 const showProjectPopup = ref<boolean>(false);
+const showMerchantPopup = ref<boolean>(false);
 const showTransactionPictures = ref<boolean>(pageTypeAndMode?.type === TransactionEditPageType.Transaction
     && (pageTypeAndMode?.mode === TransactionEditPageMode.Add || pageTypeAndMode?.mode === TransactionEditPageMode.Edit)
     && settingsStore.appSettings.alwaysShowTransactionPicturesInMobileTransactionEditPage);
@@ -932,6 +1001,8 @@ const transactionDisplayScheduledFrequency = computed<string>(() => {
         } else {
             return tt('Yearly');
         }
+    } else if (isDefined(template.scheduledFrequencyType) && ScheduledTemplateFrequencyType.isEveryNInterval(template.scheduledFrequencyType)) {
+        return getFrequencyDisplayText(template.scheduledFrequencyType, template.scheduledFrequency || '');
     } else {
         return '';
     }
@@ -1042,6 +1113,9 @@ function init(): void {
     // projects are optional for a transaction, so failing to load them should not block the page
     projectsStore.loadAllProjects({ force: false }).catch(error => logger.warn('failed to load projects', error));
 
+    // merchant names are only suggestions, so failing to load them should not block the page either
+    loadMerchantNames().catch(error => logger.warn('failed to load merchants', error));
+
     if (pageTypeAndMode.type === TransactionEditPageType.Transaction) {
         if (query['id']) {
             if (mode.value === TransactionEditPageMode.Edit) {
@@ -1132,6 +1206,9 @@ function init(): void {
         );
 
         if (pageTypeAndMode.type === TransactionEditPageType.Transaction && query['id'] && responses[4] instanceof Transaction) {
+            originalTransaction.value = Transaction.of(transaction.value as Transaction);
+            originalTransaction.value.sourceTemplateId = responses[4].sourceTemplateId;
+
             if (fromTransaction && query['withTime'] && query['withTime'] === 'true') {
                 transaction.value.time = fromTransaction.time;
                 transaction.value.timeZone = fromTransaction.timeZone;
@@ -1195,9 +1272,13 @@ function save(afterAction: AfterSaveAction): void {
     }
 
     if (pageTypeAndMode?.type === TransactionEditPageType.Transaction && (mode.value === TransactionEditPageMode.Add || mode.value === TransactionEditPageMode.Edit)) {
-        const doSubmit = function () {
+        const doSubmit = function (applyToLaterScheduled: boolean) {
             submitting.value = true;
             showLoading(() => submitting.value);
+
+            const repeatTemplate = buildRepeatTemplate();
+            const sourceTemplateId = originalTransaction.value?.sourceTemplateId;
+            let savedMessage = 'You have saved this transaction';
 
             transactionsStore.saveTransaction({
                 transaction: transaction.value as Transaction,
@@ -1205,6 +1286,19 @@ function save(afterAction: AfterSaveAction): void {
                 isEdit: mode.value === TransactionEditPageMode.Edit,
                 clientSessionId: clientSessionId.value
             }).then(() => {
+                if (!applyToLaterScheduled || !sourceTemplateId) {
+                    return;
+                }
+
+                return applyToScheduleAndLaterTransactions(transaction.value as Transaction, sourceTemplateId, defaultCurrency.value).then(() => {
+                    savedMessage = 'You have saved this transaction and its scheduled transaction';
+                }).catch(error => {
+                    logger.error('failed to apply changes to the scheduled transaction', error);
+                    savedMessage = SCHEDULED_CHANGE_NOT_APPLIED_MESSAGE;
+                });
+            }).then(() => saveRepeatTemplate(repeatTemplate)).then(repeatSaved => {
+                const addedMessage = repeatSaved ? 'You have added a new transaction' : REPEAT_NOT_SET_UP_MESSAGE;
+
                 submitting.value = false;
                 submitted.value = true;
                 hideLoading();
@@ -1214,14 +1308,15 @@ function save(afterAction: AfterSaveAction): void {
                 }
 
                 if (mode.value === TransactionEditPageMode.Add && (afterAction === AfterSaveAction.StayWithNewTransaction || afterAction === AfterSaveAction.StayWithCurrentTransaction)) {
-                    showToast('You have added a new transaction');
+                    showToast(addedMessage, repeatSaved ? undefined : 3000);
                     updateTransactionModelByAfterSaveAction(afterAction, getQueryTransactionOptions());
+                    resetRepeat();
                     clientSessionId.value = generateRandomUUID();
                 } else {
                     if (mode.value === TransactionEditPageMode.Add) {
-                        showToast('You have added a new transaction');
+                        showToast(addedMessage, repeatSaved ? undefined : 3000);
                     } else if (mode.value === TransactionEditPageMode.Edit) {
-                        showToast('You have saved this transaction');
+                        showToast(savedMessage);
                     }
 
                     router.back();
@@ -1257,21 +1352,36 @@ function save(afterAction: AfterSaveAction): void {
             });
         };
 
+        const confirmScheduledChangeAndSubmit = function () {
+            if (mode.value === TransactionEditPageMode.Edit && originalTransaction.value && hasScheduledFieldChanges(originalTransaction.value, transaction.value as Transaction)) {
+                showConfirm(SCHEDULED_CHANGE_CONFIRM_MESSAGE, () => {
+                    doSubmit(true);
+                }, () => {
+                    doSubmit(false);
+                });
+            } else {
+                doSubmit(false);
+            }
+        };
+
         if (transaction.value.sourceAmount === 0) {
             showConfirm('Are you sure you want to save this transaction with a zero amount?', () => {
-                doSubmit();
+                confirmScheduledChangeAndSubmit();
             });
         } else {
-            doSubmit();
+            confirmScheduledChangeAndSubmit();
         }
     } else if (pageTypeAndMode?.type === TransactionEditPageType.Template && (mode.value === TransactionEditPageMode.Add || mode.value === TransactionEditPageMode.Edit)) {
         submitting.value = true;
         showLoading(() => submitting.value);
 
+        const sourceBookId = mode.value === TransactionEditPageMode.Edit ? getMovingFromBookId() : undefined;
+
         transactionTemplatesStore.saveTemplateContent({
             template: transaction.value as TransactionTemplate,
             isEdit: mode.value === TransactionEditPageMode.Edit,
-            clientSessionId: clientSessionId.value
+            clientSessionId: clientSessionId.value,
+            sourceBookId: sourceBookId
         }).then(() => {
             submitting.value = false;
             submitted.value = true;
@@ -1280,7 +1390,7 @@ function save(afterAction: AfterSaveAction): void {
             if (mode.value === TransactionEditPageMode.Add) {
                 showToast('You have added a new template');
             } else if (mode.value === TransactionEditPageMode.Edit) {
-                showToast('You have saved this template');
+                showToast(sourceBookId ? 'You have moved this template to the selected book' : 'You have saved this template');
             }
 
             router.back();
@@ -1615,6 +1725,7 @@ function onEntryBookChanged(book: BookInfoResponse): void {
 
     changeEntryBook(book).then(() => {
         resetTransactionBookRelatedFields();
+        loadMerchantNames().catch(error => logger.warn('failed to load merchants', error));
         hideLoading();
     }).catch(error => {
         hideLoading();
@@ -1666,6 +1777,11 @@ init();
 
 .transaction-edit-amount {
     line-height: 53px;
+}
+
+.transaction-edit-merchant-suggestions {
+    align-self: center;
+    padding-inline-end: var(--f7-list-item-padding-horizontal);
 }
 
 .transaction-edit-amount .item-title {

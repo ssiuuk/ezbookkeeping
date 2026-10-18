@@ -22,6 +22,7 @@ type TransactionTemplatesApi struct {
 	ApiUsingConfig
 	ApiUsingDuplicateChecker
 	templates *services.TransactionTemplateService
+	books     *services.BookService
 }
 
 // Initialize a transaction template api singleton instance
@@ -37,6 +38,7 @@ var (
 			container: duplicatechecker.Container,
 		},
 		templates: services.TransactionTemplates,
+		books:     services.Books,
 	}
 )
 
@@ -143,7 +145,7 @@ func (a *TransactionTemplatesApi) TemplateCreateHandler(c *core.WebContext) (any
 			return nil, errs.ErrScheduledTransactionFrequencyInvalid
 		}
 
-		if *templateCreateReq.ScheduledFrequencyType == models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS {
+		if templateCreateReq.ScheduledFrequencyType.IsEveryNInterval() {
 			frequencyValue, err := utils.StringToInt(*templateCreateReq.ScheduledFrequency)
 
 			if err != nil || frequencyValue <= 0 {
@@ -151,7 +153,7 @@ func (a *TransactionTemplatesApi) TemplateCreateHandler(c *core.WebContext) (any
 			}
 		}
 
-		if *templateCreateReq.ScheduledFrequencyType == models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS && templateCreateReq.ScheduledStartDate == nil {
+		if templateCreateReq.ScheduledFrequencyType.IsEveryNInterval() && templateCreateReq.ScheduledStartDate == nil {
 			return nil, errs.ErrScheduledTransactionStartDateRequired
 		}
 
@@ -236,7 +238,25 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 	}
 
 	uid := c.GetCurrentBookUid()
-	template, err := a.templates.GetTemplateByTemplateId(c, uid, templateModifyReq.Id)
+	sourceUid := uid
+
+	// a template is moved to the current book when it is saved with the book it came from
+	if templateModifyReq.SourceBookId > 0 && templateModifyReq.SourceBookId != uid {
+		sourceUid = templateModifyReq.SourceBookId
+
+		if sourceUid != c.GetCurrentUid() {
+			canAccess, err := a.books.CanAccessBook(c, c.GetCurrentUid(), sourceUid)
+
+			if err != nil {
+				log.Errorf(c, "[transaction_templates.TemplateModifyHandler] failed to check whether user \"uid:%d\" can access book \"uid:%d\", because %s", c.GetCurrentUid(), sourceUid, err.Error())
+				return nil, errs.Or(err, errs.ErrOperationFailed)
+			} else if !canAccess {
+				return nil, errs.ErrBookAccessDenied
+			}
+		}
+	}
+
+	template, err := a.templates.GetTemplateByTemplateId(c, sourceUid, templateModifyReq.Id)
 
 	if err != nil {
 		log.Errorf(c, "[transaction_templates.TemplateModifyHandler] failed to get template \"id:%d\" for user \"uid:%d\", because %s", templateModifyReq.Id, uid, err.Error())
@@ -259,7 +279,7 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 			return nil, errs.ErrScheduledTransactionFrequencyInvalid
 		}
 
-		if *templateModifyReq.ScheduledFrequencyType == models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS {
+		if templateModifyReq.ScheduledFrequencyType.IsEveryNInterval() {
 			frequencyValue, err := utils.StringToInt(*templateModifyReq.ScheduledFrequency)
 
 			if err != nil || frequencyValue <= 0 {
@@ -267,7 +287,7 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 			}
 		}
 
-		if *templateModifyReq.ScheduledFrequencyType == models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS && templateModifyReq.ScheduledStartDate == nil {
+		if templateModifyReq.ScheduledFrequencyType.IsEveryNInterval() && templateModifyReq.ScheduledStartDate == nil {
 			return nil, errs.ErrScheduledTransactionStartDateRequired
 		}
 
@@ -295,6 +315,7 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 		RelatedAccountAmount: templateModifyReq.DestinationAmount,
 		HideAmount:           templateModifyReq.HideAmount,
 		Comment:              templateModifyReq.Comment,
+		Merchant:             strings.TrimSpace(templateModifyReq.Merchant),
 	}
 
 	if template.TemplateType == models.TRANSACTION_TEMPLATE_TYPE_SCHEDULE {
@@ -341,7 +362,8 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 		}
 	}
 
-	if newTemplate.Name == template.Name &&
+	if sourceUid == uid &&
+		newTemplate.Name == template.Name &&
 		newTemplate.Type == template.Type &&
 		newTemplate.CategoryId == template.CategoryId &&
 		newTemplate.AccountId == template.AccountId &&
@@ -350,7 +372,8 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 		newTemplate.RelatedAccountId == template.RelatedAccountId &&
 		newTemplate.RelatedAccountAmount == template.RelatedAccountAmount &&
 		newTemplate.HideAmount == template.HideAmount &&
-		newTemplate.Comment == template.Comment {
+		newTemplate.Comment == template.Comment &&
+		newTemplate.Merchant == template.Merchant {
 		if template.TemplateType == models.TRANSACTION_TEMPLATE_TYPE_NORMAL {
 			return nil, errs.ErrNothingWillBeUpdated
 		} else if template.TemplateType == models.TRANSACTION_TEMPLATE_TYPE_SCHEDULE {
@@ -366,7 +389,11 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 		}
 	}
 
-	err = a.templates.ModifyTemplate(c, newTemplate)
+	if sourceUid != uid {
+		err = a.templates.MoveTemplateToBook(c, newTemplate, sourceUid, template.TemplateType)
+	} else {
+		err = a.templates.ModifyTemplate(c, newTemplate)
+	}
 
 	if err != nil {
 		log.Errorf(c, "[transaction_templates.TemplateModifyHandler] failed to update template \"id:%d\" for user \"uid:%d\", because %s", templateModifyReq.Id, uid, err.Error())
@@ -515,6 +542,7 @@ func (a *TransactionTemplatesApi) createNewTemplateModel(c *core.WebContext, uid
 		RelatedAccountAmount: templateCreateReq.DestinationAmount,
 		HideAmount:           templateCreateReq.HideAmount,
 		Comment:              templateCreateReq.Comment,
+		Merchant:             strings.TrimSpace(templateCreateReq.Merchant),
 		DisplayOrder:         order,
 	}
 

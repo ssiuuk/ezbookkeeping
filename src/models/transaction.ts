@@ -33,6 +33,8 @@ export class Transaction implements TransactionInfoResponse {
     public editable: boolean;
     public createdByUid?: string; // only for displaying transaction
     public projectId: string = NO_PROJECT_ID;
+    public merchant: string = '';
+    public sourceTemplateId?: string; // only for transactions created by a scheduled transaction
 
     private _pictures?: TransactionPicture[];
     private _geoLocation?: TransactionGeoLocation;
@@ -255,6 +257,7 @@ export class Transaction implements TransactionInfoResponse {
             tagIds: this.tagIds,
             pictureIds: this.getPictureIds(),
             projectId: this.getNormalizedProjectId(),
+            merchant: this.merchant.trim(),
             comment: this.comment,
             geoLocation: this.getNormalizedGeoLocation(),
             clientSessionId: clientSessionId
@@ -282,6 +285,7 @@ export class Transaction implements TransactionInfoResponse {
             tagIds: this.tagIds,
             pictureIds: this.getPictureIds(),
             projectId: this.getNormalizedProjectId(),
+            merchant: this.merchant.trim(),
             comment: this.comment,
             geoLocation: this.getNormalizedGeoLocation()
         };
@@ -305,6 +309,7 @@ export class Transaction implements TransactionInfoResponse {
             tagIds: this.tagIds,
             pictures: this.pictures,
             projectId: this.getNormalizedProjectId(),
+            merchant: this.merchant.trim(),
             comment: this.comment,
         };
     }
@@ -380,6 +385,8 @@ export class Transaction implements TransactionInfoResponse {
 
         transaction.createdByUid = transactionResponse.createdByUid;
         transaction.projectId = transactionResponse.projectId || NO_PROJECT_ID;
+        transaction.merchant = transactionResponse.merchant || '';
+        transaction.sourceTemplateId = transactionResponse.sourceTemplateId;
 
         return transaction;
     }
@@ -424,6 +431,7 @@ export class Transaction implements TransactionInfoResponse {
         );
 
         transaction.projectId = transactionDraft.projectId || NO_PROJECT_ID;
+        transaction.merchant = transactionDraft.merchant || '';
 
         if (transactionDraft.pictures) {
             const pictures: TransactionPicture[] = [];
@@ -542,6 +550,7 @@ export interface TransactionDraft {
     readonly tagIds?: string[];
     readonly pictures?: TransactionPictureInfoBasicResponse[];
     readonly projectId?: string;
+    readonly merchant?: string;
     readonly comment?: string;
 }
 
@@ -563,6 +572,7 @@ export interface TransactionCreateRequest {
     readonly tagIds: string[];
     readonly pictureIds: string[];
     readonly projectId?: string;
+    readonly merchant?: string;
     readonly comment: string;
     readonly geoLocation?: TransactionGeoLocationRequest;
     readonly clientSessionId: string;
@@ -582,6 +592,7 @@ export interface TransactionModifyRequest {
     readonly tagIds: string[];
     readonly pictureIds: string[];
     readonly projectId?: string;
+    readonly merchant?: string;
     readonly comment: string;
     readonly geoLocation?: TransactionGeoLocationRequest;
 }
@@ -702,9 +713,11 @@ export interface TransactionInfoResponse {
     readonly tags?: TransactionTagInfoResponse[];
     readonly pictures?: TransactionPictureInfoBasicResponse[];
     readonly comment: string;
+    readonly merchant?: string;
     readonly geoLocation?: TransactionGeoLocationResponse;
     readonly createdByUid?: string;
     readonly projectId?: string;
+    readonly sourceTemplateId?: string;
     readonly editable: boolean;
 }
 
@@ -886,6 +899,25 @@ export interface TransactionStatisticResponseItem {
     readonly relatedAccountId?: string;
     readonly relatedAccountType?: number;
     readonly amount: string;
+}
+
+export interface TransactionMerchantStatisticRequest {
+    readonly startTime: number;
+    readonly endTime: number;
+}
+
+export interface TransactionMerchantStatisticResponse {
+    readonly startTime: number;
+    readonly endTime: number;
+    readonly items: TransactionMerchantStatisticResponseItem[];
+}
+
+export interface TransactionMerchantStatisticResponseItem {
+    readonly merchant: string;
+    readonly type: number;
+    readonly accountId: string;
+    readonly amount: string;
+    readonly count: number;
 }
 
 export interface TransactionStatisticTrendsResponseItem {

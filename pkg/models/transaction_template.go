@@ -21,13 +21,25 @@ type TransactionScheduleFrequencyType byte
 
 // Transaction template schedule frequency types
 const (
-	TRANSACTION_SCHEDULE_FREQUENCY_TYPE_DISABLED     TransactionScheduleFrequencyType = 0
-	TRANSACTION_SCHEDULE_FREQUENCY_TYPE_WEEKLY       TransactionScheduleFrequencyType = 1
-	TRANSACTION_SCHEDULE_FREQUENCY_TYPE_MONTHLY      TransactionScheduleFrequencyType = 2
-	TRANSACTION_SCHEDULE_FREQUENCY_TYPE_DAILY        TransactionScheduleFrequencyType = 3
-	TRANSACTION_SCHEDULE_FREQUENCY_TYPE_YEARLY       TransactionScheduleFrequencyType = 4
-	TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS TransactionScheduleFrequencyType = 5
+	TRANSACTION_SCHEDULE_FREQUENCY_TYPE_DISABLED       TransactionScheduleFrequencyType = 0
+	TRANSACTION_SCHEDULE_FREQUENCY_TYPE_WEEKLY         TransactionScheduleFrequencyType = 1
+	TRANSACTION_SCHEDULE_FREQUENCY_TYPE_MONTHLY        TransactionScheduleFrequencyType = 2
+	TRANSACTION_SCHEDULE_FREQUENCY_TYPE_DAILY          TransactionScheduleFrequencyType = 3
+	TRANSACTION_SCHEDULE_FREQUENCY_TYPE_YEARLY         TransactionScheduleFrequencyType = 4
+	TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS   TransactionScheduleFrequencyType = 5
+	TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_WEEKS  TransactionScheduleFrequencyType = 6
+	TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS TransactionScheduleFrequencyType = 7
+	TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_YEARS  TransactionScheduleFrequencyType = 8
 )
+
+// IsEveryNInterval returns whether the frequency type repeats every N units counted from the scheduled start date,
+// these types store N as the only frequency value and require a start date as the anchor
+func (t TransactionScheduleFrequencyType) IsEveryNInterval() bool {
+	return t == TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS ||
+		t == TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_WEEKS ||
+		t == TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS ||
+		t == TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_YEARS
+}
 
 // TransactionTemplate represents transaction template stored in database
 type TransactionTemplate struct {
@@ -52,6 +64,7 @@ type TransactionTemplate struct {
 	RelatedAccountAmount       int64  `xorm:"NOT NULL"`
 	HideAmount                 bool   `xorm:"NOT NULL"`
 	Comment                    string `xorm:"VARCHAR(255) NOT NULL"`
+	Merchant                   string `xorm:"VARCHAR(64) NOT NULL DEFAULT ''"`
 	DisplayOrder               int32  `xorm:"INDEX(IDX_transaction_template_uid_deleted_template_type_order) NOT NULL"`
 	Hidden                     bool   `xorm:"NOT NULL"`
 	CreatedUnixTime            int64
@@ -82,6 +95,7 @@ type TransactionTemplateCreateRequest struct {
 	HideAmount                 bool                              `json:"hideAmount"`
 	TagIds                     []string                          `json:"tagIds"`
 	Comment                    string                            `json:"comment" binding:"max=255"`
+	Merchant                   string                            `json:"merchant" binding:"max=64"`
 	ScheduledFrequencyType     *TransactionScheduleFrequencyType `json:"scheduledFrequencyType" binding:"omitempty"`
 	ScheduledFrequency         *string                           `json:"scheduledFrequency" binding:"omitempty"`
 	ScheduledStartDate         *string                           `json:"scheduledStartDate" binding:"omitempty"`
@@ -110,12 +124,14 @@ type TransactionTemplateModifyRequest struct {
 	HideAmount                 bool                              `json:"hideAmount"`
 	TagIds                     []string                          `json:"tagIds"`
 	Comment                    string                            `json:"comment" binding:"max=255"`
+	Merchant                   string                            `json:"merchant" binding:"max=64"`
 	ScheduledFrequencyType     *TransactionScheduleFrequencyType `json:"scheduledFrequencyType" binding:"omitempty"`
 	ScheduledFrequency         *string                           `json:"scheduledFrequency" binding:"omitempty"`
 	ScheduledStartDate         *string                           `json:"scheduledStartDate" binding:"omitempty"`
 	ScheduledEndDate           *string                           `json:"scheduledEndDate" binding:"omitempty"`
 	ScheduledTimezoneName      *string                           `json:"timeZone" binding:"omitempty,min=3,max=100"`
 	ScheduledTimezoneUtcOffset *int16                            `json:"utcOffset" binding:"omitempty,min=-720,max=840"`
+	SourceBookId               int64                             `json:"sourceBookId,string" binding:"min=0"`
 }
 
 // TransactionTemplateHideRequest represents all parameters of transaction template hiding request
@@ -238,6 +254,7 @@ func (t *TransactionTemplate) toTransactionInfoResponse(utcOffset int16) *Transa
 		HideAmount:           t.HideAmount,
 		TagIds:               tagIds,
 		Comment:              t.Comment,
+		Merchant:             t.Merchant,
 		GeoLocation:          nil,
 		Editable:             true,
 	}

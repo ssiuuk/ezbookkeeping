@@ -41,6 +41,8 @@
                           :key="template.id"
                           v-for="template in templates"
                           v-show="showHidden || !template.hidden"
+                          :link="!sortable"
+                          @click="onTemplateClick(template)"
                           @taphold="setSortable()">
                 <template #media>
                     <f7-icon :f7="templateType === TemplateType.Schedule.type ? 'clock' : 'doc_plaintext'">
@@ -204,6 +206,14 @@ function reload(done?: () => void): void {
 
 function edit(template: TransactionTemplate): void {
     props.f7router.navigate(`/template/edit?id=${template.id}&templateType=${template.templateType}`);
+}
+
+function onTemplateClick(template: TransactionTemplate): void {
+    if (sortable.value) {
+        return;
+    }
+
+    edit(template);
 }
 
 function hide(template: TransactionTemplate, hidden: boolean): void {

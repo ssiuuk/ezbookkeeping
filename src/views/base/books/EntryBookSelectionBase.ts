@@ -62,6 +62,17 @@ export function useEntryBookSelectionBase() {
         return reloadBookData();
     }
 
+    // the book an edited item comes from, when another book is selected to move it to
+    function getMovingFromBookId(): string | undefined {
+        const currentBook = booksStore.currentBook;
+
+        if (!currentBook || !entryBook.value || entryBook.value.id === currentBook.id) {
+            return undefined;
+        }
+
+        return currentBook.id;
+    }
+
     function restoreEntryBook(): Promise<unknown> {
         initEntryBook();
 
@@ -85,6 +96,7 @@ export function useEntryBookSelectionBase() {
         getBookDisplayName,
         initEntryBook,
         changeEntryBook,
-        restoreEntryBook
+        restoreEntryBook,
+        getMovingFromBookId
     };
 }
