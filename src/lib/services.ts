@@ -92,6 +92,8 @@ import type {
     TransactionStatisticTrendsResponseItem,
     TransactionStatisticAssetTrendsRequest,
     TransactionStatisticAssetTrendsResponseItem,
+    TransactionMerchantStatisticRequest,
+    TransactionMerchantStatisticResponse,
     TransactionAmountsRequestParams,
     TransactionAmountsResponse,
     TransactionDailyAmountsRequest,
@@ -681,6 +683,15 @@ export default {
         }
 
         return axios.get<ApiResponse<TransactionStatisticResponse>>(`v1/transactions/statistics.json?use_transaction_timezone=${req.useTransactionTimezone}` + (queryParams.length ? '&' + queryParams.join('&') : ''), options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    getTransactionMerchantStatistics: (req: TransactionMerchantStatisticRequest, options?: BookRequestOptions): ApiResponsePromise<TransactionMerchantStatisticResponse> => {
+        return axios.get<ApiResponse<TransactionMerchantStatisticResponse>>(`v1/transactions/statistics/merchants.json?start_time=${req.startTime}&end_time=${req.endTime}`, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    getLaterScheduledTransactionIds: (req: { id: string }): ApiResponsePromise<string[]> => {
+        return axios.get<ApiResponse<string[]>>(`v1/transactions/later_scheduled.json?id=${req.id}`);
+    },
+    getTransactionMerchants: (options?: BookRequestOptions): ApiResponsePromise<string[]> => {
+        return axios.get<ApiResponse<string[]>>('v1/transactions/merchants/list.json', options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },
     getTransactionStatisticsTrends: (req: TransactionStatisticTrendsRequest): ApiResponsePromise<TransactionStatisticTrendsResponseItem[]> => {
         const queryParams: string[] = [];

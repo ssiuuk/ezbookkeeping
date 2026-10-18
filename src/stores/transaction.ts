@@ -615,6 +615,10 @@ export const useTransactionsStore = defineStore('transactions', () => {
             return true;
         }
 
+        if (transaction.merchant && transaction.merchant.trim()) {
+            return true;
+        }
+
         if (transaction.tagIds && transaction.tagIds.length > 0) {
             return !initTagIds || !isArray1SubsetOfArray2(transaction.tagIds, initTagIds.split(','));
         }

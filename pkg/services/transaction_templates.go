@@ -149,7 +149,41 @@ func (s *TransactionTemplateService) ModifyTemplate(c core.Context, template *mo
 			return err
 		}
 
-		updatedRows, err := sess.ID(template.TemplateId).Cols("name", "type", "category_id", "account_id", "scheduled_frequency_type", "scheduled_frequency", "scheduled_start_time", "scheduled_end_time", "scheduled_at", "scheduled_timezone_name", "scheduled_timezone_utc_offset", "tag_ids", "amount", "related_account_id", "related_account_amount", "hide_amount", "comment", "updated_unix_time").Where("uid=? AND deleted=?", template.Uid, false).Update(template)
+		updatedRows, err := sess.ID(template.TemplateId).Cols("name", "type", "category_id", "account_id", "scheduled_frequency_type", "scheduled_frequency", "scheduled_start_time", "scheduled_end_time", "scheduled_at", "scheduled_timezone_name", "scheduled_timezone_utc_offset", "tag_ids", "amount", "related_account_id", "related_account_amount", "hide_amount", "comment", "merchant", "updated_unix_time").Where("uid=? AND deleted=?", template.Uid, false).Update(template)
+
+		if err != nil {
+			return err
+		} else if updatedRows < 1 {
+			return errs.ErrTransactionTemplateNotFound
+		}
+
+		return err
+	})
+}
+
+// MoveTemplateToBook saves an existed transaction template model and moves it from the source book to the book of the model
+func (s *TransactionTemplateService) MoveTemplateToBook(c core.Context, template *models.TransactionTemplate, sourceUid int64, templateType models.TransactionTemplateType) error {
+	if template.Uid <= 0 || sourceUid <= 0 {
+		return errs.ErrUserIdInvalid
+	}
+
+	maxOrder, err := s.GetMaxDisplayOrder(c, template.Uid, templateType)
+
+	if err != nil {
+		return err
+	}
+
+	template.DisplayOrder = maxOrder + 1
+	template.UpdatedUnixTime = time.Now().Unix()
+
+	return s.UserDataDB(template.Uid).DoTransaction(c, func(sess *xorm.Session) error {
+		err := s.isTemplateValid(sess, template)
+
+		if err != nil {
+			return err
+		}
+
+		updatedRows, err := sess.ID(template.TemplateId).Cols("uid", "display_order", "name", "type", "category_id", "account_id", "scheduled_frequency_type", "scheduled_frequency", "scheduled_start_time", "scheduled_end_time", "scheduled_at", "scheduled_timezone_name", "scheduled_timezone_utc_offset", "tag_ids", "amount", "related_account_id", "related_account_amount", "hide_amount", "comment", "merchant", "updated_unix_time").Where("uid=? AND deleted=?", sourceUid, false).Update(template)
 
 		if err != nil {
 			return err
@@ -267,7 +301,7 @@ func (s *TransactionTemplateService) isTemplateValid(sess *xorm.Session, templat
 	// check accounts are valid
 	sourceAccount := &models.Account{}
 	destinationAccount := &models.Account{}
-	has, err := sess.ID(template.AccountId).Where("uid=? AND deleted=?", template.Uid, false).Get(sourceAccount)
+	has, err := sess.ID(template.AccountId).Where(accountOfBookCondition, false, template.Uid, template.Uid).Get(sourceAccount)
 
 	if err != nil {
 		return err
@@ -283,7 +317,7 @@ func (s *TransactionTemplateService) isTemplateValid(sess *xorm.Session, templat
 		if template.RelatedAccountId <= 0 {
 			return errs.ErrAccountIdInvalid
 		} else {
-			has, err = sess.ID(template.RelatedAccountId).Where("uid=? AND deleted=?", template.Uid, false).Get(destinationAccount)
+			has, err = sess.ID(template.RelatedAccountId).Where(accountOfBookCondition, false, template.Uid, template.Uid).Get(destinationAccount)
 
 			if err != nil {
 				return err

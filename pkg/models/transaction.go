@@ -139,12 +139,14 @@ type Transaction struct {
 	RelatedAccountAmount int64             `xorm:"NOT NULL"`
 	HideAmount           bool              `xorm:"NOT NULL"`
 	Comment              string            `xorm:"VARCHAR(255) NOT NULL"`
+	Merchant             string            `xorm:"VARCHAR(64) NOT NULL DEFAULT ''"`
 	GeoLongitude         float64           `xorm:"INDEX(IDX_transaction_uid_deleted_time_longitude_latitude)"`
 	GeoLatitude          float64           `xorm:"INDEX(IDX_transaction_uid_deleted_time_longitude_latitude)"`
 	ProjectId            int64             `xorm:"INDEX(IDX_transaction_uid_deleted_project_id_time) NOT NULL DEFAULT 0"`
 	CreatedIp            string            `xorm:"VARCHAR(39)"`
 	CreatedByUid         int64
 	ScheduledCreated     bool
+	SourceTemplateId     int64 `xorm:"INDEX NOT NULL DEFAULT 0"`
 	CreatedUnixTime      int64
 	UpdatedUnixTime      int64
 	DeletedUnixTime      int64
@@ -178,6 +180,7 @@ type TransactionCreateRequest struct {
 	PictureIds           []string                       `json:"pictureIds"`
 	ProjectId            int64                          `json:"projectId,string" binding:"min=0"`
 	Comment              string                         `json:"comment" binding:"max=255"`
+	Merchant             string                         `json:"merchant" binding:"max=64"`
 	GeoLocation          *TransactionGeoLocationRequest `json:"geoLocation" binding:"omitempty"`
 	ClientSessionId      string                         `json:"clientSessionId"`
 }
@@ -198,6 +201,7 @@ type TransactionModifyRequest struct {
 	PictureIds           []string                       `json:"pictureIds"`
 	ProjectId            int64                          `json:"projectId,string" binding:"min=0"`
 	Comment              string                         `json:"comment" binding:"max=255"`
+	Merchant             string                         `json:"merchant" binding:"max=64"`
 	GeoLocation          *TransactionGeoLocationRequest `json:"geoLocation" binding:"omitempty"`
 }
 
@@ -446,9 +450,11 @@ type TransactionInfoResponse struct {
 	Tags                 []*TransactionTagInfoResponse            `json:"tags,omitempty"`
 	Pictures             TransactionPictureInfoBasicResponseSlice `json:"pictures,omitempty"`
 	Comment              string                                   `json:"comment"`
+	Merchant             string                                   `json:"merchant"`
 	GeoLocation          *TransactionGeoLocationResponse          `json:"geoLocation,omitempty"`
 	CreatedByUid         int64                                    `json:"createdByUid,string"`
 	ProjectId            int64                                    `json:"projectId,string"`
+	SourceTemplateId     int64                                    `json:"sourceTemplateId,string,omitempty"`
 	Editable             bool                                     `json:"editable"`
 }
 
@@ -516,6 +522,43 @@ type TransactionStatisticResponseItem struct {
 	RelatedAccountId   int64                         `json:"relatedAccountId,string,omitempty"`
 	RelatedAccountType TransactionRelatedAccountType `json:"relatedAccountType,omitempty"`
 	TotalAmount        string                        `json:"amount"`
+}
+
+// TransactionMerchantStatisticRequest represents all parameters of transaction merchant statistic request
+type TransactionMerchantStatisticRequest struct {
+	StartTime int64 `form:"start_time" binding:"min=0"`
+	EndTime   int64 `form:"end_time" binding:"min=0"`
+}
+
+// TransactionMerchantLastUsedTime represents a merchant name and the time of its latest transaction
+type TransactionMerchantLastUsedTime struct {
+	Merchant            string `xorm:"merchant"`
+	LastTransactionTime int64  `xorm:"last_transaction_time"`
+}
+
+// TransactionMerchantTotalAmount represents the total amount and count of income or expense transactions of a merchant in one account
+type TransactionMerchantTotalAmount struct {
+	Merchant         string            `xorm:"merchant"`
+	Type             TransactionDbType `xorm:"type"`
+	AccountId        int64             `xorm:"account_id"`
+	TotalAmount      int64             `xorm:"total_amount"`
+	TransactionCount int64             `xorm:"transaction_count"`
+}
+
+// TransactionMerchantStatisticResponse represents the income and expense amounts of merchants for a response
+type TransactionMerchantStatisticResponse struct {
+	StartTime int64                                       `json:"startTime"`
+	EndTime   int64                                       `json:"endTime"`
+	Items     []*TransactionMerchantStatisticResponseItem `json:"items"`
+}
+
+// TransactionMerchantStatisticResponseItem represents the total amount of a merchant in one account for a response
+type TransactionMerchantStatisticResponseItem struct {
+	Merchant  string          `json:"merchant"`
+	Type      TransactionType `json:"type"`
+	AccountId int64           `json:"accountId,string"`
+	Amount    string          `json:"amount"`
+	Count     int64           `json:"count"`
 }
 
 // TransactionStatisticTrendsResponseItem represents the data within each statistic interval
@@ -702,9 +745,11 @@ func (t *Transaction) ToTransactionInfoResponse(tagIds []int64, editable bool) *
 		HideAmount:           t.HideAmount,
 		TagIds:               utils.Int64ArrayToStringArray(tagIds),
 		Comment:              t.Comment,
+		Merchant:             t.Merchant,
 		GeoLocation:          geoLocation,
 		CreatedByUid:         createdByUid,
 		ProjectId:            t.ProjectId,
+		SourceTemplateId:     t.SourceTemplateId,
 		Editable:             editable,
 	}
 }

@@ -133,6 +133,7 @@ func TestCreateTransactionByScheduledTransactionTemplate_Daily(t *testing.T) {
 		Comment:          "Scheduled transaction comment",
 		CreatedIp:        "127.0.0.1",
 		ScheduledCreated: true,
+		SourceTemplateId: 1001,
 	}
 	expectedTagIds := []int64{1001, 1002, 1003}
 	actualValue, actualTagIds := Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
@@ -1146,6 +1147,269 @@ func TestCreateTransactionByScheduledTransactionTemplate_EveryNDaysDateBoundary(
 	expectedValue.TransactionTime = startTimeInUTC.Unix() * 1000
 	actualValue, _ = Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
 	assert.Equal(t, expectedValue, actualValue)
+}
+
+func TestCreateTransactionByScheduledTransactionTemplate_EveryNWeeksMonthsYearsInvalidFrequency(t *testing.T) {
+	frequencyTypes := []models.TransactionScheduleFrequencyType{
+		models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_WEEKS,
+		models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS,
+		models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_YEARS,
+	}
+
+	for _, frequencyType := range frequencyTypes {
+		template := &models.TransactionTemplate{
+			Type:                   models.TRANSACTION_TYPE_EXPENSE,
+			ScheduledFrequencyType: frequencyType,
+			ScheduledFrequency:     "1",
+		}
+		template.ScheduledAt = utils.GetScheduledTransactionScheduledAt(time.Now().Unix(), time.UTC)
+		startTimeInUTC := time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
+
+		// These types require a start date as the anchor.
+		actualValue, actualTagIds := Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
+		assert.Nil(t, actualValue)
+		assert.Nil(t, actualTagIds)
+
+		startUnixTime := startTimeInUTC.Unix()
+		template.ScheduledStartTime = &startUnixTime
+
+		for _, frequency := range []string{"", "1,2", "0", "-1", "invalid"} {
+			template.ScheduledFrequency = frequency
+			actualValue, actualTagIds = Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
+			assert.Nil(t, actualValue)
+			assert.Nil(t, actualTagIds)
+		}
+	}
+}
+
+func TestCreateTransactionByScheduledTransactionTemplate_EveryNWeeks(t *testing.T) {
+	startUnixTime := time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC).Unix()
+	template := &models.TransactionTemplate{
+		Type:                   models.TRANSACTION_TYPE_EXPENSE,
+		ScheduledFrequencyType: models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_WEEKS,
+		ScheduledFrequency:     "2",
+		ScheduledStartTime:     &startUnixTime,
+	}
+	template.ScheduledAt = utils.GetScheduledTransactionScheduledAt(time.Now().Unix(), time.UTC)
+	startTimeInUTC := time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
+
+	expectedValue := &models.Transaction{
+		Type:             models.TRANSACTION_DB_TYPE_EXPENSE,
+		TransactionTime:  startTimeInUTC.Unix() * 1000,
+		CreatedIp:        "127.0.0.1",
+		ScheduledCreated: true,
+	}
+	actualValue, _ := Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
+	assert.Equal(t, expectedValue, actualValue)
+
+	// The same weekday in an odd week is skipped.
+	startTimeInUTC = time.Date(2026, 11, 10, 0, 0, 0, 0, time.UTC)
+	actualValue, actualTagIds := Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
+	assert.Nil(t, actualValue)
+	assert.Nil(t, actualTagIds)
+
+	// Another weekday in a matching week is skipped.
+	startTimeInUTC = time.Date(2026, 11, 18, 0, 0, 0, 0, time.UTC)
+	actualValue, actualTagIds = Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
+	assert.Nil(t, actualValue)
+	assert.Nil(t, actualTagIds)
+
+	// Two weeks before the start date is skipped.
+	startTimeInUTC = time.Date(2026, 10, 20, 0, 0, 0, 0, time.UTC)
+	actualValue, actualTagIds = Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
+	assert.Nil(t, actualValue)
+	assert.Nil(t, actualTagIds)
+
+	// The start date itself is included.
+	startTimeInUTC = time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)
+	expectedValue.TransactionTime = startTimeInUTC.Unix() * 1000
+	actualValue, _ = Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
+	assert.Equal(t, expectedValue, actualValue)
+
+	// The interval crosses the year boundary.
+	startTimeInUTC = time.Date(2027, 1, 12, 0, 0, 0, 0, time.UTC)
+	expectedValue.TransactionTime = startTimeInUTC.Unix() * 1000
+	actualValue, _ = Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
+	assert.Equal(t, expectedValue, actualValue)
+}
+
+func TestCreateTransactionByScheduledTransactionTemplate_EveryNMonths(t *testing.T) {
+	startUnixTime := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC).Unix()
+	template := &models.TransactionTemplate{
+		Type:                   models.TRANSACTION_TYPE_EXPENSE,
+		ScheduledFrequencyType: models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS,
+		ScheduledFrequency:     "3",
+		ScheduledStartTime:     &startUnixTime,
+	}
+	template.ScheduledAt = utils.GetScheduledTransactionScheduledAt(time.Now().Unix(), time.UTC)
+	startTimeInUTC := time.Date(2026, 4, 15, 0, 0, 0, 0, time.UTC)
+
+	expectedValue := &models.Transaction{
+		Type:             models.TRANSACTION_DB_TYPE_EXPENSE,
+		TransactionTime:  startTimeInUTC.Unix() * 1000,
+		CreatedIp:        "127.0.0.1",
+		ScheduledCreated: true,
+	}
+	actualValue, _ := Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
+	assert.Equal(t, expectedValue, actualValue)
+
+	// The interval crosses the year boundary.
+	startTimeInUTC = time.Date(2027, 1, 15, 0, 0, 0, 0, time.UTC)
+	expectedValue.TransactionTime = startTimeInUTC.Unix() * 1000
+	actualValue, _ = Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
+	assert.Equal(t, expectedValue, actualValue)
+
+	// A month that is not in the interval is skipped.
+	startTimeInUTC = time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)
+	actualValue, actualTagIds := Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
+	assert.Nil(t, actualValue)
+	assert.Nil(t, actualTagIds)
+
+	// Another day in a matching month is skipped.
+	startTimeInUTC = time.Date(2026, 4, 16, 0, 0, 0, 0, time.UTC)
+	actualValue, actualTagIds = Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
+	assert.Nil(t, actualValue)
+	assert.Nil(t, actualTagIds)
+
+	// A month before the start date is skipped, even if it is divisible by N.
+	startTimeInUTC = time.Date(2025, 10, 15, 0, 0, 0, 0, time.UTC)
+	actualValue, actualTagIds = Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
+	assert.Nil(t, actualValue)
+	assert.Nil(t, actualTagIds)
+}
+
+func TestCreateTransactionByScheduledTransactionTemplate_EveryNMonthsShortMonth(t *testing.T) {
+	startUnixTime := time.Date(2027, 1, 31, 0, 0, 0, 0, time.UTC).Unix()
+	template := &models.TransactionTemplate{
+		Type:                   models.TRANSACTION_TYPE_EXPENSE,
+		ScheduledFrequencyType: models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS,
+		ScheduledFrequency:     "1",
+		ScheduledStartTime:     &startUnixTime,
+	}
+	template.ScheduledAt = utils.GetScheduledTransactionScheduledAt(time.Now().Unix(), time.UTC)
+
+	expectedValue := &models.Transaction{
+		Type:             models.TRANSACTION_DB_TYPE_EXPENSE,
+		CreatedIp:        "127.0.0.1",
+		ScheduledCreated: true,
+	}
+
+	// The 31st falls back to the last day of shorter months, and returns to the 31st afterwards.
+	for _, date := range []time.Time{
+		time.Date(2027, 2, 28, 0, 0, 0, 0, time.UTC),
+		time.Date(2027, 3, 31, 0, 0, 0, 0, time.UTC),
+		time.Date(2027, 4, 30, 0, 0, 0, 0, time.UTC),
+		time.Date(2028, 2, 29, 0, 0, 0, 0, time.UTC),
+	} {
+		expectedValue.TransactionTime = date.Unix() * 1000
+		actualValue, _ := Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, date, date.Unix())
+		assert.Equal(t, expectedValue, actualValue)
+	}
+
+	for _, date := range []time.Time{
+		time.Date(2027, 3, 28, 0, 0, 0, 0, time.UTC),
+		time.Date(2027, 3, 30, 0, 0, 0, 0, time.UTC),
+		time.Date(2028, 2, 28, 0, 0, 0, 0, time.UTC),
+	} {
+		actualValue, actualTagIds := Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, date, date.Unix())
+		assert.Nil(t, actualValue)
+		assert.Nil(t, actualTagIds)
+	}
+}
+
+func TestCreateTransactionByScheduledTransactionTemplate_EveryNMonthsTimezone(t *testing.T) {
+	location, err := time.LoadLocation("Asia/Shanghai")
+	assert.Equal(t, nil, err)
+	startTime, err := utils.ParseFromLongDateFirstTimeInTimezone("2026-01-31", location)
+	assert.Equal(t, nil, err)
+	startUnixTime := startTime.Unix()
+	template := &models.TransactionTemplate{
+		Type:                   models.TRANSACTION_TYPE_EXPENSE,
+		ScheduledFrequencyType: models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS,
+		ScheduledFrequency:     "1",
+		ScheduledStartTime:     &startUnixTime,
+		ScheduledTimezoneName:  "Asia/Shanghai",
+		CreatedUnixTime:        time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).Unix(),
+	}
+	template.ScheduledAt = utils.GetScheduledTransactionScheduledAt(template.CreatedUnixTime, location)
+
+	// The local date in the template timezone is February 28, while it is still February 27 in UTC.
+	startTimeInUTC := time.Date(2026, 2, 27, 16, 0, 0, 0, time.UTC)
+	todayFirstUnixTimeInUTC := time.Date(2026, 2, 27, 0, 0, 0, 0, time.UTC).Unix()
+	expectedValue := &models.Transaction{
+		Type:              models.TRANSACTION_DB_TYPE_EXPENSE,
+		TransactionTime:   startTimeInUTC.Unix() * 1000,
+		TimezoneUtcOffset: 480,
+		CreatedIp:         "127.0.0.1",
+		ScheduledCreated:  true,
+	}
+	actualValue, _ := Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, todayFirstUnixTimeInUTC)
+	assert.Equal(t, expectedValue, actualValue)
+}
+
+func TestCreateTransactionByScheduledTransactionTemplate_EveryNYears(t *testing.T) {
+	startUnixTime := time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC).Unix()
+	template := &models.TransactionTemplate{
+		Type:                   models.TRANSACTION_TYPE_EXPENSE,
+		ScheduledFrequencyType: models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_YEARS,
+		ScheduledFrequency:     "1",
+		ScheduledStartTime:     &startUnixTime,
+	}
+	template.ScheduledAt = utils.GetScheduledTransactionScheduledAt(time.Now().Unix(), time.UTC)
+
+	expectedValue := &models.Transaction{
+		Type:             models.TRANSACTION_DB_TYPE_EXPENSE,
+		CreatedIp:        "127.0.0.1",
+		ScheduledCreated: true,
+	}
+
+	// February 29 falls back to February 28 in common years.
+	for _, date := range []time.Time{
+		time.Date(2025, 2, 28, 0, 0, 0, 0, time.UTC),
+		time.Date(2028, 2, 29, 0, 0, 0, 0, time.UTC),
+	} {
+		expectedValue.TransactionTime = date.Unix() * 1000
+		actualValue, _ := Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, date, date.Unix())
+		assert.Equal(t, expectedValue, actualValue)
+	}
+
+	for _, date := range []time.Time{
+		time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2028, 2, 28, 0, 0, 0, 0, time.UTC),
+		time.Date(2023, 2, 28, 0, 0, 0, 0, time.UTC),
+	} {
+		actualValue, actualTagIds := Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, date, date.Unix())
+		assert.Nil(t, actualValue)
+		assert.Nil(t, actualTagIds)
+	}
+
+	// Every 2 years only matches the years in the interval.
+	template.ScheduledFrequency = "2"
+	date := time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC)
+	expectedValue.TransactionTime = date.Unix() * 1000
+	actualValue, _ := Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, date, date.Unix())
+	assert.Equal(t, expectedValue, actualValue)
+
+	date = time.Date(2025, 2, 28, 0, 0, 0, 0, time.UTC)
+	actualValue, actualTagIds := Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, date, date.Unix())
+	assert.Nil(t, actualValue)
+	assert.Nil(t, actualTagIds)
+}
+
+func TestIsScheduledEveryNIntervalDate(t *testing.T) {
+	startDate := time.Date(2026, 1, 31, 0, 0, 0, 0, time.UTC)
+
+	assert.True(t, isScheduledEveryNIntervalDate(models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS, 10, startDate, time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC)))
+	assert.False(t, isScheduledEveryNIntervalDate(models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS, 10, startDate, time.Date(2026, 2, 11, 0, 0, 0, 0, time.UTC)))
+	assert.True(t, isScheduledEveryNIntervalDate(models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_WEEKS, 1, startDate, time.Date(2026, 2, 7, 0, 0, 0, 0, time.UTC)))
+	assert.False(t, isScheduledEveryNIntervalDate(models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_WEEKS, 2, startDate, time.Date(2026, 2, 7, 0, 0, 0, 0, time.UTC)))
+	assert.True(t, isScheduledEveryNIntervalDate(models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS, 1, startDate, time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC)))
+	assert.True(t, isScheduledEveryNIntervalDate(models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS, 2, startDate, time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC)))
+	assert.False(t, isScheduledEveryNIntervalDate(models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS, 2, startDate, time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC)))
+	assert.True(t, isScheduledEveryNIntervalDate(models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_YEARS, 5, startDate, time.Date(2031, 1, 31, 0, 0, 0, 0, time.UTC)))
+	assert.False(t, isScheduledEveryNIntervalDate(models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_YEARS, 5, startDate, time.Date(2030, 1, 31, 0, 0, 0, 0, time.UTC)))
+	assert.False(t, isScheduledEveryNIntervalDate(models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS, 0, startDate, startDate))
+	assert.False(t, isScheduledEveryNIntervalDate(models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_DAILY, 1, startDate, startDate))
 }
 
 func TestCreateTransactionByScheduledTransactionTemplate_StartAndEndTimeTimezoneWithDST(t *testing.T) {

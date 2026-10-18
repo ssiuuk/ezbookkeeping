@@ -20,6 +20,7 @@ import BudgetPage from '@/views/desktop/budgets/BudgetPage.vue';
 import HouseholdReportPage from '@/views/desktop/reports/HouseholdReportPage.vue';
 import ProjectListPage from '@/views/desktop/projects/ListPage.vue';
 import ProjectReportPage from '@/views/desktop/projects/ReportPage.vue';
+import MerchantReportPage from '@/views/desktop/merchants/ReportPage.vue';
 
 import InsightsExplorerPage from '@/views/desktop/insights/ExplorerPage.vue';
 
@@ -152,6 +153,11 @@ const router = createRouter({
             props: route => ({
                 initId: route.query['id']
             })
+        },
+        {
+            path: '/merchants/report',
+            component: MerchantReportPage,
+            beforeEnter: checkLogin
         },
         {
             path: '/statistics/transaction',

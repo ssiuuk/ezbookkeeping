@@ -106,7 +106,7 @@
                     <v-window-item value="basicInfo">
                         <v-form class="my-4">
                             <v-row>
-                                <v-col cols="12" v-if="type === TransactionEditPageType.Transaction && mode === TransactionEditPageMode.Add && showEntryBookSelection">
+                                <v-col cols="12" v-if="((type === TransactionEditPageType.Transaction && mode === TransactionEditPageMode.Add) || (type === TransactionEditPageType.Template && mode !== TransactionEditPageMode.View)) && showEntryBookSelection">
                                     <v-select
                                         item-value="id"
                                         persistent-placeholder
@@ -319,6 +319,14 @@
                                         @update:model-value="updateTransactionTimezone"
                                     />
                                 </v-col>
+                                <v-col cols="12" md="6" v-if="showRepeatField">
+                                    <schedule-frequency-select
+                                        :disabled="loading || submitting || recognizing"
+                                        :label="tt('Repeat')"
+                                        :disabled-text="tt('Does not repeat')"
+                                        v-model:type="repeatFrequencyType"
+                                        v-model="repeatFrequency" />
+                                </v-col>
                                 <v-col cols="12" md="6" v-if="type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate && transaction.templateType === TemplateType.Schedule.type">
                                     <date-select
                                         :readonly="mode === TransactionEditPageMode.View"
@@ -370,6 +378,25 @@
                                         v-model="transaction.tagIds"
                                         @tag:saving="onSavingTag"
                                     />
+                                </v-col>
+                                <v-col cols="12" md="12" v-if="showMerchantField">
+                                    <v-combobox
+                                        autocomplete="off"
+                                        persistent-placeholder
+                                        hide-no-data
+                                        :readonly="mode === TransactionEditPageMode.View"
+                                        :disabled="loading || submitting || recognizing"
+                                        :label="tt('Merchant')"
+                                        :placeholder="tt('Merchant name (optional)')"
+                                        :maxlength="TRANSACTION_MAX_MERCHANT_LENGTH"
+                                        :items="allMerchantNames"
+                                        :model-value="transaction.merchant"
+                                        @update:model-value="updateMerchant"
+                                    >
+                                        <template #prepend-inner>
+                                            <v-icon :icon="mdiStorefrontOutline" size="20" />
+                                        </template>
+                                    </v-combobox>
                                 </v-col>
                                 <v-col cols="12" md="12" v-if="showProjectField">
                                     <v-select
@@ -565,6 +592,7 @@ import {
     AfterSaveAction,
     useTransactionEditPageBase
 } from '@/views/base/transactions/TransactionEditPageBase.ts';
+import { REPEAT_NOT_SET_UP_MESSAGE, useTransactionRepeatBase } from '@/views/base/transactions/TransactionRepeatBase.ts';
 
 import { useSettingsStore } from '@/stores/setting.ts';
 import { useUserStore } from '@/stores/user.ts';
@@ -574,6 +602,7 @@ import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 import { useBooksStore } from '@/stores/book.ts';
 import { useProjectsStore } from '@/stores/project.ts';
 import { useEntryBookSelectionBase } from '@/views/base/books/EntryBookSelectionBase.ts';
+import { useScheduledChangeBase, SCHEDULED_CHANGE_CONFIRM_MESSAGE, SCHEDULED_CHANGE_NOT_APPLIED_MESSAGE } from '@/views/base/transactions/ScheduledChangeBase.ts';
 import { useTransactionsStore } from '@/stores/transaction.ts';
 import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
 
@@ -585,7 +614,7 @@ import { KnownFileType } from '@/core/file.ts';
 
 import { KnownErrorCode } from '@/consts/api.ts';
 import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
-import { SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR } from '@/consts/transaction.ts';
+import { SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR, TRANSACTION_MAX_MERCHANT_LENGTH } from '@/consts/transaction.ts';
 
 import type { TransactionCategory } from '@/models/transaction_category.ts';
 import { TransactionTemplate } from '@/models/transaction_template.ts';
@@ -629,7 +658,8 @@ import {
     mdiTrashCanOutline,
     mdiFullscreen,
     mdiAccountEditOutline,
-    mdiBriefcaseOutline
+    mdiBriefcaseOutline,
+    mdiStorefrontOutline
 } from '@mdi/js';
 
 export interface TransactionEditOptions extends SetTransactionOptions {
@@ -675,8 +705,10 @@ const {
     geoLocationStatus,
     setGeoLocationByClickMap,
     transaction,
+    allMerchantNames,
     defaultCurrency,
     showProjectField,
+    showMerchantField,
     allProjectSelectItems,
     imageUploadQualityType,
     allTimezones,
@@ -707,6 +739,7 @@ const {
     inputIsEmpty,
     createNewTransactionModel,
     setTransactionModel,
+    loadMerchantNames,
     resetTransactionBookRelatedFields,
     updateTransactionModelFromRecognizedResponse,
     updateTransactionModelByAfterSaveAction,
@@ -715,6 +748,15 @@ const {
     swapTransactionData,
     getTransactionPictureUrl
 } = useTransactionEditPageBase(props.type);
+
+const {
+    repeatFrequencyType,
+    repeatFrequency,
+    showRepeatField,
+    resetRepeat,
+    buildRepeatTemplate,
+    saveRepeatTemplate
+} = useTransactionRepeatBase(props.type, mode, transaction);
 
 const settingsStore = useSettingsStore();
 const userStore = useUserStore();
@@ -731,8 +773,10 @@ const {
     getBookDisplayName,
     initEntryBook,
     changeEntryBook,
-    restoreEntryBook
+    restoreEntryBook,
+    getMovingFromBookId
 } = useEntryBookSelectionBase();
+const { hasScheduledFieldChanges, applyToScheduleAndLaterTransactions } = useScheduledChangeBase();
 const transactionsStore = useTransactionsStore();
 const transactionTemplatesStore = useTransactionTemplatesStore();
 
@@ -811,6 +855,7 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
 
     initOptions.value = options;
     initEntryBook();
+    resetRepeat();
 
     const newTransaction = createNewTransactionModel(options.type);
     setTransactionModel(newTransaction, options, true);
@@ -824,6 +869,9 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
 
     // projects are optional for a transaction, so failing to load them should not block the dialog
     projectsStore.loadAllProjects({ force: false }).catch(error => logger.warn('failed to load projects', error));
+
+    // merchant names are only suggestions, so failing to load them should not block the dialog either
+    loadMerchantNames().catch(error => logger.warn('failed to load merchants', error));
 
     if (props.type === TransactionEditPageType.Transaction) {
         if (options && options.id) {
@@ -972,6 +1020,10 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
     });
 }
 
+function updateMerchant(value: string | null): void {
+    transaction.value.merchant = value ?? '';
+}
+
 function onEntryBookChanged(bookId: string): void {
     const book = allBooks.value.find(item => item.id === bookId);
 
@@ -983,6 +1035,7 @@ function onEntryBookChanged(bookId: string): void {
 
     changeEntryBook(book).then(() => {
         resetTransactionBookRelatedFields();
+        loadMerchantNames().catch(error => logger.warn('failed to load merchants', error));
         loading.value = false;
     }).catch(error => {
         loading.value = false;
@@ -1002,8 +1055,12 @@ function save(afterAction: AfterSaveAction): void {
     }
 
     if (props.type === TransactionEditPageType.Transaction && (mode.value === TransactionEditPageMode.Add || mode.value === TransactionEditPageMode.Edit)) {
-        const doSubmit = function () {
+        const doSubmit = function (applyToLaterScheduled: boolean) {
             submitting.value = true;
+
+            const repeatTemplate = buildRepeatTemplate();
+            const sourceTemplateId = initTransaction.value?.sourceTemplateId;
+            let savedMessage = 'You have saved this transaction';
 
             transactionsStore.saveTransaction({
                 transaction: transaction.value as Transaction,
@@ -1011,6 +1068,19 @@ function save(afterAction: AfterSaveAction): void {
                 isEdit: mode.value === TransactionEditPageMode.Edit,
                 clientSessionId: clientSessionId.value
             }).then(() => {
+                if (!applyToLaterScheduled || !sourceTemplateId) {
+                    return;
+                }
+
+                return applyToScheduleAndLaterTransactions(transaction.value as Transaction, sourceTemplateId, defaultCurrency.value).then(() => {
+                    savedMessage = 'You have saved this transaction and its scheduled transaction';
+                }).catch(error => {
+                    logger.error('failed to apply changes to the scheduled transaction', error);
+                    savedMessage = SCHEDULED_CHANGE_NOT_APPLIED_MESSAGE;
+                });
+            }).then(() => saveRepeatTemplate(repeatTemplate)).then(repeatSaved => {
+                const addedMessage = repeatSaved ? 'You have added a new transaction' : REPEAT_NOT_SET_UP_MESSAGE;
+
                 submitting.value = false;
                 submitted.value = true;
 
@@ -1019,18 +1089,19 @@ function save(afterAction: AfterSaveAction): void {
                 }
 
                 if (mode.value === TransactionEditPageMode.Add && (afterAction === AfterSaveAction.StayWithNewTransaction || afterAction === AfterSaveAction.StayWithCurrentTransaction)) {
-                    snackbar.value?.showMessage('You have added a new transaction');
+                    snackbar.value?.showMessage(addedMessage);
                     updateTransactionModelByAfterSaveAction(afterAction, initOptions.value);
+                    resetRepeat();
                     clientSessionId.value = generateRandomUUID();
                 } else {
                     if (resolveFunc) {
                         if (mode.value === TransactionEditPageMode.Add) {
                             resolveFunc({
-                                message: 'You have added a new transaction'
+                                message: addedMessage
                             });
                         } else if (mode.value === TransactionEditPageMode.Edit) {
                             resolveFunc({
-                                message: 'You have saved this transaction'
+                                message: savedMessage
                             });
                         }
                     }
@@ -1064,20 +1135,35 @@ function save(afterAction: AfterSaveAction): void {
             });
         };
 
+        const confirmScheduledChangeAndSubmit = function () {
+            if (mode.value === TransactionEditPageMode.Edit && initTransaction.value && hasScheduledFieldChanges(initTransaction.value, transaction.value as Transaction)) {
+                confirmDialog.value?.open(SCHEDULED_CHANGE_CONFIRM_MESSAGE).then(() => {
+                    doSubmit(true);
+                }).catch(() => {
+                    doSubmit(false);
+                });
+            } else {
+                doSubmit(false);
+            }
+        };
+
         if (transaction.value.sourceAmount === 0) {
             confirmDialog.value?.open('Are you sure you want to save this transaction with a zero amount?').then(() => {
-                doSubmit();
+                confirmScheduledChangeAndSubmit();
             });
         } else {
-            doSubmit();
+            confirmScheduledChangeAndSubmit();
         }
     } else if (props.type === TransactionEditPageType.Template && (mode.value === TransactionEditPageMode.Add || mode.value === TransactionEditPageMode.Edit)) {
         submitting.value = true;
 
+        const sourceBookId = mode.value === TransactionEditPageMode.Edit ? getMovingFromBookId() : undefined;
+
         transactionTemplatesStore.saveTemplateContent({
             template: transaction.value as TransactionTemplate,
             isEdit: mode.value === TransactionEditPageMode.Edit,
-            clientSessionId: clientSessionId.value
+            clientSessionId: clientSessionId.value,
+            sourceBookId: sourceBookId
         }).then(() => {
             submitting.value = false;
 
@@ -1088,7 +1174,7 @@ function save(afterAction: AfterSaveAction): void {
                     });
                 } else if (mode.value === TransactionEditPageMode.Edit) {
                     resolveFunc({
-                        message: 'You have saved this template'
+                        message: sourceBookId ? 'You have moved this template to the selected book' : 'You have saved this template'
                     });
                 }
             }
