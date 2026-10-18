@@ -78,7 +78,7 @@
                                 @mouseenter="hoveredTemplateId = element.id" @mouseleave="hoveredTemplateId = ''">
                                 <td>
                                     <div class="d-flex align-center">
-                                        <div class="d-flex align-center">
+                                        <div class="d-flex align-center flex-grow-1 cursor-pointer" @click="!loading && !updating && edit(element)">
                                             <v-badge class="right-bottom-icon" color="secondary"
                                                      location="bottom right" offset-x="8" :icon="mdiEyeOffOutline"
                                                      v-if="element.hidden">
