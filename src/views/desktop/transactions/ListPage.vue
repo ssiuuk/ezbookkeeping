@@ -603,7 +603,9 @@
                                                 v-if="!transaction.tagIds || !transaction.tagIds.length"/>
                                     </td>
                                     <td class="transaction-table-column-description text-truncate">
-                                        {{ transaction.comment }}
+                                        <span class="text-medium-emphasis" v-if="transaction.merchant">{{ transaction.merchant }}</span>
+                                        <span class="text-medium-emphasis" v-if="transaction.merchant && transaction.comment"> · </span>
+                                        <span v-if="transaction.comment">{{ transaction.comment }}</span>
                                     </td>
                                 </tr>
                             </tbody>

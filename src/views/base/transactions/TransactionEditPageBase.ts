@@ -53,6 +53,9 @@ import {
     setTransactionModelByTransaction
 } from '@/lib/transaction.ts';
 
+import { handleApiResponse } from '@/lib/api.ts';
+import services from '@/lib/services.ts';
+
 export enum TransactionEditPageType {
     Transaction = 'transaction',
     Template = 'template'
@@ -119,6 +122,7 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
     const setGeoLocationByClickMap = ref<boolean>(false);
 
     const transaction = ref<Transaction | TransactionTemplate>(createNewTransactionModel(transactionDefaultType));
+    const allMerchantNames = ref<string[]>([]);
 
     const numeralSystem = computed<NumeralSystem>(() => getCurrentNumeralSystemType());
     const currentTimezoneOffsetMinutes = computed<number>(() => getTimezoneOffsetMinutes(transaction.value.time));
@@ -128,6 +132,9 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
     const defaultAccountId = computed<string>(() => userStore.currentUserDefaultAccountId);
 
     const showProjectField = computed<boolean>(() => type === TransactionEditPageType.Transaction && transaction.value.type !== TransactionType.ModifyBalance);
+
+    // an empty merchant is not worth a row when only viewing the transaction
+    const showMerchantField = computed<boolean>(() => transaction.value.type !== TransactionType.ModifyBalance && (mode.value !== TransactionEditPageMode.View || !!transaction.value.merchant));
 
     const allProjectSelectItems = computed<TransactionProjectSelectItem[]>(() => {
         const items: TransactionProjectSelectItem[] = [{ id: NO_PROJECT_ID, name: tt('None') }];
@@ -486,6 +493,13 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         );
     }
 
+    // merchant names already used in the current book, most recently used first, for suggestions
+    function loadMerchantNames(): Promise<void> {
+        return handleApiResponse(services.getTransactionMerchants(), 'failed to retrieve merchant list', 'Unable to retrieve merchant list').then(merchants => {
+            allMerchantNames.value = merchants;
+        });
+    }
+
     function resetTransactionBookRelatedFields(): void {
         const currentTransaction = transaction.value;
 
@@ -636,6 +650,7 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         geoLocationStatus,
         setGeoLocationByClickMap,
         transaction,
+        allMerchantNames,
         // computed states
         numeralSystem,
         currentTimezoneOffsetMinutes,
@@ -643,6 +658,7 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         defaultCurrency,
         defaultAccountId,
         showProjectField,
+        showMerchantField,
         allProjectSelectItems,
         transactionProjectName,
         firstDayOfWeek,
@@ -681,6 +697,7 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         // functions
         createNewTransactionModel,
         setTransactionModel,
+        loadMerchantNames,
         resetTransactionBookRelatedFields,
         updateTransactionModelFromRecognizedResponse,
         updateTransactionModelByAfterSaveAction,

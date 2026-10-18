@@ -426,6 +426,8 @@ func startWebServer(c *core.CliContext) error {
 			apiV1Route.GET("/transactions/statistics.json", bindApi(api.Transactions.TransactionStatisticsHandler, config))
 			apiV1Route.GET("/transactions/statistics/trends.json", bindApi(api.Transactions.TransactionStatisticsTrendsHandler, config))
 			apiV1Route.GET("/transactions/statistics/asset_trends.json", bindApi(api.Transactions.TransactionStatisticsAssetTrendsHandler, config))
+			apiV1Route.GET("/transactions/statistics/merchants.json", bindApi(api.Transactions.TransactionMerchantStatisticsHandler, config))
+			apiV1Route.GET("/transactions/merchants/list.json", bindApi(api.Transactions.TransactionMerchantListHandler, config))
 			apiV1Route.GET("/transactions/amounts.json", bindApi(api.Transactions.TransactionAmountsHandler, config))
 			apiV1Route.GET("/transactions/amounts/daily.json", bindApi(api.Transactions.TransactionDailyAmountsHandler, config))
 			apiV1Route.GET("/transactions/get.json", bindApi(api.Transactions.TransactionGetHandler, config))

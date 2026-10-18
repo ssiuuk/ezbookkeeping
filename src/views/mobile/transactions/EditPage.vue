@@ -52,6 +52,7 @@
                     </f7-block>
                 </template>
             </f7-list-item>
+            <f7-list-input label="Merchant" placeholder="Merchant name (optional)" v-if="transaction.type !== TransactionType.ModifyBalance"></f7-list-input>
             <f7-list-input type="textarea" label="Description" placeholder="Your transaction description (optional)"></f7-list-input>
         </f7-list>
 
@@ -406,6 +407,35 @@
                 </template>
             </f7-list-item>
 
+            <f7-list-input
+                type="text"
+                autocomplete="off"
+                :clear-button="mode !== TransactionEditPageMode.View"
+                :class="{ 'readonly': mode === TransactionEditPageMode.View }"
+                :label="tt('Merchant')"
+                :placeholder="mode !== TransactionEditPageMode.View ? tt('Merchant name (optional)') : ''"
+                :maxlength="TRANSACTION_MAX_MERCHANT_LENGTH"
+                v-model:value="transaction.merchant"
+                v-if="showMerchantField"
+            >
+                <template #content-end>
+                    <f7-link class="transaction-edit-merchant-suggestions" icon-f7="list_bullet" :aria-label="tt('Used Merchants')"
+                             v-if="mode !== TransactionEditPageMode.View && allMerchantSelectItems.length"
+                             @click="showMerchantPopup = true"></f7-link>
+                    <list-item-selection-popup value-type="item"
+                                               key-field="name" value-field="name"
+                                               title-field="name"
+                                               :title="tt('Used Merchants')"
+                                               :enable-filter="allMerchantSelectItems.length > 8"
+                                               :filter-placeholder="tt('Merchant')"
+                                               :filter-no-items-text="tt('No results')"
+                                               :items="allMerchantSelectItems"
+                                               v-model="transaction.merchant"
+                                               v-model:show="showMerchantPopup">
+                    </list-item-selection-popup>
+                </template>
+            </f7-list-input>
+
             <f7-list-item
                 link="#"
                 :no-chevron="mode === TransactionEditPageMode.View"
@@ -615,7 +645,7 @@ import {
 import { ScheduledTemplateFrequencyType, TemplateType } from '@/core/template.ts';
 import { KnownFileType } from '@/core/file.ts';
 
-import { TRANSACTION_MAX_AMOUNT, TRANSACTION_MIN_AMOUNT, SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR } from '@/consts/transaction.ts';
+import { TRANSACTION_MAX_AMOUNT, TRANSACTION_MIN_AMOUNT, TRANSACTION_MAX_MERCHANT_LENGTH, SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR } from '@/consts/transaction.ts';
 import { KnownErrorCode } from '@/consts/api.ts';
 import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
 
@@ -679,10 +709,12 @@ const {
     geoLocationStatus,
     setGeoLocationByClickMap,
     transaction,
+    allMerchantNames,
     numeralSystem,
     currentTimezoneOffsetMinutes,
     defaultCurrency,
     showProjectField,
+    showMerchantField,
     allProjectSelectItems,
     transactionProjectName,
     firstDayOfWeek,
@@ -713,6 +745,7 @@ const {
     inputEmptyProblemMessage,
     inputIsEmpty,
     setTransactionModel,
+    loadMerchantNames,
     resetTransactionBookRelatedFields,
     updateTransactionModelFromRecognizedResponse,
     updateTransactionModelByAfterSaveAction,
@@ -748,6 +781,7 @@ const {
 
 const showEntryBookSheet = ref<boolean>(false);
 
+const allMerchantSelectItems = computed<{ name: string }[]>(() => allMerchantNames.value.map(name => ({ name })));
 const transactionCreatorName = computed<string>(() => booksStore.currentBookMembers.length > 1 ? booksStore.getMemberDisplayName(transaction.value.createdByUid) : '');
 
 const pictureBrowser = useTemplateRef<PhotoBrowser.PhotoBrowser>('pictureBrowser');
@@ -775,6 +809,7 @@ const showScheduledEndDateSheet = ref<boolean>(false);
 const showGeoLocationMapSheet = ref<boolean>(false);
 const showTransactionTagSheet = ref<boolean>(false);
 const showProjectPopup = ref<boolean>(false);
+const showMerchantPopup = ref<boolean>(false);
 const showTransactionPictures = ref<boolean>(pageTypeAndMode?.type === TransactionEditPageType.Transaction
     && (pageTypeAndMode?.mode === TransactionEditPageMode.Add || pageTypeAndMode?.mode === TransactionEditPageMode.Edit)
     && settingsStore.appSettings.alwaysShowTransactionPicturesInMobileTransactionEditPage);
@@ -1041,6 +1076,9 @@ function init(): void {
 
     // projects are optional for a transaction, so failing to load them should not block the page
     projectsStore.loadAllProjects({ force: false }).catch(error => logger.warn('failed to load projects', error));
+
+    // merchant names are only suggestions, so failing to load them should not block the page either
+    loadMerchantNames().catch(error => logger.warn('failed to load merchants', error));
 
     if (pageTypeAndMode.type === TransactionEditPageType.Transaction) {
         if (query['id']) {
@@ -1615,6 +1653,7 @@ function onEntryBookChanged(book: BookInfoResponse): void {
 
     changeEntryBook(book).then(() => {
         resetTransactionBookRelatedFields();
+        loadMerchantNames().catch(error => logger.warn('failed to load merchants', error));
         hideLoading();
     }).catch(error => {
         hideLoading();
@@ -1666,6 +1705,11 @@ init();
 
 .transaction-edit-amount {
     line-height: 53px;
+}
+
+.transaction-edit-merchant-suggestions {
+    align-self: center;
+    padding-inline-end: var(--f7-list-item-padding-horizontal);
 }
 
 .transaction-edit-amount .item-title {

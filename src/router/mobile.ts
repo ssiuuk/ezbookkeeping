@@ -44,6 +44,7 @@ import BudgetPage from '@/views/mobile/budgets/BudgetPage.vue';
 import HouseholdReportPage from '@/views/mobile/reports/HouseholdReportPage.vue';
 import ProjectListPage from '@/views/mobile/projects/ListPage.vue';
 import ProjectReportPage from '@/views/mobile/projects/ReportPage.vue';
+import MerchantReportPage from '@/views/mobile/merchants/ReportPage.vue';
 import SessionListPage from '@/views/mobile/users/SessionListPage.vue';
 
 import CategoryAllPage from '@/views/mobile/categories/AllPage.vue';
@@ -336,6 +337,11 @@ const routes: Router.RouteParameters[] = [
     {
         path: '/projects/report',
         async: asyncResolve(ProjectReportPage),
+        beforeEnter: [checkLogin]
+    },
+    {
+        path: '/merchants/report',
+        async: asyncResolve(MerchantReportPage),
         beforeEnter: [checkLogin]
     },
     {

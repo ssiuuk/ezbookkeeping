@@ -52,6 +52,7 @@ type TransactionTemplate struct {
 	RelatedAccountAmount       int64  `xorm:"NOT NULL"`
 	HideAmount                 bool   `xorm:"NOT NULL"`
 	Comment                    string `xorm:"VARCHAR(255) NOT NULL"`
+	Merchant                   string `xorm:"VARCHAR(64) NOT NULL DEFAULT ''"`
 	DisplayOrder               int32  `xorm:"INDEX(IDX_transaction_template_uid_deleted_template_type_order) NOT NULL"`
 	Hidden                     bool   `xorm:"NOT NULL"`
 	CreatedUnixTime            int64
@@ -82,6 +83,7 @@ type TransactionTemplateCreateRequest struct {
 	HideAmount                 bool                              `json:"hideAmount"`
 	TagIds                     []string                          `json:"tagIds"`
 	Comment                    string                            `json:"comment" binding:"max=255"`
+	Merchant                   string                            `json:"merchant" binding:"max=64"`
 	ScheduledFrequencyType     *TransactionScheduleFrequencyType `json:"scheduledFrequencyType" binding:"omitempty"`
 	ScheduledFrequency         *string                           `json:"scheduledFrequency" binding:"omitempty"`
 	ScheduledStartDate         *string                           `json:"scheduledStartDate" binding:"omitempty"`
@@ -110,6 +112,7 @@ type TransactionTemplateModifyRequest struct {
 	HideAmount                 bool                              `json:"hideAmount"`
 	TagIds                     []string                          `json:"tagIds"`
 	Comment                    string                            `json:"comment" binding:"max=255"`
+	Merchant                   string                            `json:"merchant" binding:"max=64"`
 	ScheduledFrequencyType     *TransactionScheduleFrequencyType `json:"scheduledFrequencyType" binding:"omitempty"`
 	ScheduledFrequency         *string                           `json:"scheduledFrequency" binding:"omitempty"`
 	ScheduledStartDate         *string                           `json:"scheduledStartDate" binding:"omitempty"`
@@ -238,6 +241,7 @@ func (t *TransactionTemplate) toTransactionInfoResponse(utcOffset int16) *Transa
 		HideAmount:           t.HideAmount,
 		TagIds:               tagIds,
 		Comment:              t.Comment,
+		Merchant:             t.Merchant,
 		GeoLocation:          nil,
 		Editable:             true,
 	}

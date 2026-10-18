@@ -1070,6 +1070,10 @@ func (s *TransactionService) ModifyTransaction(c core.Context, transaction *mode
 			updateCols = append(updateCols, "comment")
 		}
 
+		if transaction.Merchant != oldTransaction.Merchant {
+			updateCols = append(updateCols, "merchant")
+		}
+
 		if transaction.GeoLongitude != oldTransaction.GeoLongitude {
 			updateCols = append(updateCols, "geo_longitude")
 		}
@@ -2188,6 +2192,7 @@ func (s *TransactionService) GetRelatedTransferTransaction(originalTransaction *
 		RelatedAccountId:     originalTransaction.AccountId,
 		RelatedAccountAmount: originalTransaction.Amount,
 		Comment:              originalTransaction.Comment,
+		Merchant:             originalTransaction.Merchant,
 		ProjectId:            originalTransaction.ProjectId,
 		GeoLongitude:         originalTransaction.GeoLongitude,
 		GeoLatitude:          originalTransaction.GeoLatitude,
@@ -2441,6 +2446,67 @@ func (s *TransactionService) GetAccountsAndCategoriesTotalInflowAndOutflow(c cor
 	}
 
 	return transactionTotalAmounts, nil
+}
+
+// GetRecentMerchants returns the distinct non-empty merchant names used in transactions, most recently used first
+func (s *TransactionService) GetRecentMerchants(c core.Context, uid int64, count int) ([]string, error) {
+	if uid <= 0 {
+		return nil, errs.ErrUserIdInvalid
+	}
+
+	var merchants []*models.TransactionMerchantLastUsedTime
+	err := s.UserDataDB(uid).NewSession(c).Table(&models.Transaction{}).
+		Select("merchant, MAX(transaction_time) AS last_transaction_time").
+		Where("uid=? AND deleted=? AND merchant<>?", uid, false, "").
+		GroupBy("merchant").
+		OrderBy("last_transaction_time desc").
+		Limit(count, 0).
+		Find(&merchants)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]string, len(merchants))
+
+	for i := 0; i < len(merchants); i++ {
+		result[i] = merchants[i].Merchant
+	}
+
+	return result, nil
+}
+
+// GetMerchantsTotalIncomeAndExpense returns the total income and expense amounts and transaction counts of every merchant in every account by specific date range
+func (s *TransactionService) GetMerchantsTotalIncomeAndExpense(c core.Context, uid int64, startUnixTime int64, endUnixTime int64) ([]*models.TransactionMerchantTotalAmount, error) {
+	if uid <= 0 {
+		return nil, errs.ErrUserIdInvalid
+	}
+
+	condition := "uid=? AND deleted=? AND (type=? OR type=?)"
+	conditionParams := []any{uid, false, models.TRANSACTION_DB_TYPE_INCOME, models.TRANSACTION_DB_TYPE_EXPENSE}
+
+	if startUnixTime > 0 {
+		condition = condition + " AND transaction_time>=?"
+		conditionParams = append(conditionParams, utils.GetMinTransactionTimeFromUnixTime(startUnixTime))
+	}
+
+	if endUnixTime > 0 {
+		condition = condition + " AND transaction_time<=?"
+		conditionParams = append(conditionParams, utils.GetMaxTransactionTimeFromUnixTime(endUnixTime))
+	}
+
+	var totalAmounts []*models.TransactionMerchantTotalAmount
+	err := s.UserDataDB(uid).NewSession(c).Table(&models.Transaction{}).
+		Select("merchant, type, account_id, SUM(amount) AS total_amount, COUNT(*) AS transaction_count").
+		Where(condition, conditionParams...).
+		GroupBy("merchant, type, account_id").
+		Find(&totalAmounts)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return totalAmounts, nil
 }
 
 // GetUnreconciledTransactionCounts returns transaction counts after each account's last reconciled time
@@ -3354,6 +3420,7 @@ func (s *TransactionService) createTransactionByScheduledTransactionTemplate(c c
 		Amount:            template.Amount,
 		HideAmount:        template.HideAmount,
 		Comment:           template.Comment,
+		Merchant:          template.Merchant,
 		CreatedIp:         c.ClientIP(),
 		ScheduledCreated:  true,
 	}

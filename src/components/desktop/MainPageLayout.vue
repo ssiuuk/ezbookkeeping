@@ -99,6 +99,17 @@
                                     </v-btn>
                                 </router-link>
 
+                                <router-link to="/merchants/report"
+                                             :aria-current="isTopNavigationActive('/merchants/report') ? 'page' : undefined">
+                                    <v-btn class="top-navigation-button ms-1" density="comfortable" variant="text"
+                                           :aria-label="tt('Merchant Report')" :icon="true"
+                                           :active="isTopNavigationActive('/merchants/report')"
+                                           :color="isTopNavigationActive('/merchants/report') ? 'primary' : 'default'">
+                                        <v-icon :icon="isTopNavigationActive('/merchants/report') ? mdiStorefront : mdiStorefrontOutline" size="24" />
+                                        <v-tooltip activator="parent">{{ tt('Merchant Report') }}</v-tooltip>
+                                    </v-btn>
+                                </router-link>
+
                                 <router-link to="/insights/explorer"
                                              :aria-current="isTopNavigationActive('/insights/explorer') ? 'page' : undefined">
                                     <v-btn class="top-navigation-button ms-1" density="comfortable" variant="text"
@@ -275,6 +286,8 @@ import {
     mdiHomeGroup,
     mdiBriefcase,
     mdiBriefcaseOutline,
+    mdiStorefront,
+    mdiStorefrontOutline,
     mdiPlus,
     mdiCellphone,
     mdiThemeLightDark,

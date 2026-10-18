@@ -295,6 +295,7 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 		RelatedAccountAmount: templateModifyReq.DestinationAmount,
 		HideAmount:           templateModifyReq.HideAmount,
 		Comment:              templateModifyReq.Comment,
+		Merchant:             strings.TrimSpace(templateModifyReq.Merchant),
 	}
 
 	if template.TemplateType == models.TRANSACTION_TEMPLATE_TYPE_SCHEDULE {
@@ -350,7 +351,8 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 		newTemplate.RelatedAccountId == template.RelatedAccountId &&
 		newTemplate.RelatedAccountAmount == template.RelatedAccountAmount &&
 		newTemplate.HideAmount == template.HideAmount &&
-		newTemplate.Comment == template.Comment {
+		newTemplate.Comment == template.Comment &&
+		newTemplate.Merchant == template.Merchant {
 		if template.TemplateType == models.TRANSACTION_TEMPLATE_TYPE_NORMAL {
 			return nil, errs.ErrNothingWillBeUpdated
 		} else if template.TemplateType == models.TRANSACTION_TEMPLATE_TYPE_SCHEDULE {
@@ -515,6 +517,7 @@ func (a *TransactionTemplatesApi) createNewTemplateModel(c *core.WebContext, uid
 		RelatedAccountAmount: templateCreateReq.DestinationAmount,
 		HideAmount:           templateCreateReq.HideAmount,
 		Comment:              templateCreateReq.Comment,
+		Merchant:             strings.TrimSpace(templateCreateReq.Merchant),
 		DisplayOrder:         order,
 	}
 

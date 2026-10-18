@@ -371,6 +371,25 @@
                                         @tag:saving="onSavingTag"
                                     />
                                 </v-col>
+                                <v-col cols="12" md="12" v-if="showMerchantField">
+                                    <v-combobox
+                                        autocomplete="off"
+                                        persistent-placeholder
+                                        hide-no-data
+                                        :readonly="mode === TransactionEditPageMode.View"
+                                        :disabled="loading || submitting || recognizing"
+                                        :label="tt('Merchant')"
+                                        :placeholder="tt('Merchant name (optional)')"
+                                        :maxlength="TRANSACTION_MAX_MERCHANT_LENGTH"
+                                        :items="allMerchantNames"
+                                        :model-value="transaction.merchant"
+                                        @update:model-value="updateMerchant"
+                                    >
+                                        <template #prepend-inner>
+                                            <v-icon :icon="mdiStorefrontOutline" size="20" />
+                                        </template>
+                                    </v-combobox>
+                                </v-col>
                                 <v-col cols="12" md="12" v-if="showProjectField">
                                     <v-select
                                         item-title="name"
@@ -585,7 +604,7 @@ import { KnownFileType } from '@/core/file.ts';
 
 import { KnownErrorCode } from '@/consts/api.ts';
 import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
-import { SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR } from '@/consts/transaction.ts';
+import { SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR, TRANSACTION_MAX_MERCHANT_LENGTH } from '@/consts/transaction.ts';
 
 import type { TransactionCategory } from '@/models/transaction_category.ts';
 import { TransactionTemplate } from '@/models/transaction_template.ts';
@@ -629,7 +648,8 @@ import {
     mdiTrashCanOutline,
     mdiFullscreen,
     mdiAccountEditOutline,
-    mdiBriefcaseOutline
+    mdiBriefcaseOutline,
+    mdiStorefrontOutline
 } from '@mdi/js';
 
 export interface TransactionEditOptions extends SetTransactionOptions {
@@ -675,8 +695,10 @@ const {
     geoLocationStatus,
     setGeoLocationByClickMap,
     transaction,
+    allMerchantNames,
     defaultCurrency,
     showProjectField,
+    showMerchantField,
     allProjectSelectItems,
     imageUploadQualityType,
     allTimezones,
@@ -707,6 +729,7 @@ const {
     inputIsEmpty,
     createNewTransactionModel,
     setTransactionModel,
+    loadMerchantNames,
     resetTransactionBookRelatedFields,
     updateTransactionModelFromRecognizedResponse,
     updateTransactionModelByAfterSaveAction,
@@ -824,6 +847,9 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
 
     // projects are optional for a transaction, so failing to load them should not block the dialog
     projectsStore.loadAllProjects({ force: false }).catch(error => logger.warn('failed to load projects', error));
+
+    // merchant names are only suggestions, so failing to load them should not block the dialog either
+    loadMerchantNames().catch(error => logger.warn('failed to load merchants', error));
 
     if (props.type === TransactionEditPageType.Transaction) {
         if (options && options.id) {
@@ -972,6 +998,10 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
     });
 }
 
+function updateMerchant(value: string | null): void {
+    transaction.value.merchant = value ?? '';
+}
+
 function onEntryBookChanged(bookId: string): void {
     const book = allBooks.value.find(item => item.id === bookId);
 
@@ -983,6 +1013,7 @@ function onEntryBookChanged(bookId: string): void {
 
     changeEntryBook(book).then(() => {
         resetTransactionBookRelatedFields();
+        loadMerchantNames().catch(error => logger.warn('failed to load merchants', error));
         loading.value = false;
     }).catch(error => {
         loading.value = false;

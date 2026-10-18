@@ -212,6 +212,7 @@ export function setTransactionModelByTransaction(transaction: Transaction, trans
 
         transaction.comment = transaction2.comment;
         transaction.projectId = transaction2.projectId || NO_PROJECT_ID;
+        transaction.merchant = transaction2.merchant || '';
 
         if (setContextData) {
             transaction.setGeoLocation(transaction2.geoLocation);

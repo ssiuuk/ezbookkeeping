@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 const pageCountForAccountStatement = 1000
 const pageCountForMovingAccountTransactions = 1000
 const transactionImportResultExpiration = 1 * time.Hour
+const maxRecentMerchantCount = 200
 
 // TransactionsApi represents transaction api
 type TransactionsApi struct {
@@ -666,6 +668,63 @@ func (a *TransactionsApi) TransactionStatisticsHandler(c *core.WebContext) (any,
 			statisticResp.Items[i].RelatedAccountId = totalAmountItem.RelatedAccountId
 			statisticResp.Items[i].RelatedAccountType, _ = totalAmountItem.Type.ToTransactionRelatedAccountType()
 		}
+	}
+
+	return statisticResp, nil
+}
+
+// TransactionMerchantListHandler returns the merchant names recently used in transactions of current book
+func (a *TransactionsApi) TransactionMerchantListHandler(c *core.WebContext) (any, *errs.Error) {
+	uid := c.GetCurrentBookUid()
+	merchants, err := a.transactions.GetRecentMerchants(c, uid, maxRecentMerchantCount)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionMerchantListHandler] failed to get merchants for user \"uid:%d\", because %s", uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	return merchants, nil
+}
+
+// TransactionMerchantStatisticsHandler returns the income and expense amounts of every merchant of current book
+func (a *TransactionsApi) TransactionMerchantStatisticsHandler(c *core.WebContext) (any, *errs.Error) {
+	var statisticReq models.TransactionMerchantStatisticRequest
+	err := c.ShouldBindQuery(&statisticReq)
+
+	if err != nil {
+		log.Warnf(c, "[transactions.TransactionMerchantStatisticsHandler] parse request failed, because %s", err.Error())
+		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
+	}
+
+	uid := c.GetCurrentBookUid()
+	totalAmounts, err := a.transactions.GetMerchantsTotalIncomeAndExpense(c, uid, statisticReq.StartTime, statisticReq.EndTime)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionMerchantStatisticsHandler] failed to get merchants total income and expense for user \"uid:%d\", because %s", uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	statisticResp := &models.TransactionMerchantStatisticResponse{
+		StartTime: statisticReq.StartTime,
+		EndTime:   statisticReq.EndTime,
+		Items:     make([]*models.TransactionMerchantStatisticResponseItem, 0, len(totalAmounts)),
+	}
+
+	for i := 0; i < len(totalAmounts); i++ {
+		totalAmountItem := totalAmounts[i]
+		transactionType, err := totalAmountItem.Type.ToTransactionType()
+
+		if err != nil {
+			continue
+		}
+
+		statisticResp.Items = append(statisticResp.Items, &models.TransactionMerchantStatisticResponseItem{
+			Merchant:  totalAmountItem.Merchant,
+			Type:      transactionType,
+			AccountId: totalAmountItem.AccountId,
+			Amount:    strconv.FormatInt(totalAmountItem.TotalAmount, 10),
+			Count:     totalAmountItem.TransactionCount,
+		})
 	}
 
 	return statisticResp, nil
@@ -1504,6 +1563,7 @@ func (a *TransactionsApi) TransactionModifyHandler(c *core.WebContext) (any, *er
 		Amount:            transactionModifyReq.SourceAmount,
 		HideAmount:        transactionModifyReq.HideAmount,
 		Comment:           transactionModifyReq.Comment,
+		Merchant:          strings.TrimSpace(transactionModifyReq.Merchant),
 		ProjectId:         transactionModifyReq.ProjectId,
 	}
 
@@ -1527,6 +1587,7 @@ func (a *TransactionsApi) TransactionModifyHandler(c *core.WebContext) (any, *er
 		(newTransaction.Type != models.TRANSACTION_DB_TYPE_TRANSFER_OUT || newTransaction.RelatedAccountAmount == transaction.RelatedAccountAmount) &&
 		newTransaction.HideAmount == transaction.HideAmount &&
 		newTransaction.Comment == transaction.Comment &&
+		newTransaction.Merchant == transaction.Merchant &&
 		newTransaction.ProjectId == transaction.ProjectId &&
 		newTransaction.GeoLongitude == transaction.GeoLongitude &&
 		newTransaction.GeoLatitude == transaction.GeoLatitude &&
@@ -3284,6 +3345,7 @@ func (a *TransactionsApi) createNewTransactionModel(uid int64, creatorUid int64,
 		Amount:            transactionCreateReq.SourceAmount,
 		HideAmount:        transactionCreateReq.HideAmount,
 		Comment:           transactionCreateReq.Comment,
+		Merchant:          strings.TrimSpace(transactionCreateReq.Merchant),
 		ProjectId:         transactionCreateReq.ProjectId,
 		CreatedIp:         clientIp,
 		CreatedByUid:      creatorUid,
