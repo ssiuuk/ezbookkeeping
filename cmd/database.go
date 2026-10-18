@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"path/filepath"
+
 	"github.com/urfave/cli/v3"
 
 	"github.com/mayswind/ezbookkeeping/pkg/core"
@@ -18,6 +20,19 @@ var Database = &cli.Command{
 			Name:   "update",
 			Usage:  "Update database structure",
 			Action: bindAction(updateDatabaseStructure),
+		},
+		{
+			Name:   "backup",
+			Usage:  "Back up the sqlite database once",
+			Action: bindAction(backupDatabase),
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "path",
+					Aliases:  []string{"p"},
+					Required: false,
+					Usage:    "Backup directory path (default is the database_backup_path in the [cron] section of the config file)",
+				},
+			},
 		},
 	},
 }
@@ -39,6 +54,35 @@ func updateDatabaseStructure(c *core.CliContext) error {
 	}
 
 	log.CliInfof(c, "[database.updateDatabaseStructure] all tables maintained successfully")
+	return nil
+}
+
+func backupDatabase(c *core.CliContext) error {
+	config, err := initializeSystem(c)
+
+	if err != nil {
+		return err
+	}
+
+	backupDir := config.DatabaseBackupPath
+
+	if c.String("path") != "" {
+		backupDir, err = filepath.Abs(c.String("path"))
+
+		if err != nil {
+			log.CliErrorf(c, "[database.backupDatabase] cannot resolve backup path, because %s", err.Error())
+			return err
+		}
+	}
+
+	backupFilePath, err := datastore.BackupDatabase(c, config, backupDir)
+
+	if err != nil {
+		log.CliErrorf(c, "[database.backupDatabase] back up database failed, because %s", err.Error())
+		return err
+	}
+
+	log.CliInfof(c, "[database.backupDatabase] database has been backed up to \"%s\"", backupFilePath)
 	return nil
 }
 

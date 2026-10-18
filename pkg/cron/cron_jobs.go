@@ -4,7 +4,9 @@ import (
 	"time"
 
 	"github.com/mayswind/ezbookkeeping/pkg/core"
+	"github.com/mayswind/ezbookkeeping/pkg/datastore"
 	"github.com/mayswind/ezbookkeeping/pkg/services"
+	"github.com/mayswind/ezbookkeeping/pkg/settings"
 )
 
 // RemoveExpiredTokensJob represents the cron job which periodically remove expired user tokens from the database
@@ -28,5 +30,19 @@ var CreateScheduledTransactionJob = &CronJob{
 	},
 	Run: func(c *core.CronContext) error {
 		return services.Transactions.CreateScheduledTransactions(c, time.Now().Unix(), c.GetInterval())
+	},
+}
+
+// DatabaseBackupJob represents the cron job which periodically back up the sqlite database
+var DatabaseBackupJob = &CronJob{
+	Name:        "DatabaseBackup",
+	Description: "Periodically back up the sqlite database and delete old backup files.",
+	Period: CronJobFixedHourPeriod{
+		Hour: 3,
+	},
+	Run: func(c *core.CronContext) error {
+		config := settings.Container.GetCurrentConfig()
+		_, err := datastore.BackupDatabase(c, config, config.DatabaseBackupPath)
+		return err
 	},
 }
