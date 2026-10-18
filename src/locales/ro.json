@@ -1385,6 +1385,7 @@
         "this account is used by transactions in the shared book": "This account is used by transactions in the shared book",
         "this account is shared to a book, stop sharing it first": "This account is shared to a book, stop sharing it first",
         "you can only stop sharing your own accounts": "You can only stop sharing your own accounts",
+        "this account is no longer shared to this book, its transactions cannot be added, changed or deleted": "This account is no longer shared to this book, so transactions using it cannot be added, changed or deleted",
         "project id is invalid": "Project ID is invalid",
         "project not found": "Project not found",
         "project name is empty": "Project name is empty",

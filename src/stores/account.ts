@@ -36,6 +36,8 @@ export const useAccountsStore = defineStore('accounts', () => {
 
     const allAccounts = ref<Account[]>([]);
     const allAccountsMap = ref<Record<string, Account>>({});
+    // accounts which are no longer shared to the current book, they are only in allAccountsMap so existing transactions can still show them
+    const allRevokedSharedAccounts = ref<Account[]>([]);
     const allCategorizedAccountsMap = ref<Record<number, CategorizedAccount>>({});
     const accountListStateInvalid = ref<boolean>(true);
 
@@ -144,9 +146,14 @@ export const useAccountsStore = defineStore('accounts', () => {
         return maxCount;
     });
 
-    function loadAccountList(accounts: Account[]): void {
+    function loadAccountList(accounts: Account[], revokedSharedAccounts: Account[]): void {
         allAccounts.value = accounts;
+        allRevokedSharedAccounts.value = revokedSharedAccounts;
         allAccountsMap.value = {};
+
+        for (const account of revokedSharedAccounts) {
+            allAccountsMap.value[account.id] = account;
+        }
 
         for (const account of accounts) {
             allAccountsMap.value[account.id] = account;
@@ -359,6 +366,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     function resetAccounts(): void {
         loadingPromise = null;
         allAccounts.value = [];
+        allRevokedSharedAccounts.value = [];
         allAccountsMap.value = {};
         allCategorizedAccountsMap.value = {};
         accountListStateInvalid.value = true;
@@ -907,7 +915,8 @@ export const useAccountsStore = defineStore('accounts', () => {
 
         const currentPromise = loadingPromise = new Promise((resolve, reject) => {
             services.getAllAccounts({
-                visibleOnly: false
+                visibleOnly: false,
+                includeRevokedShared: true
             }).then(response => {
                 if (!loadingPromise || loadingPromise !== currentPromise) {
                     logger.error('loadingPromise is invalid after retrieving account list');
@@ -927,15 +936,16 @@ export const useAccountsStore = defineStore('accounts', () => {
                     updateAccountListInvalidState(false);
                 }
 
-                const accounts = Account.sortAccounts(Account.ofMulti(data.result), settingsStore.accountCategoryDisplayOrders);
+                const accounts = Account.sortAccounts(Account.ofMulti(data.result.filter(account => !account.sharingRevoked)), settingsStore.accountCategoryDisplayOrders);
+                const revokedSharedAccounts = Account.ofMulti(data.result.filter(account => !!account.sharingRevoked));
 
-                if (force && data.result && isEquals(allAccounts.value, accounts)) {
+                if (force && data.result && isEquals(allAccounts.value, accounts) && isEquals(allRevokedSharedAccounts.value, revokedSharedAccounts)) {
                     loadingPromise = null;
                     reject({ message: 'Account list is up to date', isUpToDate: true });
                     return;
                 }
 
-                loadAccountList(accounts);
+                loadAccountList(accounts, revokedSharedAccounts);
                 loadingPromise = null;
 
                 resolve(accounts);

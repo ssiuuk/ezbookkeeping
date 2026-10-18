@@ -111,6 +111,17 @@ func (a *AccountsApi) AccountListHandler(c *core.WebContext) (any, *errs.Error) 
 				userFinalAccountResps = append(userFinalAccountResps, sharedAccountResps[i])
 			}
 		}
+
+		if accountListReq.IncludeRevokedShared && !accountListReq.VisibleOnly {
+			revokedAccountResps, err := a.getAccountsNoLongerSharedToBook(c, uid)
+
+			if err != nil {
+				log.Errorf(c, "[accounts.AccountListHandler] failed to get accounts no longer shared to book \"id:%d\", because %s", uid, err.Error())
+				return nil, errs.Or(err, errs.ErrOperationFailed)
+			}
+
+			userFinalAccountResps = append(userFinalAccountResps, revokedAccountResps...)
+		}
 	}
 
 	sort.Sort(userFinalAccountResps)
@@ -118,7 +129,7 @@ func (a *AccountsApi) AccountListHandler(c *core.WebContext) (any, *errs.Error) 
 	return userFinalAccountResps, nil
 }
 
-// getAccountsSharedToBook returns the accounts which book members shared to the given book, with the owner name in sharedBy
+// getAccountsSharedToBook returns the accounts which book members are sharing to the given book, with the owner name in sharedBy
 func (a *AccountsApi) getAccountsSharedToBook(c *core.WebContext, bookId int64) ([]*models.AccountInfoResponse, error) {
 	accounts, err := a.accounts.GetAccountsSharedToBook(c, bookId)
 
@@ -126,6 +137,23 @@ func (a *AccountsApi) getAccountsSharedToBook(c *core.WebContext, bookId int64) 
 		return nil, err
 	}
 
+	return a.getSharedAccountResponses(c, accounts), nil
+}
+
+// getAccountsNoLongerSharedToBook returns the accounts whose sharing to the given book was revoked while its transactions still use them,
+// they carry no balance and are only for showing the existing transactions of the book
+func (a *AccountsApi) getAccountsNoLongerSharedToBook(c *core.WebContext, bookId int64) ([]*models.AccountInfoResponse, error) {
+	accounts, err := a.accounts.GetAccountsNoLongerSharedToBook(c, bookId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return a.getSharedAccountResponses(c, accounts), nil
+}
+
+// getSharedAccountResponses returns the view-objects of the accounts of book members, with the owner name in their names and sharedBy
+func (a *AccountsApi) getSharedAccountResponses(c *core.WebContext, accounts []*models.Account) []*models.AccountInfoResponse {
 	ownerNames := make(map[int64]string)
 	resps := make([]*models.AccountInfoResponse, 0, len(accounts))
 
@@ -154,7 +182,7 @@ func (a *AccountsApi) getAccountsSharedToBook(c *core.WebContext, bookId int64) 
 		resps = append(resps, resp)
 	}
 
-	return resps, nil
+	return resps
 }
 
 // AccountGetHandler returns one specific account of current user

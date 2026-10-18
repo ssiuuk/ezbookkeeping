@@ -677,12 +677,13 @@ func ParseTransactionTagFilter(tagFilterStr string) ([]*TransactionTagFilter, er
 
 // IsEditable returns whether this transaction can be edited
 func (t *Transaction) IsEditable(currentUser *User, clientTimezone *time.Location, account *Account, relatedAccount *Account) bool {
-	if account == nil || account.Hidden {
+	// a transaction using an account which is no longer shared to the book cannot be changed in the book
+	if account == nil || account.Hidden || account.SharingRevoked {
 		return false
 	}
 
 	if t.Type == TRANSACTION_DB_TYPE_TRANSFER_OUT {
-		if relatedAccount == nil || relatedAccount.Hidden {
+		if relatedAccount == nil || relatedAccount.Hidden || relatedAccount.SharingRevoked {
 			return false
 		}
 	}

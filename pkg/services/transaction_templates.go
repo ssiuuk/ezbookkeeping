@@ -301,12 +301,10 @@ func (s *TransactionTemplateService) isTemplateValid(sess *xorm.Session, templat
 	// check accounts are valid
 	sourceAccount := &models.Account{}
 	destinationAccount := &models.Account{}
-	has, err := sess.ID(template.AccountId).Where(accountOfBookCondition, false, template.Uid, template.Uid).Get(sourceAccount)
+	err := getAccountOfBook(sess, template.Uid, template.AccountId, sourceAccount, errs.ErrSourceAccountNotFound)
 
 	if err != nil {
 		return err
-	} else if !has {
-		return errs.ErrSourceAccountNotFound
 	}
 
 	if sourceAccount.Hidden {
@@ -317,12 +315,10 @@ func (s *TransactionTemplateService) isTemplateValid(sess *xorm.Session, templat
 		if template.RelatedAccountId <= 0 {
 			return errs.ErrAccountIdInvalid
 		} else {
-			has, err = sess.ID(template.RelatedAccountId).Where(accountOfBookCondition, false, template.Uid, template.Uid).Get(destinationAccount)
+			err = getAccountOfBook(sess, template.Uid, template.RelatedAccountId, destinationAccount, errs.ErrDestinationAccountNotFound)
 
 			if err != nil {
 				return err
-			} else if !has {
-				return errs.ErrDestinationAccountNotFound
 			}
 
 			if destinationAccount.Hidden {
@@ -337,7 +333,7 @@ func (s *TransactionTemplateService) isTemplateValid(sess *xorm.Session, templat
 
 	// check category is valid
 	category := &models.TransactionCategory{}
-	has, err = sess.ID(template.CategoryId).Where("uid=? AND deleted=?", template.Uid, false).Get(category)
+	has, err := sess.ID(template.CategoryId).Where("uid=? AND deleted=?", template.Uid, false).Get(category)
 
 	if err != nil {
 		return err
