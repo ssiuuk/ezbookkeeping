@@ -484,6 +484,8 @@ func TestQIFTransactionDataFileParseImportedData_ParseDescription(t *testing.T) 
 	assert.Equal(t, 2, len(allNewTransactions))
 	assert.Equal(t, "foo    bar\t#test", allNewTransactions[0].Comment)
 	assert.Equal(t, "", allNewTransactions[1].Comment)
+	assert.Equal(t, "Test", allNewTransactions[0].Merchant)
+	assert.Equal(t, "Test2", allNewTransactions[1].Merchant)
 
 	allNewTransactions, _, _, _, _, _, err = importer.ParseImportedData(context, user, []byte(
 		"!Type:Bank\n"+
@@ -501,6 +503,7 @@ func TestQIFTransactionDataFileParseImportedData_ParseDescription(t *testing.T) 
 	assert.Equal(t, 2, len(allNewTransactions))
 	assert.Equal(t, "foo    bar\t#test", allNewTransactions[0].Comment)
 	assert.Equal(t, "Test2", allNewTransactions[1].Comment)
+	assert.Equal(t, "Test2", allNewTransactions[1].Merchant)
 }
 
 func TestQIFTransactionDataFileParseImportedData_WithAdditionalOptions(t *testing.T) {

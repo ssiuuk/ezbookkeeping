@@ -569,6 +569,45 @@ func TestAlipayCsvFileImporterParseImportedData_ParseDescription(t *testing.T) {
 	assert.Equal(t, "test", allNewTransactions[0].Comment)
 }
 
+func TestAlipayCsvFileImporterParseImportedData_ParseMerchant(t *testing.T) {
+	importer := AlipayWebTransactionDataCsvFileImporter
+	context := core.NewNullContext()
+
+	user := &models.User{
+		Uid:             1234567890,
+		DefaultCurrency: "CNY",
+	}
+
+	data, err := simplifiedchinese.GB18030.NewEncoder().String("支付宝交易记录明细查询\n" +
+		"账号:[xxx@xxx.xxx]\n" +
+		"起始日期:[2024-01-01 00:00:00]    终止日期:[2024-09-01 23:59:59]\n" +
+		"---------------------------------交易记录明细列表------------------------------------\n" +
+		"交易创建时间              ,交易对方            ,商品名称                ,金额（元）,收/支     ,交易状态    ,\n" +
+		"2024-09-01 01:23:45 ,Test Payer          ,xxxx                ,0.12   ,收入      ,交易成功    ,\n" +
+		"2024-09-01 12:34:56 ,Test Shop           ,yyyy                ,123.45  ,支出      ,交易成功    ,\n" +
+		"2024-09-01 23:59:59 ,Test Bank           ,xx-转出             ,0.05   ,不计收支    ,交易成功    ,\n" +
+		"------------------------------------------------------------------------------------\n")
+	assert.Nil(t, err)
+
+	allNewTransactions, _, _, _, _, _, err := importer.ParseImportedData(context, user, []byte(data), time.UTC, converter.DefaultImporterOptions, nil, nil, nil, nil, nil)
+	assert.Nil(t, err)
+
+	assert.Equal(t, 3, len(allNewTransactions))
+
+	assert.Equal(t, models.TRANSACTION_DB_TYPE_INCOME, allNewTransactions[0].Type)
+	assert.Equal(t, "Test Payer", allNewTransactions[0].Merchant)
+	assert.Equal(t, "xxxx", allNewTransactions[0].Comment)
+
+	assert.Equal(t, models.TRANSACTION_DB_TYPE_EXPENSE, allNewTransactions[1].Type)
+	assert.Equal(t, "Test Shop", allNewTransactions[1].Merchant)
+	assert.Equal(t, "yyyy", allNewTransactions[1].Comment)
+
+	// the counterparty of transfer transaction is used as account, not merchant
+	assert.Equal(t, models.TRANSACTION_DB_TYPE_TRANSFER_OUT, allNewTransactions[2].Type)
+	assert.Equal(t, "", allNewTransactions[2].Merchant)
+	assert.Equal(t, "Test Bank", allNewTransactions[2].OriginalDestinationAccountName)
+}
+
 func TestAlipayCsvFileImporterParseImportedData_SkipClosedIncomeOrTransferTransaction(t *testing.T) {
 	importer := AlipayWebTransactionDataCsvFileImporter
 	context := core.NewNullContext()

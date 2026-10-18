@@ -393,14 +393,16 @@ func (a *LargeLanguageModelsApi) GenerateCodeHandler(c *core.WebContext) (any, *
 }
 
 func (a *LargeLanguageModelsApi) getUserEssentialData(c *core.WebContext, uid int64) ([]string, map[string]*models.Account, []string, []string, []string, map[string]*models.TransactionCategory, map[string]*models.TransactionCategory, map[string]*models.TransactionCategory, []string, map[string]*models.TransactionTag, error) {
-	accounts, err := a.accounts.GetAllAccountsByUid(c, uid)
+	accounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
 
 	if err != nil {
 		log.Errorf(c, "[large_language_models.getUserEssentialData] failed to get all accounts for user \"uid:%d\", because %s", uid, err.Error())
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 
-	accountMap := a.accounts.GetVisibleAccountNameMapByList(accounts)
+	accountNaming := getBookAccountNaming(c, a.users, accounts, uid)
+	accountMap := getUniqueAccountNameMap(a.accounts, accounts, accountNaming)
+	accounts = renameAccountsToUniqueNames(a.accounts, accounts, accountNaming)
 	accountNames := make([]string, 0, len(accounts))
 
 	for i := 0; i < len(accounts); i++ {
@@ -580,6 +582,10 @@ func (a *LargeLanguageModelsApi) parseRecognizedTransactionResponse(c *core.WebC
 
 	if len(recognizedResult.Description) > 0 {
 		recognizedTransactionResponse.Comment = recognizedResult.Description
+	}
+
+	if merchant := strings.TrimSpace(recognizedResult.Merchant); len(merchant) > 0 {
+		recognizedTransactionResponse.Merchant = strings.TrimSpace(utils.SubString(merchant, 0, models.TransactionMerchantMaxLength))
 	}
 
 	return recognizedTransactionResponse, nil

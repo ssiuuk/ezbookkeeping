@@ -23,6 +23,7 @@ var beancountTransactionSupportedColumns = map[datatable.TransactionDataTableCol
 	datatable.TRANSACTION_DATA_TABLE_RELATED_ACCOUNT_CURRENCY: true,
 	datatable.TRANSACTION_DATA_TABLE_RELATED_AMOUNT:           true,
 	datatable.TRANSACTION_DATA_TABLE_DESCRIPTION:              true,
+	datatable.TRANSACTION_DATA_TABLE_MERCHANT:                 true,
 }
 
 var BEANCOUNT_TRANSACTION_TAG_SEPARATOR = "#"
@@ -242,6 +243,10 @@ func (t *beancountTransactionDataRowIterator) parseTransaction(ctx core.Context,
 
 	data[datatable.TRANSACTION_DATA_TABLE_TAGS] = strings.Join(beancountEntry.Tags, BEANCOUNT_TRANSACTION_TAG_SEPARATOR)
 	data[datatable.TRANSACTION_DATA_TABLE_DESCRIPTION] = beancountEntry.Narration
+
+	if data[datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TYPE] != utils.IntToString(int(models.TRANSACTION_TYPE_TRANSFER)) {
+		data[datatable.TRANSACTION_DATA_TABLE_MERCHANT] = beancountEntry.Payee
+	}
 
 	return data, nil
 }

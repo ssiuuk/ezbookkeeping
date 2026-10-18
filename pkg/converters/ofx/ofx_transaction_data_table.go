@@ -24,6 +24,7 @@ var ofxTransactionSupportedColumns = map[datatable.TransactionDataTableColumn]bo
 	datatable.TRANSACTION_DATA_TABLE_RELATED_ACCOUNT_CURRENCY: true,
 	datatable.TRANSACTION_DATA_TABLE_RELATED_AMOUNT:           true,
 	datatable.TRANSACTION_DATA_TABLE_DESCRIPTION:              true,
+	datatable.TRANSACTION_DATA_TABLE_MERCHANT:                 true,
 }
 
 // ofxTransactionData defines the structure of open financial exchange (ofx) transaction data
@@ -231,6 +232,15 @@ func (t *ofxTransactionDataRowIterator) parseTransaction(ctx core.Context, user 
 		data[datatable.TRANSACTION_DATA_TABLE_DESCRIPTION] = ofxTransaction.Payee.Name
 	} else {
 		data[datatable.TRANSACTION_DATA_TABLE_DESCRIPTION] = ""
+	}
+
+	// use the payee name as merchant for income and expense transactions
+	if data[datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TYPE] != ofxTransactionTypeNameMapping[models.TRANSACTION_TYPE_TRANSFER] {
+		if ofxTransaction.Payee != nil && ofxTransaction.Payee.Name != "" {
+			data[datatable.TRANSACTION_DATA_TABLE_MERCHANT] = ofxTransaction.Payee.Name
+		} else if ofxTransaction.Name != "" {
+			data[datatable.TRANSACTION_DATA_TABLE_MERCHANT] = ofxTransaction.Name
+		}
 	}
 
 	return data, nil

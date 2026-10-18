@@ -20,6 +20,7 @@ var aiTransactionSupportedColumns = map[datatable.TransactionDataTableColumn]boo
 	datatable.TRANSACTION_DATA_TABLE_RELATED_ACCOUNT_NAME: true,
 	datatable.TRANSACTION_DATA_TABLE_RELATED_AMOUNT:       true,
 	datatable.TRANSACTION_DATA_TABLE_DESCRIPTION:          true,
+	datatable.TRANSACTION_DATA_TABLE_MERCHANT:             true,
 }
 
 // aiRecognizedTransactionDataTable defines the structure of AI recognized transaction data table
@@ -136,6 +137,7 @@ func (t *aiRecognizedTransactionDataRowIterator) parseTransaction(ctx core.Conte
 	data[datatable.TRANSACTION_DATA_TABLE_RELATED_ACCOUNT_NAME] = result.DestinationAccountName
 	data[datatable.TRANSACTION_DATA_TABLE_RELATED_AMOUNT] = result.DestinationAmount
 	data[datatable.TRANSACTION_DATA_TABLE_DESCRIPTION] = result.Description
+	data[datatable.TRANSACTION_DATA_TABLE_MERCHANT] = result.Merchant
 
 	return data, nil
 }

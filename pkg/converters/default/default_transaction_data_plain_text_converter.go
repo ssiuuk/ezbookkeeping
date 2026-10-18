@@ -34,6 +34,7 @@ var ezbookkeepingDataColumnNameMapping = map[datatable.TransactionDataTableColum
 	datatable.TRANSACTION_DATA_TABLE_GEOGRAPHIC_LOCATION:      "Geographic Location",
 	datatable.TRANSACTION_DATA_TABLE_TAGS:                     "Tags",
 	datatable.TRANSACTION_DATA_TABLE_DESCRIPTION:              "Description",
+	datatable.TRANSACTION_DATA_TABLE_MERCHANT:                 "Merchant",
 }
 
 var ezbookkeepingTransactionTypeNameMapping = map[models.TransactionType]string{
@@ -58,6 +59,7 @@ var ezbookkeepingDataColumns = []datatable.TransactionDataTableColumn{
 	datatable.TRANSACTION_DATA_TABLE_GEOGRAPHIC_LOCATION,
 	datatable.TRANSACTION_DATA_TABLE_TAGS,
 	datatable.TRANSACTION_DATA_TABLE_DESCRIPTION,
+	datatable.TRANSACTION_DATA_TABLE_MERCHANT,
 }
 
 // ToExportedContent returns the exported transaction plain text data

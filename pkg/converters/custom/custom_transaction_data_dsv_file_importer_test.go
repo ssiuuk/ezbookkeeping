@@ -1182,6 +1182,39 @@ func TestCustomTransactionDataDsvFileImporter_ParseDescription(t *testing.T) {
 	assert.Equal(t, "foo    bar\t#test", allNewTransactions[0].Comment)
 }
 
+func TestCustomTransactionDataDsvFileImporter_ParseMerchant(t *testing.T) {
+	columnIndexMapping := map[datatable.TransactionDataTableColumn]int{
+		datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TIME: 0,
+		datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TYPE: 1,
+		datatable.TRANSACTION_DATA_TABLE_AMOUNT:           2,
+		datatable.TRANSACTION_DATA_TABLE_DESCRIPTION:      3,
+		datatable.TRANSACTION_DATA_TABLE_MERCHANT:         4,
+	}
+	transactionTypeMapping := map[string]models.TransactionType{
+		"E": models.TRANSACTION_TYPE_EXPENSE,
+	}
+	importer, err := CreateNewCustomTransactionDataDsvFileImporter("custom_csv", "utf-8", columnIndexMapping, transactionTypeMapping, false, "YYYY-MM-DD HH:mm:ss", "", ".", "", "", "", "")
+	assert.Nil(t, err)
+
+	context := core.NewNullContext()
+
+	user := &models.User{
+		Uid:             1234567890,
+		DefaultCurrency: "CNY",
+	}
+
+	allNewTransactions, _, _, _, _, _, err := importer.ParseImportedData(context, user, []byte(
+		"2024-09-01 12:34:56,E,123.45,Coffee, Test Shop \n"+
+			"2024-09-01 12:34:57,E,1.23,Tea,"), time.UTC, converter.DefaultImporterOptions, nil, nil, nil, nil, nil)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(allNewTransactions))
+	assert.Equal(t, "Coffee", allNewTransactions[0].Comment)
+	assert.Equal(t, "Test Shop", allNewTransactions[0].Merchant)
+	assert.Equal(t, "Tea", allNewTransactions[1].Comment)
+	assert.Equal(t, "", allNewTransactions[1].Merchant)
+}
+
 func TestCustomTransactionDataDsvFileImporter_InvalidSeparator(t *testing.T) {
 	transactionTypeMapping := map[string]models.TransactionType{
 		"B": models.TRANSACTION_TYPE_MODIFY_BALANCE,

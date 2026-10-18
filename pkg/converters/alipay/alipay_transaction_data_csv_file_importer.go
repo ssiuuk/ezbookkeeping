@@ -22,6 +22,7 @@ var alipayTransactionSupportedColumns = map[datatable.TransactionDataTableColumn
 	datatable.TRANSACTION_DATA_TABLE_AMOUNT:               true,
 	datatable.TRANSACTION_DATA_TABLE_RELATED_ACCOUNT_NAME: true,
 	datatable.TRANSACTION_DATA_TABLE_DESCRIPTION:          true,
+	datatable.TRANSACTION_DATA_TABLE_MERCHANT:             true,
 }
 
 var alipayTransactionTypeNameMapping = map[models.TransactionType]string{

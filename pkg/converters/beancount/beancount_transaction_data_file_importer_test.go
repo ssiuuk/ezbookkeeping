@@ -307,6 +307,37 @@ func TestBeancountTransactionDataFileParseImportedData_ParseDescription(t *testi
 
 	assert.Equal(t, "foo    bar\t#test\n", allNewTransactions[0].Comment)
 	assert.Equal(t, "Hello\nWorld", allNewTransactions[1].Comment)
+	assert.Equal(t, "", allNewTransactions[0].Merchant)
+	assert.Equal(t, "Payee Name", allNewTransactions[1].Merchant)
+}
+
+func TestBeancountTransactionDataFileParseImportedData_ParseMerchant(t *testing.T) {
+	importer := BeancountTransactionDataImporter
+	context := core.NewNullContext()
+
+	user := &models.User{
+		Uid:             1234567890,
+		DefaultCurrency: "CNY",
+	}
+
+	allNewTransactions, _, _, _, _, _, err := importer.ParseImportedData(context, user, []byte(
+		"2024-09-01 * \"Test Shop\" \"Coffee\"\n"+
+			"  Expenses:TestCategory 1.23 CNY\n"+
+			"  Assets:TestAccount -1.23 CNY\n"+
+			"2024-09-02 * \"Test Bank\" \"Transfer\"\n"+
+			"  Assets:TestAccount -1.00 CNY\n"+
+			"  Assets:TestAccount2 1.00 CNY\n"), time.UTC, converter.DefaultImporterOptions, nil, nil, nil, nil, nil)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(allNewTransactions))
+
+	assert.Equal(t, models.TRANSACTION_DB_TYPE_EXPENSE, allNewTransactions[0].Type)
+	assert.Equal(t, "Coffee", allNewTransactions[0].Comment)
+	assert.Equal(t, "Test Shop", allNewTransactions[0].Merchant)
+
+	assert.Equal(t, models.TRANSACTION_DB_TYPE_TRANSFER_OUT, allNewTransactions[1].Type)
+	assert.Equal(t, "Transfer", allNewTransactions[1].Comment)
+	assert.Equal(t, "", allNewTransactions[1].Merchant)
 }
 
 func TestBeancountTransactionDataFileParseImportedData_InvalidTransaction(t *testing.T) {

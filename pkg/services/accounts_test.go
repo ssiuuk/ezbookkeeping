@@ -45,6 +45,61 @@ func TestGetAccountMapByList_MultipleList(t *testing.T) {
 	assert.Equal(t, "Credit Card", actualAccountMap[1003].Name)
 }
 
+func TestGetVisibleUniqueAccountNameMapOfBook_AmbiguousOriginalNameIsLeftOut(t *testing.T) {
+	bookId := int64(9001)
+	accounts := []*models.Account{
+		{Uid: bookId, AccountId: 1001, Name: "Cash", Type: models.ACCOUNT_TYPE_SINGLE_ACCOUNT},
+		{Uid: 1, AccountId: 2001, Name: "Cash", Type: models.ACCOUNT_TYPE_SINGLE_ACCOUNT},
+		{Uid: 2, AccountId: 3001, Name: "Alice's Card", Type: models.ACCOUNT_TYPE_SINGLE_ACCOUNT},
+		{Uid: 2, AccountId: 3002, Name: "Hidden Shared", Type: models.ACCOUNT_TYPE_SINGLE_ACCOUNT, Hidden: true},
+	}
+	actualAccountMap := Accounts.GetVisibleUniqueAccountNameMapOfBook(accounts, bookId, "Family", map[int64]string{1: "Bob", 2: "Alice"})
+
+	assert.Equal(t, 3, len(actualAccountMap))
+	assert.NotContains(t, actualAccountMap, "Cash")
+	assert.Equal(t, int64(1001), actualAccountMap["Cash (Family)"].AccountId)
+	assert.Equal(t, int64(2001), actualAccountMap["Cash (Bob)"].AccountId)
+	assert.Equal(t, int64(3001), actualAccountMap["Alice's Card"].AccountId)
+	assert.NotContains(t, actualAccountMap, "Hidden Shared")
+}
+
+func TestGetVisibleUniqueAccountNameMapOfBook_DuplicateOwnAccountNamesAreKept(t *testing.T) {
+	bookId := int64(9001)
+	accounts := []*models.Account{
+		{Uid: bookId, AccountId: 1001, Name: "Cash", Type: models.ACCOUNT_TYPE_SINGLE_ACCOUNT},
+		{Uid: bookId, AccountId: 1002, Name: "Cash", Type: models.ACCOUNT_TYPE_SINGLE_ACCOUNT},
+	}
+	actualAccountMap := Accounts.GetVisibleUniqueAccountNameMapOfBook(accounts, bookId, "", map[int64]string{})
+
+	// a personal book keeps the existing behaviour for its own accounts
+	assert.Equal(t, int64(1002), actualAccountMap["Cash"].AccountId)
+}
+
+func TestGetUniqueAccountNamesOfBook(t *testing.T) {
+	bookId := int64(9001)
+	accounts := []*models.Account{
+		{Uid: bookId, AccountId: 1001, Name: "Cash"},
+		{Uid: 1, AccountId: 2001, Name: "Cash"},
+		{Uid: 1, AccountId: 2002, Name: "Visa"},
+		{Uid: 1, AccountId: 2003, Name: "Visa"},
+		{Uid: 2, AccountId: 3001, Name: "Visa"},
+		{Uid: 2, AccountId: 3002, Name: "Savings"},
+		{Uid: 3, AccountId: 4001, Name: "Savings"},
+		{Uid: bookId, AccountId: 1002, Name: "Mortgage"},
+	}
+	actualNames := Accounts.GetUniqueAccountNamesOfBook(accounts, bookId, "Family", map[int64]string{1: "Bob", 2: "Alice"})
+
+	assert.Equal(t, "Cash (Family)", actualNames[1001])
+	assert.Equal(t, "Cash (Bob)", actualNames[2001])
+	assert.Equal(t, "Visa (Bob) #2002", actualNames[2002])
+	assert.Equal(t, "Visa (Bob) #2003", actualNames[2003])
+	assert.Equal(t, "Visa (Alice)", actualNames[3001])
+	assert.Equal(t, "Savings (Alice)", actualNames[3002])
+	// the owner has no nickname
+	assert.Equal(t, "Savings #4001", actualNames[4001])
+	assert.Equal(t, "Mortgage", actualNames[1002])
+}
+
 func TestGetVisibleAccountNameMapByList_EmptyList(t *testing.T) {
 	accounts := make([]*models.Account, 0)
 	actualAccountMap := Accounts.GetVisibleAccountNameMapByList(accounts)

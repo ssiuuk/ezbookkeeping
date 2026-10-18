@@ -120,7 +120,7 @@
             </v-card>
         </v-col>
 
-        <v-col cols="12">
+        <v-col cols="12" v-if="isClearingDataAvailable">
             <v-card :class="{ 'disabled': clearingData }">
                 <template #title>
                     <span class="text-error">{{ tt('Danger Zone') }}</span>
@@ -207,7 +207,7 @@ type ConfirmDialogType = InstanceType<typeof ConfirmDialog>;
 type SnackBarType = InstanceType<typeof SnackBar>;
 
 const { tt } = useI18n();
-const { dataStatistics, displayDataStatistics, getExportFileName } = useDataManagementPageBase();
+const { dataStatistics, isClearingDataAvailable, displayDataStatistics, getExportFileName } = useDataManagementPageBase();
 
 const rootStore = useRootStore();
 const userStore = useUserStore();

@@ -131,6 +131,7 @@ func TestFireFlyIIICsvFileimporterParseImportedData_ParseAccountNameAsCategoryNa
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(allNewTransactions))
 	assert.Equal(t, "A expense account", allNewTransactions[0].OriginalCategoryName)
+	assert.Equal(t, "A expense account", allNewTransactions[0].Merchant)
 
 	allNewTransactions, _, _, _, _, _, err = importer.ParseImportedData(context, user, []byte("type,amount,date,source_name,destination_name,category\n"+
 		"Deposit,10.00,2024-09-01T12:34:56+08:00,\"A revenue account\",\"Test Account\",\"\""), time.UTC, converter.DefaultImporterOptions, nil, nil, nil, nil, nil)
@@ -138,6 +139,7 @@ func TestFireFlyIIICsvFileimporterParseImportedData_ParseAccountNameAsCategoryNa
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(allNewTransactions))
 	assert.Equal(t, "A revenue account", allNewTransactions[0].OriginalCategoryName)
+	assert.Equal(t, "A revenue account", allNewTransactions[0].Merchant)
 }
 
 func TestFireFlyIIICsvFileimporterParseImportedData_ParseValidTimezone(t *testing.T) {

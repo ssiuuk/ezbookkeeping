@@ -32,7 +32,7 @@
                             @click="exportedData = null; showExportDataSheet = true">{{ tt('Export Data') }}</f7-list-button>
         </f7-list>
 
-        <f7-list strong inset dividers class="margin-vertical" :class="{ 'disabled': loading }">
+        <f7-list strong inset dividers class="margin-vertical" :class="{ 'disabled': loading }" v-if="isClearingDataAvailable">
             <f7-list-button color="red" @click="clearAllTransactions(null)">{{ tt('Clear All Transactions') }}</f7-list-button>
             <f7-list-button color="red" @click="clearAllData(null)">{{ tt('Clear All Data') }}</f7-list-button>
         </f7-list>
@@ -110,7 +110,7 @@ const props = defineProps<{
 
 const { tt } = useI18n();
 const { showToast, routeBackOnError } = useI18nUIComponents();
-const { dataStatistics, displayDataStatistics, getExportFileName } = useDataManagementPageBase();
+const { dataStatistics, isClearingDataAvailable, displayDataStatistics, getExportFileName } = useDataManagementPageBase();
 
 const rootStore = useRootStore();
 const userStore = useUserStore();

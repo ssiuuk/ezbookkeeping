@@ -199,6 +199,15 @@ func (p *alipayTransactionDataRowParser) Parse(ctx core.Context, user *models.Us
 		}
 	}
 
+	// use the counterparty as merchant for income and expense transactions (for transfer transactions it is used as account)
+	if data[datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TYPE] != alipayTransactionTypeNameMapping[models.TRANSACTION_TYPE_TRANSFER] && p.hasOriginalColumn(p.columns.targetNameColumnName) {
+		targetName := strings.TrimSpace(dataRow.GetData(p.columns.targetNameColumnName))
+
+		if targetName != "/" {
+			data[datatable.TRANSACTION_DATA_TABLE_MERCHANT] = targetName
+		}
+	}
+
 	return data, true, nil
 }
 

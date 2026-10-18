@@ -519,6 +519,49 @@ func TestIIFTransactionDataFileParseImportedData_ParseDescription(t *testing.T) 
 	assert.Equal(t, "Test", allNewTransactions[0].Comment)
 }
 
+func TestIIFTransactionDataFileParseImportedData_ParseMerchant(t *testing.T) {
+	importer := IifTransactionDataFileImporter
+	context := core.NewNullContext()
+
+	user := &models.User{
+		Uid:             1234567890,
+		DefaultCurrency: "CNY",
+	}
+
+	allNewTransactions, _, _, _, _, _, err := importer.ParseImportedData(context, user, []byte(
+		"!ACCNT\tNAME\tACCNTTYPE\n"+
+			"ACCNT\tTest Account\tBANK\n"+
+			"ACCNT\tTest Account2\tBANK\n"+
+			"ACCNT\tTest Category\tINC\n"+
+			"ACCNT\tTest Category2\tEXP\n"+
+			"!TRNS\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tMEMO\n"+
+			"!SPL\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tMEMO\n"+
+			"!ENDTRNS\t\t\t\t\t\t\n"+
+			"TRNS\tDEPOSIT\t09/02/2024\tTest Account\tTest Customer\t0.12\tfoo\n"+
+			"SPL\tDEPOSIT\t09/02/2024\tTest Category\t\t-0.12\t\n"+
+			"ENDTRNS\t\t\t\t\t\t\n"+
+			"TRNS\tCREDIT CARD\t09/03/2024\tTest Account\t\t-1.00\t\n"+
+			"SPL\tCREDIT CARD\t09/03/2024\tTest Category2\tTest Vendor\t1.00\t\n"+
+			"ENDTRNS\t\t\t\t\t\t\n"+
+			"TRNS\tTRANSFER\t09/04/2024\tTest Account\tTest Name\t-0.05\t\n"+
+			"SPL\tTRANSFER\t09/04/2024\tTest Account2\t\t0.05\t\n"+
+			"ENDTRNS\t\t\t\t\t\t\n"), time.UTC, converter.DefaultImporterOptions, nil, nil, nil, nil, nil)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(allNewTransactions))
+
+	assert.Equal(t, models.TRANSACTION_DB_TYPE_INCOME, allNewTransactions[0].Type)
+	assert.Equal(t, "foo", allNewTransactions[0].Comment)
+	assert.Equal(t, "Test Customer", allNewTransactions[0].Merchant)
+
+	assert.Equal(t, models.TRANSACTION_DB_TYPE_EXPENSE, allNewTransactions[1].Type)
+	assert.Equal(t, "Test Vendor", allNewTransactions[1].Comment)
+	assert.Equal(t, "Test Vendor", allNewTransactions[1].Merchant)
+
+	assert.Equal(t, models.TRANSACTION_DB_TYPE_TRANSFER_OUT, allNewTransactions[2].Type)
+	assert.Equal(t, "", allNewTransactions[2].Merchant)
+}
+
 func TestIIFTransactionDataFileParseImportedData_ParseSplitTransaction(t *testing.T) {
 	importer := IifTransactionDataFileImporter
 	context := core.NewNullContext()

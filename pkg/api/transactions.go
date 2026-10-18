@@ -575,7 +575,7 @@ func (a *TransactionsApi) TransactionUnreconciledTransactionCountsHandler(c *cor
 		return nil, errs.ErrLastReconciledTimeIsNotEnabled
 	}
 
-	accounts, err := a.accounts.GetAllAccountsByUid(c, uid)
+	accounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionUnreconciledTransactionCountsHandler] failed to get all accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -932,7 +932,7 @@ func (a *TransactionsApi) TransactionAmountsHandler(c *core.WebContext) (any, *e
 
 	uid := c.GetCurrentBookUid()
 
-	accounts, err := a.accounts.GetAllAccountsByUid(c, uid)
+	accounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
 	accountMap := a.accounts.GetAccountMapByList(accounts)
 
 	if err != nil {
@@ -1068,7 +1068,7 @@ func (a *TransactionsApi) TransactionDailyAmountsHandler(c *core.WebContext) (an
 	}
 
 	uid := c.GetCurrentBookUid()
-	accounts, err := a.accounts.GetAllAccountsByUid(c, uid)
+	accounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
 	accountMap := a.accounts.GetAccountMapByList(accounts)
 
 	if err != nil {
@@ -2617,10 +2617,6 @@ func (a *TransactionsApi) TransactionParseImportCustomFileDataHandler(c *core.We
 // TransactionParseImportFileHandler returns the parsed transaction data by request parameters for current user
 func (a *TransactionsApi) TransactionParseImportFileHandler(c *core.WebContext) (any, *errs.Error) {
 	uid := c.GetCurrentBookUid()
-
-	if uid != c.GetCurrentUid() {
-		return nil, errs.ErrOperationNotAvailableInSharedBook
-	}
 	form, err := c.MultipartForm()
 
 	if err != nil {
@@ -2822,7 +2818,7 @@ func (a *TransactionsApi) TransactionParseImportFileHandler(c *core.WebContext) 
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -2844,37 +2840,42 @@ func (a *TransactionsApi) TransactionParseImportFileHandler(c *core.WebContext) 
 		return nil, errs.ErrNotPermittedToPerformThisAction
 	}
 
-	accounts, err := a.accounts.GetAllAccountsByUid(c, user.Uid)
+	// match the accounts (including the accounts which book members shared to it), categories and tags of the current book
+	accounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
 
 	if err != nil {
-		log.Errorf(c, "[transactions.TransactionParseImportFileHandler] failed to get accounts for user \"uid:%d\", because %s", user.Uid, err.Error())
+		log.Errorf(c, "[transactions.TransactionParseImportFileHandler] failed to get accounts for user \"uid:%d\", because %s", uid, err.Error())
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
-	accountMap := a.accounts.GetVisibleAccountNameMapByList(accounts)
+	accountMap := getUniqueAccountNameMap(a.accounts, accounts, getBookAccountNaming(c, a.users, accounts, uid))
 
-	categories, err := a.transactionCategories.GetAllCategoriesByUid(c, user.Uid, 0, -1)
+	categories, err := a.transactionCategories.GetAllCategoriesByUid(c, uid, 0, -1)
 
 	if err != nil {
-		log.Errorf(c, "[transactions.TransactionParseImportFileHandler] failed to get categories for user \"uid:%d\", because %s", user.Uid, err.Error())
+		log.Errorf(c, "[transactions.TransactionParseImportFileHandler] failed to get categories for user \"uid:%d\", because %s", uid, err.Error())
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
 	expenseCategoryMap, incomeCategoryMap, transferCategoryMap := a.transactionCategories.GetVisibleSubCategoryNameMapByList(categories)
 
-	tags, err := a.transactionTags.GetAllTagsByUid(c, user.Uid)
+	tags, err := a.transactionTags.GetAllTagsByUid(c, uid)
 
 	if err != nil {
-		log.Errorf(c, "[transactions.TransactionParseImportFileHandler] failed to get tags for user \"uid:%d\", because %s", user.Uid, err.Error())
+		log.Errorf(c, "[transactions.TransactionParseImportFileHandler] failed to get tags for user \"uid:%d\", because %s", uid, err.Error())
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
 	tagMap := a.transactionTags.GetVisibleTagNameMapByList(tags)
 
-	parsedTransactions, _, _, _, _, _, err := dataImporter.ParseImportedData(c, user, fileData, clientTimezone, additionalOptions, accountMap, expenseCategoryMap, incomeCategoryMap, transferCategoryMap, tagMap)
+	// the parsed data belongs to the current book, while the user preferences (e.g. default currency and language) still come from the logged-in user
+	importUser := *user
+	importUser.Uid = uid
+
+	parsedTransactions, _, _, _, _, _, err := dataImporter.ParseImportedData(c, &importUser, fileData, clientTimezone, additionalOptions, accountMap, expenseCategoryMap, incomeCategoryMap, transferCategoryMap, tagMap)
 
 	if err != nil {
-		log.Errorf(c, "[transactions.TransactionParseImportFileHandler] failed to parse imported data for user \"uid:%d\", because %s", user.Uid, err.Error())
+		log.Errorf(c, "[transactions.TransactionParseImportFileHandler] failed to parse imported data for user \"uid:%d\", because %s", uid, err.Error())
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
@@ -2910,13 +2911,10 @@ func (a *TransactionsApi) TransactionImportHandler(c *core.WebContext) (any, *er
 	}
 
 	uid := c.GetCurrentBookUid()
+	submissionId := a.getTransactionImportSubmissionId(c, transactionImportReq.ClientSessionId)
 
-	if uid != c.GetCurrentUid() {
-		return nil, errs.ErrOperationNotAvailableInSharedBook
-	}
-
-	if a.CurrentConfig().EnableDuplicateSubmissionsCheck && transactionImportReq.ClientSessionId != "" {
-		found, remark := a.GetSubmissionRemark(duplicatechecker.DUPLICATE_CHECKER_TYPE_IMPORT_TRANSACTIONS, uid, transactionImportReq.ClientSessionId)
+	if a.CurrentConfig().EnableDuplicateSubmissionsCheck && submissionId != "" {
+		found, remark := a.GetSubmissionRemark(duplicatechecker.DUPLICATE_CHECKER_TYPE_IMPORT_TRANSACTIONS, uid, submissionId)
 
 		if found {
 			var result *models.TransactionImportResponse
@@ -2970,7 +2968,7 @@ func (a *TransactionsApi) TransactionImportHandler(c *core.WebContext) (any, *er
 		newTransactionTagIdsMap[i] = tagIds
 	}
 
-	user, err := a.users.GetUserById(c, uid)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -3013,7 +3011,7 @@ func (a *TransactionsApi) TransactionImportHandler(c *core.WebContext) (any, *er
 		TotalCount: len(newTransactions),
 	}
 
-	if a.CurrentConfig().EnableDuplicateSubmissionsCheck && transactionImportReq.ClientSessionId != "" {
+	if a.CurrentConfig().EnableDuplicateSubmissionsCheck && submissionId != "" {
 		initialRemark, err := json.Marshal(result)
 
 		if err != nil {
@@ -3021,7 +3019,7 @@ func (a *TransactionsApi) TransactionImportHandler(c *core.WebContext) (any, *er
 			return nil, errs.ErrOperationFailed
 		}
 
-		found, remark := a.GetOrSetSubmissionRemarkWithCustomExpiration(duplicatechecker.DUPLICATE_CHECKER_TYPE_IMPORT_TRANSACTIONS, uid, transactionImportReq.ClientSessionId, string(initialRemark), transactionImportResultExpiration)
+		found, remark := a.GetOrSetSubmissionRemarkWithCustomExpiration(duplicatechecker.DUPLICATE_CHECKER_TYPE_IMPORT_TRANSACTIONS, uid, submissionId, string(initialRemark), transactionImportResultExpiration)
 
 		if found {
 			var previousResult *models.TransactionImportResponse
@@ -3039,7 +3037,7 @@ func (a *TransactionsApi) TransactionImportHandler(c *core.WebContext) (any, *er
 
 		if err != nil {
 			result.Finished = true
-			a.setTransactionImportResult(uid, transactionImportReq.ClientSessionId, result)
+			a.setTransactionImportResult(uid, submissionId, result)
 			log.Errorf(c, "[transactions.TransactionImportHandler] failed to import transactions for user \"uid:%d\" after %d of %d transactions, because %s", uid, result.ImportedCount, result.TotalCount, err.Error())
 
 			return nil, errs.NewErrorWithContext(errs.Or(err, errs.ErrOperationFailed), map[string]any{
@@ -3049,11 +3047,11 @@ func (a *TransactionsApi) TransactionImportHandler(c *core.WebContext) (any, *er
 		}
 
 		result.ImportedCount = i + 1
-		a.setTransactionImportResult(uid, transactionImportReq.ClientSessionId, result)
+		a.setTransactionImportResult(uid, submissionId, result)
 	}
 
 	result.Finished = true
-	a.setTransactionImportResult(uid, transactionImportReq.ClientSessionId, result)
+	a.setTransactionImportResult(uid, submissionId, result)
 
 	log.Infof(c, "[transactions.TransactionImportHandler] user \"uid:%d\" has imported %d of %d transactions", uid, result.ImportedCount, result.TotalCount)
 
@@ -3076,7 +3074,7 @@ func (a *TransactionsApi) TransactionImportProcessHandler(c *core.WebContext) (a
 		return nil, nil
 	}
 
-	found, remark := a.GetSubmissionRemark(duplicatechecker.DUPLICATE_CHECKER_TYPE_IMPORT_TRANSACTIONS, uid, transactionImportProcessReq.ClientSessionId)
+	found, remark := a.GetSubmissionRemark(duplicatechecker.DUPLICATE_CHECKER_TYPE_IMPORT_TRANSACTIONS, uid, a.getTransactionImportSubmissionId(c, transactionImportProcessReq.ClientSessionId))
 
 	if !found {
 		return nil, nil
@@ -3139,7 +3137,7 @@ func (a *TransactionsApi) getTransactionTagInfoResponses(tagIds []int64, allTran
 
 func (a *TransactionsApi) getTransactionAllEssentialData(c *core.WebContext, user *models.User, withPictures bool, trimCategory bool, trimTag bool) (accountMap map[int64]*models.Account, categoryMap map[int64]*models.TransactionCategory, tagMap map[int64]*models.TransactionTag, allTransactionTagIds map[int64][]int64, pictureInfoMap map[int64][]*models.TransactionPictureInfo, err error) {
 	uid := c.GetCurrentBookUid()
-	allAccounts, err := a.accounts.GetAllAccountsByUid(c, uid)
+	allAccounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.getTransactionAllEssentialData] failed to get all accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -3350,6 +3348,20 @@ func (a *TransactionsApi) getTransactionImportResponse(result *models.Transactio
 		"importedCount": result.ImportedCount,
 		"totalCount":    result.TotalCount,
 	})
+}
+
+// getTransactionImportSubmissionId returns the duplicate submission identification of a transaction import task,
+// the import tasks in a shared book are also distinguished by the member who submits them
+func (a *TransactionsApi) getTransactionImportSubmissionId(c *core.WebContext, clientSessionId string) string {
+	return getBookMemberSubmissionId(c.GetCurrentBookUid(), c.GetCurrentUid(), clientSessionId)
+}
+
+func getBookMemberSubmissionId(bookUid int64, currentUid int64, clientSessionId string) string {
+	if clientSessionId == "" || bookUid == currentUid {
+		return clientSessionId
+	}
+
+	return utils.Int64ToString(currentUid) + "|" + clientSessionId
 }
 
 func (a *TransactionsApi) setTransactionImportResult(uid int64, clientSessionId string, result *models.TransactionImportResponse) {

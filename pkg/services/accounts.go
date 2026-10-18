@@ -57,6 +57,29 @@ func (s *AccountService) GetAllAccountsByUid(c core.Context, uid int64) ([]*mode
 	return accounts, err
 }
 
+// GetAllAccountsOfBook returns all account models of a book, including the accounts which book members shared to it
+func (s *AccountService) GetAllAccountsOfBook(c core.Context, bookId int64) ([]*models.Account, error) {
+	if bookId <= 0 {
+		return nil, errs.ErrUserIdInvalid
+	}
+
+	var accounts []*models.Account
+	err := s.UserDataDB(bookId).NewSession(c).Where(accountOfBookCondition, false, bookId, bookId).OrderBy("parent_account_id asc, display_order asc").Find(&accounts)
+
+	return accounts, err
+}
+
+// GetTotalAccountCountOfBook returns total account count of a book, including the accounts which book members shared to it
+func (s *AccountService) GetTotalAccountCountOfBook(c core.Context, bookId int64) (int64, error) {
+	if bookId <= 0 {
+		return 0, errs.ErrUserIdInvalid
+	}
+
+	count, err := s.UserDataDB(bookId).NewSession(c).Where(accountOfBookCondition, false, bookId, bookId).Count(&models.Account{})
+
+	return count, err
+}
+
 // GetAccountByAccountId returns account model according to account id
 func (s *AccountService) GetAccountByAccountId(c core.Context, uid int64, accountId int64) (*models.Account, error) {
 	if uid <= 0 {
@@ -920,6 +943,102 @@ func (s *AccountService) GetVisibleAccountNameMapByList(accounts []*models.Accou
 		accountMap[account.Name] = account
 	}
 	return accountMap
+}
+
+// GetVisibleUniqueAccountNameMapOfBook returns visible account map of a book keyed by the names from GetUniqueAccountNamesOfBook, an ambiguous original name is left out, so that only an explicit unique name picks one of the accounts with that name
+func (s *AccountService) GetVisibleUniqueAccountNameMapOfBook(accounts []*models.Account, bookId int64, bookName string, ownerNicknames map[int64]string) map[string]*models.Account {
+	uniqueNames := s.GetUniqueAccountNamesOfBook(accounts, bookId, bookName, ownerNicknames)
+	accountMap := make(map[string]*models.Account, len(accounts))
+
+	for i := 0; i < len(accounts); i++ {
+		account := accounts[i]
+
+		if account.Hidden || account.Type == models.ACCOUNT_TYPE_MULTI_SUB_ACCOUNTS {
+			continue
+		}
+
+		accountMap[uniqueNames[account.AccountId]] = account
+	}
+
+	for name := range s.getAmbiguousAccountNamesOfBook(accounts, bookId) {
+		delete(accountMap, name)
+	}
+
+	return accountMap
+}
+
+// GetUniqueAccountNamesOfBook returns the names to use for the accounts of a book in exported files and import matching,
+// when an account shared to the book has the same name as another account of the book, every account with that name gets an explicit name:
+// a shared account is named with its owner's nickname, an account of the book is named with the book name, and the account id is appended when the names are still the same
+func (s *AccountService) GetUniqueAccountNamesOfBook(accounts []*models.Account, bookId int64, bookName string, ownerNicknames map[int64]string) map[int64]string {
+	ambiguousNames := s.getAmbiguousAccountNamesOfBook(accounts, bookId)
+	accountNames := make(map[int64]string, len(accounts))
+
+	for i := 0; i < len(accounts); i++ {
+		account := accounts[i]
+		name := account.Name
+
+		if ambiguousNames[name] {
+			suffix := ownerNicknames[account.Uid]
+
+			if account.Uid == bookId {
+				suffix = bookName
+			}
+
+			if suffix != "" {
+				name = fmt.Sprintf("%s (%s)", name, suffix)
+			} else {
+				name = fmt.Sprintf("%s #%d", name, account.AccountId)
+			}
+		}
+
+		accountNames[account.AccountId] = name
+	}
+
+	nameCounts := make(map[string]int, len(accountNames))
+
+	for _, name := range accountNames {
+		nameCounts[name]++
+	}
+
+	for i := 0; i < len(accounts); i++ {
+		account := accounts[i]
+		name := accountNames[account.AccountId]
+
+		if nameCounts[name] > 1 && ambiguousNames[account.Name] && !strings.HasSuffix(name, fmt.Sprintf(" #%d", account.AccountId)) {
+			accountNames[account.AccountId] = fmt.Sprintf("%s #%d", name, account.AccountId)
+		}
+	}
+
+	return accountNames
+}
+
+// getAmbiguousAccountNamesOfBook returns the account names which belong to an account shared to the book and also to any other account of the book
+func (s *AccountService) getAmbiguousAccountNamesOfBook(accounts []*models.Account, bookId int64) map[string]bool {
+	nameCounts := make(map[string]int, len(accounts))
+	nameHasSharedAccount := make(map[string]bool)
+
+	for i := 0; i < len(accounts); i++ {
+		if accounts[i].Type == models.ACCOUNT_TYPE_MULTI_SUB_ACCOUNTS {
+			continue
+		}
+
+		nameCounts[accounts[i].Name]++
+
+		if accounts[i].Uid != bookId {
+			nameHasSharedAccount[accounts[i].Name] = true
+		}
+	}
+
+	ambiguousNames := make(map[string]bool)
+
+	for name, count := range nameCounts {
+		if count > 1 && nameHasSharedAccount[name] {
+			ambiguousNames[name] = true
+		}
+	}
+
+	return ambiguousNames
 }
 
 // GetAccountNames returns a list with account names from account models list
