@@ -354,6 +354,36 @@ func TestJDComFinanceCsvFileImporterParseImportedData_ParseDescription(t *testin
 	assert.Equal(t, "Test", allNewTransactions[0].Comment)
 }
 
+func TestJDComFinanceCsvFileImporterParseImportedData_ParseMerchant(t *testing.T) {
+	importer := JDComFinanceTransactionDataCsvFileImporter
+	context := core.NewNullContext()
+
+	user := &models.User{
+		Uid:             1234567890,
+		DefaultCurrency: "CNY",
+	}
+
+	data := "导出信息：\n" +
+		"京东账号名：xxxxxx\n" +
+		"日期区间：2025-01-01 至 2025-09-01\n" +
+		"\n" +
+		"交易时间,商户名称,交易说明,金额,收/付款方式,交易状态,收/支,交易分类\n" +
+		"2025-09-01 01:23:45,Test Payer,xxx,0.12,余额,交易成功,收入,其他\n" +
+		"2025-09-01 12:34:56,Test Shop,yyy,123.45,银行卡,交易成功,支出,其他网购\n" +
+		"2025-09-01 23:59:59,Test Wallet,京东钱包余额充值,0.05,银行卡,交易成功,不计收支,余额\n"
+	allNewTransactions, _, _, _, _, _, err := importer.ParseImportedData(context, user, []byte(data), time.UTC, converter.DefaultImporterOptions, nil, nil, nil, nil, nil)
+	assert.Nil(t, err)
+
+	assert.Equal(t, 3, len(allNewTransactions))
+	assert.Equal(t, "Test Payer", allNewTransactions[0].Merchant)
+	assert.Equal(t, "xxx", allNewTransactions[0].Comment)
+	assert.Equal(t, "Test Shop", allNewTransactions[1].Merchant)
+	assert.Equal(t, "yyy", allNewTransactions[1].Comment)
+	assert.Equal(t, models.TRANSACTION_DB_TYPE_TRANSFER_OUT, allNewTransactions[2].Type)
+	assert.Equal(t, "", allNewTransactions[2].Merchant)
+	assert.Equal(t, "Test Wallet", allNewTransactions[2].OriginalDestinationAccountName)
+}
+
 func TestJDComFinanceCsvFileImporterParseImportedData_UnknownStatusTransaction(t *testing.T) {
 	importer := JDComFinanceTransactionDataCsvFileImporter
 	context := core.NewNullContext()

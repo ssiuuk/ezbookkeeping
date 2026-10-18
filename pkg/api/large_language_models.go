@@ -582,6 +582,10 @@ func (a *LargeLanguageModelsApi) parseRecognizedTransactionResponse(c *core.WebC
 		recognizedTransactionResponse.Comment = recognizedResult.Description
 	}
 
+	if merchant := strings.TrimSpace(recognizedResult.Merchant); len(merchant) > 0 {
+		recognizedTransactionResponse.Merchant = strings.TrimSpace(utils.SubString(merchant, 0, models.TransactionMerchantMaxLength))
+	}
+
 	return recognizedTransactionResponse, nil
 }
 

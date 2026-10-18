@@ -306,6 +306,28 @@
                     </v-autocomplete>
                 </div>
             </template>
+            <template #item.merchant="{ item }">
+                <template v-if="editingTransaction !== item">
+                    <span v-if="!item.merchant || item.merchant.length <= TRANSACTION_MAX_MERCHANT_LENGTH">{{ item.merchant || '' }}</span>
+                    <div class="text-error font-italic" v-else-if="item.merchant && item.merchant.length > TRANSACTION_MAX_MERCHANT_LENGTH">
+                        <v-tooltip activator="parent">{{ getTransactionMerchantTooltip(item) }}</v-tooltip>
+                        <v-icon class="me-1" :icon="mdiAlertOutline"/>
+                        <span>{{ item.merchant }}</span>
+                    </div>
+                </template>
+                <div v-if="editingTransaction === item">
+                    <v-text-field style="width: calc(max(200px, 100%))" type="text" autocomplete="off"
+                                  density="compact" variant="plain"
+                                  persistent-placeholder
+                                  :placeholder="tt('Merchant')"
+                                  :disabled="!!disabled"
+                                  v-model="item.merchant">
+                        <v-tooltip activator="parent" v-if="item.merchant && item.merchant.length > TRANSACTION_MAX_MERCHANT_LENGTH">
+                            {{ getTransactionMerchantTooltip(item) }}
+                        </v-tooltip>
+                    </v-text-field>
+                </div>
+            </template>
             <template #item.comment="{ item }">
                 <template v-if="editingTransaction !== item">
                     <span v-if="!item.comment || item.comment.length <= TRANSACTION_MAX_COMMENT_LENGTH">{{ item.comment || '' }}</span>
@@ -446,7 +468,7 @@ import { KnownFileType } from '@/core/file.ts';
 import { ImportTransactionColumnType } from '@/core/import_transaction.ts';
 
 import { DEFAULT_PAGE_COUNTS } from '@/consts/page.ts';
-import { TRANSACTION_MAX_COMMENT_LENGTH } from '@/consts/transaction.ts';
+import { TRANSACTION_MAX_COMMENT_LENGTH, TRANSACTION_MAX_MERCHANT_LENGTH } from '@/consts/transaction.ts';
 
 import { Account, type CategorizedAccountWithDisplayBalance } from '@/models/account.ts';
 import type { TransactionCategory } from '@/models/transaction_category.ts';
@@ -975,6 +997,7 @@ const importTransactionHeaders = computed<object[]>(() => {
         { value: 'actualSourceAccountName', title: tt('Account'), sortable: true, nowrap: true },
         { value: 'geoLocation', title: tt('Geographic Location'), sortable: true, nowrap: true },
         { value: 'tagIds', title: tt('Tags'), sortable: true, nowrap: true },
+        { value: 'merchant', title: tt('Merchant'), sortable: true, nowrap: true },
         { value: 'comment', title: tt('Description'), sortable: true, nowrap: true },
     ];
 });
@@ -1497,6 +1520,16 @@ function getTransactionDescriptionTooltip(transaction: ImportTransaction): strin
     if (transaction.comment && transaction.comment.length > TRANSACTION_MAX_COMMENT_LENGTH) {
         return tt('format.misc.charactersOverLimit', {
             count: formatNumberToLocalizedNumerals(transaction.comment.length - TRANSACTION_MAX_COMMENT_LENGTH)
+        });
+    } else {
+        return '';
+    }
+}
+
+function getTransactionMerchantTooltip(transaction: ImportTransaction): string {
+    if (transaction.merchant && transaction.merchant.length > TRANSACTION_MAX_MERCHANT_LENGTH) {
+        return tt('format.misc.charactersOverLimit', {
+            count: formatNumberToLocalizedNumerals(transaction.merchant.length - TRANSACTION_MAX_MERCHANT_LENGTH)
         });
     } else {
         return '';
@@ -2137,7 +2170,8 @@ function exportData(fileType: KnownFileType): void {
         tt(ImportTransactionColumnType.RelatedAmount.name),
         tt(ImportTransactionColumnType.GeographicLocation.name),
         tt(ImportTransactionColumnType.Tags.name),
-        tt(ImportTransactionColumnType.Description.name)
+        tt(ImportTransactionColumnType.Description.name),
+        tt(ImportTransactionColumnType.Merchant.name)
     ].join(separator) + '\n';
 
     const transactions = props.importTransactions ?? [];
@@ -2194,7 +2228,8 @@ function exportData(fileType: KnownFileType): void {
             relatedAmount ?? '',
             geographicLocation,
             tagNames.join(tagSeparator),
-            replaceAll(transaction.comment || '', separator, ' ')
+            replaceAll(transaction.comment || '', separator, ' '),
+            replaceAll(transaction.merchant || '', separator, ' ')
         ].join(separator);
     });
 

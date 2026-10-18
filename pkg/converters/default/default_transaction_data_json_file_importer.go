@@ -25,6 +25,7 @@ var allJsonDataSupportedColumns = []datatable.TransactionDataTableColumn{
 	datatable.TRANSACTION_DATA_TABLE_GEOGRAPHIC_LOCATION,
 	datatable.TRANSACTION_DATA_TABLE_TAGS,
 	datatable.TRANSACTION_DATA_TABLE_DESCRIPTION,
+	datatable.TRANSACTION_DATA_TABLE_MERCHANT,
 }
 
 // defaultTransactionDataJsonImporter defines the structure of ezbookkeeping default json importer for transaction data
@@ -90,6 +91,7 @@ func (c *defaultTransactionDataJsonImporter) createNewDefaultTransactionDataTabl
 		row[datatable.TRANSACTION_DATA_TABLE_GEOGRAPHIC_LOCATION] = transaction.GeoLocation
 		row[datatable.TRANSACTION_DATA_TABLE_TAGS] = transaction.TagNames
 		row[datatable.TRANSACTION_DATA_TABLE_DESCRIPTION] = transaction.Comment
+		row[datatable.TRANSACTION_DATA_TABLE_MERCHANT] = transaction.Merchant
 
 		transactionDataTable.Add(row)
 	}

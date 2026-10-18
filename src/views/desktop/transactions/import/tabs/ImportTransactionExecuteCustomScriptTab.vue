@@ -228,6 +228,8 @@ interface ImportTransaction {
     tagNames?: string;
     /** ${tt('sample.importTransactionCustomScript.fieldCommentDescription')} */
     description?: string;
+    /** ${tt('Merchant')} */
+    merchant?: string;
 }
 
 /** ${tt('sample.importTransactionCustomScript.fieldTypeDescription')} */
@@ -281,7 +283,9 @@ function parse(row, index) {
         // ${tt('sample.importTransactionCustomScript.fieldTagNamesDescription')}
         tagNames: '',
         // ${tt('sample.importTransactionCustomScript.fieldCommentDescription')}
-        description: row[13]
+        description: row[13],
+        // ${tt('Merchant')}
+        merchant: row[14]
     };
 }`);
 
@@ -480,7 +484,8 @@ function onMessage(event: MessageEvent<SandboxResponse>): void {
                 destinationAmount: (isDefined(item['destinationAmount']) && item['destinationAmount'] !== '') ? String(item['destinationAmount']) : undefined,
                 geoLocation: (isDefined(item['geoLocation']) && item['geoLocation']) ? String(item['geoLocation']) : undefined,
                 tagNames: (isDefined(item['tagNames']) && item['tagNames']) ? String(item['tagNames']) : undefined,
-                comment: (isDefined(item['description']) && item['description']) ? String(item['description']) : undefined
+                comment: (isDefined(item['description']) && item['description']) ? String(item['description']) : undefined,
+                merchant: (isDefined(item['merchant']) && item['merchant']) ? String(item['merchant']) : undefined
             };
             finalResult.push(finalItem);
         }

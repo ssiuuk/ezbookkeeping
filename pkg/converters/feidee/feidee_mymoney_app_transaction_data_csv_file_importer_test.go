@@ -342,6 +342,7 @@ func TestFeideeMymoneyCsvFileImporterParseImportedData_WithAdditionalOptions(t *
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(allNewTransactions))
 	assert.Equal(t, 0, len(allNewTransactions[0].OriginalTagNames))
+	assert.Equal(t, "test3", allNewTransactions[0].Merchant)
 
 	allNewTransactions, _, _, _, _, _, err = importer.ParseImportedData(context, user, []byte("随手记导出文件(headers:v5;xxxxx)\n"+
 		"\"交易类型\",\"日期\",\"子类别\",\"账户\",\"金额\",\"备注\",\"关联Id\",\"成员\",\"项目\",\"商家\"\n"+

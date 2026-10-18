@@ -15,6 +15,7 @@ type fireflyIIITransactionDataRowParser struct {
 func (p *fireflyIIITransactionDataRowParser) GetAddedColumns() []datatable.TransactionDataTableColumn {
 	return []datatable.TransactionDataTableColumn{
 		datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TIMEZONE,
+		datatable.TRANSACTION_DATA_TABLE_MERCHANT,
 	}
 }
 
@@ -24,6 +25,13 @@ func (p *fireflyIIITransactionDataRowParser) Parse(data map[datatable.Transactio
 
 	for column, value := range data {
 		rowData[column] = value
+	}
+
+	// use the expense (shop) and revenue account name as merchant
+	if rowData[datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TYPE] == fireflyIIITransactionTypeNameMapping[models.TRANSACTION_TYPE_INCOME] {
+		rowData[datatable.TRANSACTION_DATA_TABLE_MERCHANT] = rowData[datatable.TRANSACTION_DATA_TABLE_ACCOUNT_NAME]
+	} else if rowData[datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TYPE] == fireflyIIITransactionTypeNameMapping[models.TRANSACTION_TYPE_EXPENSE] {
+		rowData[datatable.TRANSACTION_DATA_TABLE_MERCHANT] = rowData[datatable.TRANSACTION_DATA_TABLE_RELATED_ACCOUNT_NAME]
 	}
 
 	// use the expense and revenue account name as category names if the category name is empty
