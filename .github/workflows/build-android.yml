@@ -88,19 +88,40 @@ jobs:
           gh release upload android-preview "$RUNNER_TEMP/ezbookkeeping-android-preview.apk" --clobber
 
   screenshots:
-    # runs the app on an emulator against a test server and saves a screenshot of each screen
+    # runs the app on an emulator against this repository's own server and saves a screenshot of each screen
     if: github.event_name != 'push'
     runs-on: ubuntu-latest
-    services:
-      ezbookkeeping:
-        image: mayswind/ezbookkeeping:latest
-        ports:
-          - 8080:8080
-        env:
-          EBK_USER_ENABLE_REGISTER: 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Build and start the test server
+        # this fork's server, so books, projects and pictures can be tested; the stock image has no books or projects
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          EBK_USER_ENABLE_REGISTER: 'true'
+        run: |
+          npm ci
+          npm run build
+          mkdir -p "$RUNNER_TEMP/server"
+          CGO_ENABLED=1 go build -o "$RUNNER_TEMP/server/ezbookkeeping" ezbookkeeping.go
+          cd "$RUNNER_TEMP/server"
+          mkdir -p conf data log storage
+          cp "$GITHUB_WORKSPACE/conf/ezbookkeeping.ini" conf/
+          ln -s "$GITHUB_WORKSPACE/dist" public
+          ./ezbookkeeping database update
+          nohup ./ezbookkeeping server run > server.log 2>&1 &
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -140,6 +161,10 @@ jobs:
             adb shell am instrument -w -e serverUrl http://10.0.2.2:8080 com.ssiuuk.ezbookkeeping.test/androidx.test.runner.AndroidJUnitRunner | tee "$RUNNER_TEMP/instrument.txt"
             adb pull /sdcard/Download/ezb-screens "$RUNNER_TEMP/screens" || true
             adb logcat -d -t 3000 > "$RUNNER_TEMP/screens/logcat.txt" || true
+
+      - name: Show the test server log
+        if: always()
+        run: tail -n 200 "$RUNNER_TEMP/server/server.log" || true
 
       - name: Upload screenshots
         if: always()
