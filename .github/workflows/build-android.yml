@@ -45,7 +45,7 @@ jobs:
         working-directory: android
         env:
           APP_VERSION_CODE: ${{ github.run_number }}
-          APP_VERSION_NAME: 1.0.${{ github.run_number }}
+          APP_VERSION_NAME: 1.1.${{ github.run_number }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -64,6 +64,7 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           if ! gh release view android-latest > /dev/null 2>&1; then
             gh release create android-latest --prerelease --target "$GITHUB_SHA" \
@@ -71,3 +72,99 @@ jobs:
               --notes "Open this page on your Android phone and download ezbookkeeping-android.apk to install or update the app."
           fi
           gh release upload android-latest "$RUNNER_TEMP/ezbookkeeping-android.apk" --clobber
+
+      - name: Publish to the android-preview release
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if ! gh release view android-preview > /dev/null 2>&1; then
+            gh release create android-preview --prerelease --target "${{ github.event.pull_request.head.sha }}" \
+              --title "Android app (preview of an open pull request)" \
+              --notes "A test build from a pull request that isn't merged yet. Install it to try the changes; the latest build of main is under \"Android app (latest build)\"."
+          fi
+          cp "$RUNNER_TEMP/ezbookkeeping-android.apk" "$RUNNER_TEMP/ezbookkeeping-android-preview.apk"
+          gh release upload android-preview "$RUNNER_TEMP/ezbookkeeping-android-preview.apk" --clobber
+
+  screenshots:
+    # runs the app on an emulator against a test server and saves a screenshot of each screen
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    services:
+      ezbookkeeping:
+        image: mayswind/ezbookkeeping:latest
+        ports:
+          - 8080:8080
+        env:
+          EBK_USER_ENABLE_REGISTER: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Seed the test server
+        run: bash android/scripts/seed-test-server.sh http://localhost:8080
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Build test apps
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug assembleDebugAndroidTest
+
+      - name: Run on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          working-directory: android
+          script: |
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb shell am instrument -w -e serverUrl http://10.0.2.2:8080 com.ssiuuk.ezbookkeeping.test/androidx.test.runner.AndroidJUnitRunner | tee "$RUNNER_TEMP/instrument.txt"
+            adb pull /sdcard/Download/ezb-screens "$RUNNER_TEMP/screens" || true
+            adb logcat -d -t 3000 > "$RUNNER_TEMP/screens/logcat.txt" || true
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ezbookkeeping-android-screenshots
+          path: ${{ runner.temp }}/screens
+
+      - name: Publish screenshots to the android-preview release
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if ! gh release view android-preview > /dev/null 2>&1; then
+            gh release create android-preview --prerelease --target "${{ github.event.pull_request.head.sha }}" \
+              --title "Android app (preview of an open pull request)" \
+              --notes "A test build from a pull request that isn't merged yet. Install it to try the changes; the latest build of main is under \"Android app (latest build)\"."
+          fi
+          cd "$RUNNER_TEMP/screens"
+          cp "$RUNNER_TEMP/instrument.txt" . || true
+          zip -q "$RUNNER_TEMP/screenshots.zip" ./*
+          gh release upload android-preview "$RUNNER_TEMP/screenshots.zip" --clobber
+
+      - name: Check the walkthrough passed
+        run: |
+          cat "$RUNNER_TEMP/instrument.txt"
+          grep -q "^OK (" "$RUNNER_TEMP/instrument.txt"
