@@ -133,6 +133,7 @@ func TestCreateTransactionByScheduledTransactionTemplate_Daily(t *testing.T) {
 		Comment:          "Scheduled transaction comment",
 		CreatedIp:        "127.0.0.1",
 		ScheduledCreated: true,
+		SourceTemplateId: 1001,
 	}
 	expectedTagIds := []int64{1001, 1002, 1003}
 	actualValue, actualTagIds := Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, startTimeInUTC.Unix())
