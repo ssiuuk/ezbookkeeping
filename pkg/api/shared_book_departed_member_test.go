@@ -50,6 +50,12 @@ func setupSharedBookTestDatabase(t *testing.T) {
 
 	settings.SetCurrentConfig(config)
 	assert.Nil(t, datastore.InitializeDataStore(config))
+
+	// the sqlite file must be released before the temporary directory is removed on Windows
+	testDataStore := datastore.Container.UserDataStore
+	t.Cleanup(func() {
+		_ = testDataStore.Close()
+	})
 	assert.Nil(t, uuid.InitializeUuidGenerator(config))
 
 	assert.Nil(t, datastore.Container.UserStore.SyncStructs(new(models.User), new(models.SharedBook), new(models.BookMember), new(models.SharedBookAccount)))

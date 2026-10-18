@@ -49,6 +49,12 @@ func initializeCategoryBudgetTestDataStore(t *testing.T, legacyBudgets ...*legac
 	})
 	assert.Nil(t, err)
 
+	// the sqlite file must be released before the temporary directory is removed on Windows
+	testDataStore := datastore.Container.UserDataStore
+	t.Cleanup(func() {
+		_ = testDataStore.Close()
+	})
+
 	err = datastore.Container.UserStore.SyncStructs(new(models.User), new(models.SharedBook))
 	assert.Nil(t, err)
 

@@ -41,6 +41,12 @@ func initClearTestDataStore(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
+	// the sqlite file must be released before the temporary directory is removed on Windows
+	testDataStore := datastore.Container.UserDataStore
+	t.Cleanup(func() {
+		_ = testDataStore.Close()
+	})
+
 	err = datastore.Container.UserDataStore.SyncStructs(new(models.Account), new(models.Transaction), new(models.TransactionTagIndex), new(models.TransactionPictureInfo), new(models.SharedBookAccount))
 	assert.Nil(t, err)
 }
