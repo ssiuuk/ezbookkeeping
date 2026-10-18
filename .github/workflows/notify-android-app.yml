@@ -1,0 +1,33 @@
+name: Notify the Android app
+
+# The Android app lives in ssiuuk/ezbookkeeping-android and tests itself against this server.
+# When main changes, ask it to run its emulator test against the new commit.
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start the app's test against this commit
+        env:
+          # a fine-grained token with "Contents: read and write" on ssiuuk/ezbookkeeping-android
+          TOKEN: ${{ secrets.ANDROID_REPO_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::ANDROID_REPO_TOKEN is not set, so the app's test only runs on its nightly schedule"
+            exit 0
+          fi
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/ssiuuk/ezbookkeeping-android/dispatches \
+            -d "{\"event_type\":\"server-updated\",\"client_payload\":{\"sha\":\"$GITHUB_SHA\"}}"
