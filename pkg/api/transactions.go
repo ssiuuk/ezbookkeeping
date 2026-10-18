@@ -575,7 +575,7 @@ func (a *TransactionsApi) TransactionUnreconciledTransactionCountsHandler(c *cor
 		return nil, errs.ErrLastReconciledTimeIsNotEnabled
 	}
 
-	accounts, err := a.accounts.GetAllAccountsByUid(c, uid)
+	accounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionUnreconciledTransactionCountsHandler] failed to get all accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -932,7 +932,7 @@ func (a *TransactionsApi) TransactionAmountsHandler(c *core.WebContext) (any, *e
 
 	uid := c.GetCurrentBookUid()
 
-	accounts, err := a.accounts.GetAllAccountsByUid(c, uid)
+	accounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
 	accountMap := a.accounts.GetAccountMapByList(accounts)
 
 	if err != nil {
@@ -1068,7 +1068,7 @@ func (a *TransactionsApi) TransactionDailyAmountsHandler(c *core.WebContext) (an
 	}
 
 	uid := c.GetCurrentBookUid()
-	accounts, err := a.accounts.GetAllAccountsByUid(c, uid)
+	accounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
 	accountMap := a.accounts.GetAccountMapByList(accounts)
 
 	if err != nil {
@@ -3137,7 +3137,7 @@ func (a *TransactionsApi) getTransactionTagInfoResponses(tagIds []int64, allTran
 
 func (a *TransactionsApi) getTransactionAllEssentialData(c *core.WebContext, user *models.User, withPictures bool, trimCategory bool, trimTag bool) (accountMap map[int64]*models.Account, categoryMap map[int64]*models.TransactionCategory, tagMap map[int64]*models.TransactionTag, allTransactionTagIds map[int64][]int64, pictureInfoMap map[int64][]*models.TransactionPictureInfo, err error) {
 	uid := c.GetCurrentBookUid()
-	allAccounts, err := a.accounts.GetAllAccountsByUid(c, uid)
+	allAccounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.getTransactionAllEssentialData] failed to get all accounts for user \"uid:%d\", because %s", uid, err.Error())

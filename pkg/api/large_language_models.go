@@ -393,7 +393,7 @@ func (a *LargeLanguageModelsApi) GenerateCodeHandler(c *core.WebContext) (any, *
 }
 
 func (a *LargeLanguageModelsApi) getUserEssentialData(c *core.WebContext, uid int64) ([]string, map[string]*models.Account, []string, []string, []string, map[string]*models.TransactionCategory, map[string]*models.TransactionCategory, map[string]*models.TransactionCategory, []string, map[string]*models.TransactionTag, error) {
-	accounts, err := a.accounts.GetAllAccountsByUid(c, uid)
+	accounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
 
 	if err != nil {
 		log.Errorf(c, "[large_language_models.getUserEssentialData] failed to get all accounts for user \"uid:%d\", because %s", uid, err.Error())
