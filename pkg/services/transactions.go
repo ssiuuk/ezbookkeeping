@@ -787,7 +787,7 @@ func (s *TransactionService) CreateScheduledTransactions(c core.Context, current
 		var templates []*models.TransactionTemplate
 		err := s.UserDataDBByIndex(i).NewSession(c).Where("deleted=?"+
 			" AND template_type=?"+
-			" AND (scheduled_frequency_type=? OR scheduled_frequency_type=? OR scheduled_frequency_type=? OR scheduled_frequency_type=? OR scheduled_frequency_type=?)"+
+			" AND (scheduled_frequency_type=? OR scheduled_frequency_type=? OR scheduled_frequency_type=? OR scheduled_frequency_type=? OR scheduled_frequency_type=? OR scheduled_frequency_type=? OR scheduled_frequency_type=? OR scheduled_frequency_type=?)"+
 			" AND (scheduled_start_time IS NULL OR scheduled_start_time<=?)"+
 			" AND (scheduled_end_time IS NULL OR scheduled_end_time>=?)"+
 			" AND scheduled_at>=?"+
@@ -795,6 +795,7 @@ func (s *TransactionService) CreateScheduledTransactions(c core.Context, current
 			false,
 			models.TRANSACTION_TEMPLATE_TYPE_SCHEDULE,
 			models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_WEEKLY, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_MONTHLY, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_DAILY, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_YEARLY, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS,
+			models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_WEEKS, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_YEARS,
 			startTime.Unix(),
 			startTime.Unix(),
 			minScheduledAt,
@@ -3250,7 +3251,7 @@ func (s *TransactionService) createTransactionByScheduledTransactionTemplate(c c
 		template.ScheduledFrequencyType != models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_MONTHLY &&
 		template.ScheduledFrequencyType != models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_DAILY &&
 		template.ScheduledFrequencyType != models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_YEARLY &&
-		template.ScheduledFrequencyType != models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS) ||
+		!template.ScheduledFrequencyType.IsEveryNInterval()) ||
 		template.ScheduledFrequency == "" {
 		log.Warnf(c, "[transactions.CreateScheduledTransactions] transaction template \"id:%d\" has invalid scheduled transaction frequency", template.TemplateId)
 		return nil, nil
@@ -3305,18 +3306,17 @@ func (s *TransactionService) createTransactionByScheduledTransactionTemplate(c c
 	} else if template.ScheduledFrequencyType == models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_YEARLY && !frequencyValueSet[int64(transactionTime.Month())*100+int64(transactionTime.Day())] {
 		log.Infof(c, "[transactions.CreateScheduledTransactions] transaction template \"id:%d\" does not need to create transaction, today is %d-%d of year", template.TemplateId, startTimeInUTC.Month(), startTimeInUTC.Day())
 		return nil, nil
-	} else if template.ScheduledFrequencyType == models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS {
+	} else if template.ScheduledFrequencyType.IsEveryNInterval() {
 		if template.ScheduledStartTime == nil || len(frequencyValues) != 1 || frequencyValues[0] <= 0 {
-			log.Warnf(c, "[transactions.CreateScheduledTransactions] transaction template \"id:%d\" has invalid scheduled transaction frequency for every N days", template.TemplateId)
+			log.Warnf(c, "[transactions.CreateScheduledTransactions] transaction template \"id:%d\" has invalid scheduled transaction frequency for every N interval", template.TemplateId)
 			return nil, nil
 		}
 
 		n := frequencyValues[0]
 		startDate := time.Unix(*template.ScheduledStartTime, 0).In(templateTimezone)
-		daysDiff := utils.GetDaysBetweenDates(startDate, *transactionTime)
 
-		if daysDiff < 0 || int64(daysDiff)%n != 0 {
-			log.Infof(c, "[transactions.CreateScheduledTransactions] transaction template \"id:%d\" does not need to create transaction, days diff is %d with interval %d", template.TemplateId, daysDiff, n)
+		if !isScheduledEveryNIntervalDate(template.ScheduledFrequencyType, n, startDate, *transactionTime) {
+			log.Infof(c, "[transactions.CreateScheduledTransactions] transaction template \"id:%d\" does not need to create transaction, %s is not in the interval %d from start date %s", template.TemplateId, transactionTime.Format("2006-01-02"), n, startDate.Format("2006-01-02"))
 			return nil, nil
 		}
 	}
@@ -3667,4 +3667,44 @@ func (s *TransactionService) isPicturesValid(sess *xorm.Session, transaction *mo
 	}
 
 	return nil
+}
+
+// isScheduledEveryNIntervalDate returns whether the local date of current time is one of the occurrences repeating every n units from the local date of start date
+// for months and years, if the day of start date does not exist in the target month (e.g. the 31st, or Feb 29), the last day of that month is used
+func isScheduledEveryNIntervalDate(frequencyType models.TransactionScheduleFrequencyType, n int64, startDate time.Time, currentTime time.Time) bool {
+	if n <= 0 {
+		return false
+	}
+
+	switch frequencyType {
+	case models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_WEEKS:
+		intervalDays := n
+
+		if frequencyType == models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_WEEKS {
+			intervalDays = n * 7
+		}
+
+		daysDiff := int64(utils.GetDaysBetweenDates(startDate, currentTime))
+		return daysDiff >= 0 && daysDiff%intervalDays == 0
+	case models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS:
+		monthsDiff := int64((currentTime.Year()-startDate.Year())*12 + int(currentTime.Month()) - int(startDate.Month()))
+
+		if monthsDiff < 0 || monthsDiff%n != 0 {
+			return false
+		}
+
+		expectedDay := min(startDate.Day(), utils.GetMaxDayOfMonth(currentTime.Year(), currentTime.Month()))
+		return currentTime.Day() == expectedDay
+	case models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_YEARS:
+		yearsDiff := int64(currentTime.Year() - startDate.Year())
+
+		if yearsDiff < 0 || yearsDiff%n != 0 || currentTime.Month() != startDate.Month() {
+			return false
+		}
+
+		expectedDay := min(startDate.Day(), utils.GetMaxDayOfMonth(currentTime.Year(), currentTime.Month()))
+		return currentTime.Day() == expectedDay
+	default:
+		return false
+	}
 }

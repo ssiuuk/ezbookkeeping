@@ -37,6 +37,9 @@ export class ScheduledTemplateFrequencyType implements TypeAndName {
     public static readonly Weekly = new ScheduledTemplateFrequencyType(1, 'Weekly');
     public static readonly Monthly = new ScheduledTemplateFrequencyType(2, 'Monthly');
     public static readonly Yearly = new ScheduledTemplateFrequencyType(4, 'Yearly');
+    public static readonly EveryNWeeks = new ScheduledTemplateFrequencyType(6, 'Every N Weeks');
+    public static readonly EveryNMonths = new ScheduledTemplateFrequencyType(7, 'Every N Months');
+    public static readonly EveryNYears = new ScheduledTemplateFrequencyType(8, 'Every N Years');
 
     public readonly type: number;
     public readonly name: string;
@@ -55,5 +58,13 @@ export class ScheduledTemplateFrequencyType implements TypeAndName {
 
     public static valueOf(type: number): ScheduledTemplateFrequencyType | undefined {
         return ScheduledTemplateFrequencyType.allInstancesByType[type];
+    }
+
+    // these types store N as the only frequency value, and repeat every N units counted from the scheduled start date
+    public static isEveryNInterval(type: number): boolean {
+        return type === ScheduledTemplateFrequencyType.EveryNDays.type
+            || type === ScheduledTemplateFrequencyType.EveryNWeeks.type
+            || type === ScheduledTemplateFrequencyType.EveryNMonths.type
+            || type === ScheduledTemplateFrequencyType.EveryNYears.type;
     }
 }
