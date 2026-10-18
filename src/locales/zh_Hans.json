@@ -1385,6 +1385,7 @@
         "this account is used by transactions in the shared book": "此账户已被共享账本中的交易使用",
         "this account is shared to a book, stop sharing it first": "此账户已共享到账本，请先停止共享",
         "you can only stop sharing your own accounts": "你只能停止共享你自己的账户",
+        "some accounts are used in a shared book, stop sharing them or remove their transactions from the shared book first": "部分账户正在共享账本中使用，请先停止共享这些账户或从共享账本中删除相关交易",
         "project id is invalid": "项目ID无效",
         "project not found": "项目不存在",
         "project name is empty": "项目名称不能为空",

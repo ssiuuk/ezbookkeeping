@@ -199,6 +199,17 @@ func (a *DataManagementsApi) ClearAllDataHandler(c *core.WebContext) (any, *errs
 		return nil, errs.ErrNotPermittedToPerformThisAction
 	}
 
+	// check it before deleting anything, the deletion of transactions checks it again in its database transaction
+	err = a.transactions.CheckAccountsNotUsedByOtherBooks(c, uid)
+
+	if err != nil {
+		if !errs.IsCustomError(err) {
+			log.Errorf(c, "[data_managements.ClearAllDataHandler] failed to check whether accounts are used by other books, because %s", err.Error())
+		}
+
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
 	err = a.templates.DeleteAllTemplates(c, uid)
 
 	if err != nil {

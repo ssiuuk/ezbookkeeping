@@ -2111,8 +2111,16 @@ func (s *TransactionService) DeleteAllTransactions(c core.Context, uid int64, de
 	}
 
 	return s.UserDataDB(uid).DoTransaction(c, func(sess *xorm.Session) error {
+		// The accounts are reset (or deleted) as a whole below, which is only correct when no other book uses them,
+		// so check it in the same transaction to make sure no shared book transaction can be added in the meantime
+		err := s.checkAccountsNotUsedByOtherBooks(sess, uid)
+
+		if err != nil {
+			return err
+		}
+
 		// Update all transactions to deleted
-		_, err := sess.Cols("deleted", "deleted_unix_time").Where("uid=? AND deleted=?", uid, false).Update(updateModel)
+		_, err = sess.Cols("deleted", "deleted_unix_time").Where("uid=? AND deleted=?", uid, false).Update(updateModel)
 
 		if err != nil {
 			return err
@@ -2141,6 +2149,40 @@ func (s *TransactionService) DeleteAllTransactions(c core.Context, uid int64, de
 
 		return nil
 	})
+}
+
+// CheckAccountsNotUsedByOtherBooks returns an error if any account of the user is shared to a book or used by a transaction of another book
+func (s *TransactionService) CheckAccountsNotUsedByOtherBooks(c core.Context, uid int64) error {
+	if uid <= 0 {
+		return errs.ErrUserIdInvalid
+	}
+
+	return s.checkAccountsNotUsedByOtherBooks(s.UserDataDB(uid).NewSession(c), uid)
+}
+
+// checkAccountsNotUsedByOtherBooks returns an error if any account of the user is shared to a book or used by a transaction of another book.
+// Transactions recorded in a shared book are owned by the book (not by the user) but still change the balance of the user's shared accounts,
+// so these accounts can neither be reset to zero nor be deleted together with the user's own transactions.
+func (s *TransactionService) checkAccountsNotUsedByOtherBooks(sess *xorm.Session, uid int64) error {
+	userAccountIdsCondition := "SELECT account_id FROM account WHERE uid=? AND deleted=?"
+
+	shared, err := sess.Where("account_id IN ("+userAccountIdsCondition+")", uid, false).Exist(&models.SharedBookAccount{})
+
+	if err != nil {
+		return err
+	} else if shared {
+		return errs.ErrAccountsUsedBySharedBook
+	}
+
+	usedByOtherBooks, err := sess.Where("uid<>? AND deleted=? AND (account_id IN ("+userAccountIdsCondition+") OR related_account_id IN ("+userAccountIdsCondition+"))", uid, false, uid, false, uid, false).Exist(&models.Transaction{})
+
+	if err != nil {
+		return err
+	} else if usedByOtherBooks {
+		return errs.ErrAccountsUsedBySharedBook
+	}
+
+	return nil
 }
 
 // DeleteAllTransactionsOfAccount deletes all existed transactions of specific account from database
