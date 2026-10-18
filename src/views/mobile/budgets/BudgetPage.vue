@@ -20,7 +20,7 @@
             <f7-card-content>
                 <div class="budget-summary-row">
                     <span>{{ tt('Total Budget') }}</span>
-                    <span>{{ formatAmount(summary.totalBudget) }}</span>
+                    <span>{{ formatAmount(summary.totalBudget) }}<span v-if="incompleteBudget">+</span></span>
                 </div>
                 <div class="budget-summary-row">
                     <span>{{ tt('Spent') }}</span>
@@ -44,7 +44,7 @@
                           :link="editing ? '#' : undefined"
                           :no-chevron="true"
                           :title="row.category.name"
-                          :after="editing ? (editingBudgets[row.category.id] ? formatAmount(editingBudgets[row.category.id] ?? 0) : tt('Not set')) : (row.budget ? formatAmount(row.budget) : '')"
+                          :after="editing ? (editingBudgets[row.category.id] ? formatAmount(editingBudgets[row.category.id] ?? 0, getBudgetCurrency(row.category.id)) : tt('Not set')) : getBudgetDisplayText(row.category.id, row.budget)"
                           v-for="row in summary.rows"
                           @click="editing ? openBudgetSheet(row.category.id) : undefined">
                 <template #media>
@@ -63,7 +63,7 @@
 
         <number-pad-sheet :min-value="0"
                           :max-value="TRANSACTION_MAX_AMOUNT"
-                          :currency="defaultCurrency"
+                          :currency="getBudgetCurrency(editingCategoryId)"
                           v-model:show="showBudgetSheet"
                           v-model="editingAmount"
                           @update:model-value="onBudgetAmountChanged"
@@ -94,15 +94,17 @@ const {
     saving,
     editing,
     editingBudgets,
-    defaultCurrency,
     currentMonthDisplayName,
     summary,
     incompleteSpending,
+    incompleteBudget,
     loadAll,
     changeMonth: changeBudgetMonth,
     startEditing,
     cancelEditing,
     saveBudgets,
+    getBudgetCurrency,
+    getOriginalBudgetText,
     formatAmount
 } = useCategoryBudgetPageBase();
 
@@ -110,6 +112,16 @@ const loadingError = ref<unknown | null>(null);
 const showBudgetSheet = ref<boolean>(false);
 const editingCategoryId = ref<string>('');
 const editingAmount = ref<number>(0);
+
+function getBudgetDisplayText(categoryId: string, budget: number): string {
+    const originalBudgetText = getOriginalBudgetText(categoryId);
+
+    if (!budget) {
+        return originalBudgetText;
+    }
+
+    return originalBudgetText ? `${formatAmount(budget)} (${originalBudgetText})` : formatAmount(budget);
+}
 
 function openBudgetSheet(categoryId: string): void {
     editingCategoryId.value = categoryId;

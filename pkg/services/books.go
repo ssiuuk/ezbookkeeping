@@ -213,6 +213,25 @@ func (s *BookService) GetBookMembers(c core.Context, bookId int64) ([]*models.Bo
 	return members, err
 }
 
+// GetBookOwnerUid returns the uid of the user who owns the given book,
+// it is the owner of the shared book when the book is a shared book, otherwise the book is a personal book and owned by the user of the same uid
+func (s *BookService) GetBookOwnerUid(c core.Context, bookUid int64) (int64, error) {
+	if bookUid <= 0 {
+		return 0, errs.ErrBookIdInvalid
+	}
+
+	book := &models.SharedBook{}
+	has, err := s.UserDB().NewSession(c).ID(bookUid).Get(book)
+
+	if err != nil {
+		return 0, err
+	} else if has {
+		return book.OwnerUid, nil
+	}
+
+	return bookUid, nil
+}
+
 // CanAccessBook returns whether the given user can access the given book
 func (s *BookService) CanAccessBook(c core.Context, uid int64, bookId int64) (bool, error) {
 	if uid <= 0 {

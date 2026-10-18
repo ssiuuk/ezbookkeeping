@@ -1,6 +1,7 @@
 export interface TransactionCategoryBudgetItemRequest {
     readonly categoryId: string;
     readonly amount: number;
+    readonly currency?: string;
 }
 
 export interface TransactionCategoryBudgetSaveRequest {
@@ -10,4 +11,5 @@ export interface TransactionCategoryBudgetSaveRequest {
 export interface TransactionCategoryBudgetInfoResponse {
     readonly categoryId: string;
     readonly amount: number;
+    readonly currency: string;
 }

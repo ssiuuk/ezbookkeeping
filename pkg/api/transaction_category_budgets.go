@@ -12,6 +12,7 @@ import (
 type TransactionCategoryBudgetsApi struct {
 	budgets    *services.TransactionCategoryBudgetService
 	categories *services.TransactionCategoryService
+	users      *services.UserService
 }
 
 // Initialize a transaction category budget api singleton instance
@@ -19,6 +20,7 @@ var (
 	TransactionCategoryBudgets = &TransactionCategoryBudgetsApi{
 		budgets:    services.TransactionCategoryBudgets,
 		categories: services.TransactionCategories,
+		users:      services.Users,
 	}
 )
 
@@ -30,6 +32,17 @@ func (a *TransactionCategoryBudgetsApi) BudgetListHandler(c *core.WebContext) (a
 	if err != nil {
 		log.Errorf(c, "[transaction_category_budgets.BudgetListHandler] failed to get budgets for user \"uid:%d\", because %s", uid, err.Error())
 		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	if a.budgets.HasBudgetWithoutCurrency(budgets) {
+		legacyCurrency, err := a.budgets.GetBookDefaultCurrency(c, uid)
+
+		if err != nil {
+			log.Errorf(c, "[transaction_category_budgets.BudgetListHandler] failed to get default currency of book \"uid:%d\", because %s", uid, err.Error())
+			return nil, errs.Or(err, errs.ErrOperationFailed)
+		}
+
+		a.budgets.FillBudgetsCurrency(budgets, legacyCurrency)
 	}
 
 	budgetResps := make([]*models.TransactionCategoryBudgetInfoResponse, len(budgets))
@@ -66,6 +79,7 @@ func (a *TransactionCategoryBudgetsApi) BudgetSaveHandler(c *core.WebContext) (a
 		budgets = append(budgets, &models.TransactionCategoryBudget{
 			CategoryId: budgetReq.CategoryId,
 			Amount:     budgetReq.Amount,
+			Currency:   budgetReq.Currency,
 		})
 	}
 
@@ -90,7 +104,21 @@ func (a *TransactionCategoryBudgetsApi) BudgetSaveHandler(c *core.WebContext) (a
 		}
 	}
 
-	err = a.budgets.SaveBudgets(c, uid, budgets)
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
+
+	if err != nil {
+		log.Errorf(c, "[transaction_category_budgets.BudgetSaveHandler] failed to get user \"uid:%d\", because %s", c.GetCurrentUid(), err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	legacyCurrency, err := a.budgets.GetBookDefaultCurrency(c, uid)
+
+	if err != nil {
+		log.Errorf(c, "[transaction_category_budgets.BudgetSaveHandler] failed to get default currency of book \"uid:%d\", because %s", uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	err = a.budgets.SaveBudgets(c, uid, budgets, user.DefaultCurrency, legacyCurrency)
 
 	if err != nil {
 		log.Errorf(c, "[transaction_category_budgets.BudgetSaveHandler] failed to save budgets for user \"uid:%d\", because %s", uid, err.Error())
