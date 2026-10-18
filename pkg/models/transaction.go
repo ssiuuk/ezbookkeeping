@@ -146,6 +146,7 @@ type Transaction struct {
 	CreatedIp            string            `xorm:"VARCHAR(39)"`
 	CreatedByUid         int64
 	ScheduledCreated     bool
+	SourceTemplateId     int64 `xorm:"INDEX NOT NULL DEFAULT 0"`
 	CreatedUnixTime      int64
 	UpdatedUnixTime      int64
 	DeletedUnixTime      int64
@@ -453,6 +454,7 @@ type TransactionInfoResponse struct {
 	GeoLocation          *TransactionGeoLocationResponse          `json:"geoLocation,omitempty"`
 	CreatedByUid         int64                                    `json:"createdByUid,string"`
 	ProjectId            int64                                    `json:"projectId,string"`
+	SourceTemplateId     int64                                    `json:"sourceTemplateId,string,omitempty"`
 	Editable             bool                                     `json:"editable"`
 }
 
@@ -747,6 +749,7 @@ func (t *Transaction) ToTransactionInfoResponse(tagIds []int64, editable bool) *
 		GeoLocation:          geoLocation,
 		CreatedByUid:         createdByUid,
 		ProjectId:            t.ProjectId,
+		SourceTemplateId:     t.SourceTemplateId,
 		Editable:             editable,
 	}
 }

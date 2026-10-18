@@ -119,6 +119,7 @@ type TransactionTemplateModifyRequest struct {
 	ScheduledEndDate           *string                           `json:"scheduledEndDate" binding:"omitempty"`
 	ScheduledTimezoneName      *string                           `json:"timeZone" binding:"omitempty,min=3,max=100"`
 	ScheduledTimezoneUtcOffset *int16                            `json:"utcOffset" binding:"omitempty,min=-720,max=840"`
+	SourceBookId               int64                             `json:"sourceBookId,string" binding:"min=0"`
 }
 
 // TransactionTemplateHideRequest represents all parameters of transaction template hiding request

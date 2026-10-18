@@ -1171,6 +1171,48 @@ func (a *TransactionsApi) TransactionDailyAmountsHandler(c *core.WebContext) (an
 	return result, nil
 }
 
+// TransactionLaterScheduledListHandler returns the ids of transactions which the same scheduled transaction template created after the given transaction
+func (a *TransactionsApi) TransactionLaterScheduledListHandler(c *core.WebContext) (any, *errs.Error) {
+	var transactionGetReq models.TransactionGetRequest
+	err := c.ShouldBindQuery(&transactionGetReq)
+
+	if err != nil {
+		log.Warnf(c, "[transactions.TransactionLaterScheduledListHandler] parse request failed, because %s", err.Error())
+		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
+	}
+
+	uid := c.GetCurrentBookUid()
+	transaction, err := a.transactions.GetTransactionByTransactionId(c, uid, transactionGetReq.Id)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionLaterScheduledListHandler] failed to get transaction \"id:%d\" for user \"uid:%d\", because %s", transactionGetReq.Id, uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	if transaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_IN {
+		transaction = a.transactions.GetRelatedTransferTransaction(transaction)
+	}
+
+	transactionIds := make([]string, 0)
+
+	if transaction.SourceTemplateId <= 0 {
+		return transactionIds, nil
+	}
+
+	transactions, err := a.transactions.GetTransactionsCreatedByTemplateAfterTime(c, uid, transaction.SourceTemplateId, transaction.TransactionTime)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionLaterScheduledListHandler] failed to get later transactions of template \"id:%d\" for user \"uid:%d\", because %s", transaction.SourceTemplateId, uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	for i := 0; i < len(transactions); i++ {
+		transactionIds = append(transactionIds, utils.Int64ToString(transactions[i].TransactionId))
+	}
+
+	return transactionIds, nil
+}
+
 // TransactionGetHandler returns one specific transaction of current user
 func (a *TransactionsApi) TransactionGetHandler(c *core.WebContext) (any, *errs.Error) {
 	var transactionGetReq models.TransactionGetRequest

@@ -22,6 +22,7 @@ type TransactionTemplatesApi struct {
 	ApiUsingConfig
 	ApiUsingDuplicateChecker
 	templates *services.TransactionTemplateService
+	books     *services.BookService
 }
 
 // Initialize a transaction template api singleton instance
@@ -37,6 +38,7 @@ var (
 			container: duplicatechecker.Container,
 		},
 		templates: services.TransactionTemplates,
+		books:     services.Books,
 	}
 )
 
@@ -236,7 +238,25 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 	}
 
 	uid := c.GetCurrentBookUid()
-	template, err := a.templates.GetTemplateByTemplateId(c, uid, templateModifyReq.Id)
+	sourceUid := uid
+
+	// a template is moved to the current book when it is saved with the book it came from
+	if templateModifyReq.SourceBookId > 0 && templateModifyReq.SourceBookId != uid {
+		sourceUid = templateModifyReq.SourceBookId
+
+		if sourceUid != c.GetCurrentUid() {
+			canAccess, err := a.books.CanAccessBook(c, c.GetCurrentUid(), sourceUid)
+
+			if err != nil {
+				log.Errorf(c, "[transaction_templates.TemplateModifyHandler] failed to check whether user \"uid:%d\" can access book \"uid:%d\", because %s", c.GetCurrentUid(), sourceUid, err.Error())
+				return nil, errs.Or(err, errs.ErrOperationFailed)
+			} else if !canAccess {
+				return nil, errs.ErrBookAccessDenied
+			}
+		}
+	}
+
+	template, err := a.templates.GetTemplateByTemplateId(c, sourceUid, templateModifyReq.Id)
 
 	if err != nil {
 		log.Errorf(c, "[transaction_templates.TemplateModifyHandler] failed to get template \"id:%d\" for user \"uid:%d\", because %s", templateModifyReq.Id, uid, err.Error())
@@ -342,7 +362,8 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 		}
 	}
 
-	if newTemplate.Name == template.Name &&
+	if sourceUid == uid &&
+		newTemplate.Name == template.Name &&
 		newTemplate.Type == template.Type &&
 		newTemplate.CategoryId == template.CategoryId &&
 		newTemplate.AccountId == template.AccountId &&
@@ -368,7 +389,11 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 		}
 	}
 
-	err = a.templates.ModifyTemplate(c, newTemplate)
+	if sourceUid != uid {
+		err = a.templates.MoveTemplateToBook(c, newTemplate, sourceUid, template.TemplateType)
+	} else {
+		err = a.templates.ModifyTemplate(c, newTemplate)
+	}
 
 	if err != nil {
 		log.Errorf(c, "[transaction_templates.TemplateModifyHandler] failed to update template \"id:%d\" for user \"uid:%d\", because %s", templateModifyReq.Id, uid, err.Error())

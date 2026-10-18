@@ -431,6 +431,7 @@ func startWebServer(c *core.CliContext) error {
 			apiV1Route.GET("/transactions/amounts.json", bindApi(api.Transactions.TransactionAmountsHandler, config))
 			apiV1Route.GET("/transactions/amounts/daily.json", bindApi(api.Transactions.TransactionDailyAmountsHandler, config))
 			apiV1Route.GET("/transactions/get.json", bindApi(api.Transactions.TransactionGetHandler, config))
+			apiV1Route.GET("/transactions/later_scheduled.json", bindApi(api.Transactions.TransactionLaterScheduledListHandler, config))
 			apiV1Route.POST("/transactions/add.json", bindApi(api.Transactions.TransactionCreateHandler, config))
 			apiV1Route.POST("/transactions/modify.json", bindApi(api.Transactions.TransactionModifyHandler, config))
 			apiV1Route.POST("/transactions/batch_update/category.json", bindApi(api.Transactions.TransactionBatchUpdateCategoriesHandler, config))

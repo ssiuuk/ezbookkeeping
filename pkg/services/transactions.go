@@ -497,6 +497,22 @@ func (s *TransactionService) GetTransactionsInMonthByPage(c core.Context, uid in
 }
 
 // GetTransactionByTransactionId returns a transaction model according to transaction id
+// GetTransactionsCreatedByTemplateAfterTime returns the transactions which the given scheduled transaction template created after the given time
+func (s *TransactionService) GetTransactionsCreatedByTemplateAfterTime(c core.Context, uid int64, templateId int64, transactionTime int64) ([]*models.Transaction, error) {
+	if uid <= 0 {
+		return nil, errs.ErrUserIdInvalid
+	}
+
+	if templateId <= 0 {
+		return nil, errs.ErrTransactionTemplateIdInvalid
+	}
+
+	var transactions []*models.Transaction
+	err := s.UserDataDB(uid).NewSession(c).Where("uid=? AND deleted=? AND source_template_id=? AND type<>? AND transaction_time>?", uid, false, templateId, models.TRANSACTION_DB_TYPE_TRANSFER_IN, transactionTime).OrderBy("transaction_time asc").Find(&transactions)
+
+	return transactions, err
+}
+
 func (s *TransactionService) GetTransactionByTransactionId(c core.Context, uid int64, transactionId int64) (*models.Transaction, error) {
 	if uid <= 0 {
 		return nil, errs.ErrUserIdInvalid
