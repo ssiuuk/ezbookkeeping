@@ -455,7 +455,8 @@ func (a *DataManagementsApi) getExportedFileContent(c *core.WebContext, fileType
 		}
 	}
 
-	accounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
+	// the exported transactions may also use the accounts which are no longer shared to the book
+	accounts, err := a.accounts.GetAllAccountsUsedByBook(c, uid)
 
 	if err != nil {
 		log.Errorf(c, "[data_managements.getExportedFileContent] failed to get all accounts for user \"uid:%d\", because %s", uid, err.Error())

@@ -19,11 +19,20 @@ type BookMember struct {
 }
 
 // SharedBookAccount represents an account of a book member which can be used in a shared book
+// An active sharing (RevokedUnixTime is 0) lets the book use the account for new transactions and shows its balance in the book,
+// a revoked sharing (the owner left the book or stopped sharing it while transactions in the book still use it) only keeps
+// those existing transactions able to show which account they use
 type SharedBookAccount struct {
 	BookId          int64 `xorm:"PK"`
 	AccountId       int64 `xorm:"PK INDEX(IDX_shared_book_account_account_id)"`
 	OwnerUid        int64 `xorm:"NOT NULL"`
 	CreatedUnixTime int64
+	RevokedUnixTime int64 `xorm:"NOT NULL DEFAULT 0"`
+}
+
+// IsRevoked returns whether the sharing has been revoked and the account can only be read by existing transactions of the book
+func (a *SharedBookAccount) IsRevoked() bool {
+	return a.RevokedUnixTime > 0
 }
 
 // BookCreateRequest represents all parameters of shared book creation request

@@ -93,6 +93,8 @@ type Account struct {
 	CreatedUnixTime int64
 	UpdatedUnixTime int64
 	DeletedUnixTime int64
+	// SharingRevoked is only set on an account read for a book which it is no longer shared to, its balance is not loaded then
+	SharingRevoked bool `xorm:"-"`
 }
 
 // AccountExtend represents account extend data stored in database
@@ -149,6 +151,9 @@ type AccountUpdateLastReconciledTimeRequest struct {
 // AccountListRequest represents all parameters of account listing request
 type AccountListRequest struct {
 	VisibleOnly bool `form:"visible_only"`
+	// IncludeRevokedShared also returns the accounts which are no longer shared to the current book but still used by its transactions,
+	// they are marked as sharingRevoked, hidden and without balance, and are only for showing the existing transactions of the book
+	IncludeRevokedShared bool `form:"include_revoked_shared"`
 }
 
 // AccountGetRequest represents all parameters of account getting request
@@ -199,6 +204,7 @@ type AccountInfoResponse struct {
 	IsLiability             bool                     `json:"isLiability,omitempty"`
 	Hidden                  bool                     `json:"hidden"`
 	SharedBy                string                   `json:"sharedBy,omitempty"`
+	SharingRevoked          bool                     `json:"sharingRevoked,omitempty"`
 	SubAccounts             AccountInfoResponseSlice `json:"subAccounts,omitempty"`
 }
 
@@ -236,7 +242,7 @@ func (a *Account) ToAccountInfoResponse() *AccountInfoResponse {
 		}
 	}
 
-	return &AccountInfoResponse{
+	resp := &AccountInfoResponse{
 		Id:                      a.AccountId,
 		Name:                    a.Name,
 		ParentId:                a.ParentAccountId,
@@ -256,6 +262,19 @@ func (a *Account) ToAccountInfoResponse() *AccountInfoResponse {
 		IsLiability:             liabilityAccountCategory[a.Category],
 		Hidden:                  a.Hidden,
 	}
+
+	// an account which is no longer shared to the book only names the account of existing transactions,
+	// it cannot be chosen and its current balance is not shown in the book
+	if a.SharingRevoked {
+		resp.Balance = "0"
+		resp.Comment = ""
+		resp.LastReconciledTime = nil
+		resp.CreditCardLimit = nil
+		resp.Hidden = true
+		resp.SharingRevoked = true
+	}
+
+	return resp
 }
 
 // FromDB fills the fields from the data stored in database

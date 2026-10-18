@@ -22,4 +22,5 @@ var (
 	ErrAccountSharedToBook               = NewNormalError(NormalSubcategoryBook, 15, http.StatusBadRequest, "this account is shared to a book, stop sharing it first")
 	ErrCannotManageSharedAccount         = NewNormalError(NormalSubcategoryBook, 16, http.StatusForbidden, "you can only stop sharing your own accounts")
 	ErrAccountsUsedBySharedBook          = NewNormalError(NormalSubcategoryBook, 17, http.StatusBadRequest, "some accounts are used in a shared book, stop sharing them or remove their transactions from the shared book first")
+	ErrSharedAccountRevoked              = NewNormalError(NormalSubcategoryBook, 18, http.StatusBadRequest, "this account is no longer shared to this book, its transactions cannot be added, changed or deleted")
 )

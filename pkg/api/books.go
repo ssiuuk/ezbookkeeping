@@ -277,8 +277,6 @@ func (a *BooksApi) BookMemberRemoveHandler(c *core.WebContext) (any, *errs.Error
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
-	a.unshareUnusedAccountsOfUser(c, book.BookId, memberRemoveReq.MemberId)
-
 	log.Infof(c, "[books.BookMemberRemoveHandler] user \"uid:%d\" has removed user \"uid:%d\" from book \"id:%d\"", uid, memberRemoveReq.MemberId, book.BookId)
 
 	return true, nil
@@ -301,8 +299,6 @@ func (a *BooksApi) BookLeaveHandler(c *core.WebContext) (any, *errs.Error) {
 		log.Errorf(c, "[books.BookLeaveHandler] failed to remove user \"uid:%d\" from book \"id:%d\", because %s", uid, leaveReq.BookId, err.Error())
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
-
-	a.unshareUnusedAccountsOfUser(c, leaveReq.BookId, uid)
 
 	log.Infof(c, "[books.BookLeaveHandler] user \"uid:%d\" has left book \"id:%d\"", uid, leaveReq.BookId)
 
@@ -457,27 +453,6 @@ func (a *BooksApi) getCurrentSharedBookOwnedByCurrentUser(c *core.WebContext) (*
 	}
 
 	return book, nil
-}
-
-func (a *BooksApi) unshareUnusedAccountsOfUser(c *core.WebContext, bookId int64, ownerUid int64) {
-	sharedAccounts, err := a.books.GetSharedAccounts(c, bookId)
-
-	if err != nil {
-		log.Warnf(c, "[books.unshareUnusedAccountsOfUser] failed to get shared accounts of book \"id:%d\", because %s", bookId, err.Error())
-		return
-	}
-
-	for i := 0; i < len(sharedAccounts); i++ {
-		if sharedAccounts[i].OwnerUid != ownerUid {
-			continue
-		}
-
-		err = a.books.UnshareAccount(c, bookId, sharedAccounts[i].AccountId)
-
-		if err != nil && err != errs.ErrSharedAccountInUse {
-			log.Warnf(c, "[books.unshareUnusedAccountsOfUser] failed to stop sharing account \"id:%d\" to book \"id:%d\", because %s", sharedAccounts[i].AccountId, bookId, err.Error())
-		}
-	}
 }
 
 func (a *BooksApi) getBookInfoResponse(book *models.SharedBook, owner *models.User, currentUid int64) *models.BookInfoResponse {

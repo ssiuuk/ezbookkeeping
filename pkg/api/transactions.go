@@ -490,7 +490,7 @@ func (a *TransactionsApi) TransactionReconciliationStatementHandler(c *core.WebC
 		}
 	}
 
-	allAccounts, err := a.accounts.GetAccountsByAccountIds(c, uid, utils.ToUniqueInt64Slice(allAccountIds))
+	allAccounts, err := a.accounts.GetAccountsUsedByBookByAccountIds(c, uid, utils.ToUniqueInt64Slice(allAccountIds))
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionReconciliationStatementHandler] failed to get essential data for assembling transaction result for user \"uid:%d\", because %s", uid, err.Error())
@@ -932,7 +932,8 @@ func (a *TransactionsApi) TransactionAmountsHandler(c *core.WebContext) (any, *e
 
 	uid := c.GetCurrentBookUid()
 
-	accounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
+	// the amounts are of existing transactions, so the accounts which are no longer shared to the book are also needed for their currencies
+	accounts, err := a.accounts.GetAllAccountsUsedByBook(c, uid)
 	accountMap := a.accounts.GetAccountMapByList(accounts)
 
 	if err != nil {
@@ -1068,7 +1069,8 @@ func (a *TransactionsApi) TransactionDailyAmountsHandler(c *core.WebContext) (an
 	}
 
 	uid := c.GetCurrentBookUid()
-	accounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
+	// the amounts are of existing transactions, so the accounts which are no longer shared to the book are also needed for their currencies
+	accounts, err := a.accounts.GetAllAccountsUsedByBook(c, uid)
 	accountMap := a.accounts.GetAccountMapByList(accounts)
 
 	if err != nil {
@@ -1260,7 +1262,12 @@ func (a *TransactionsApi) TransactionGetHandler(c *core.WebContext) (any, *errs.
 		accountIds = utils.ToUniqueInt64Slice(accountIds)
 	}
 
-	accountMap, err := a.accounts.GetAccountsByAccountIds(c, uid, accountIds)
+	accountMap, err := a.accounts.GetAccountsUsedByBookByAccountIds(c, uid, accountIds)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionGetHandler] failed to get accounts for user \"uid:%d\", because %s", uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
 
 	if _, exists := accountMap[transaction.AccountId]; !exists {
 		log.Warnf(c, "[transactions.TransactionGetHandler] account of transaction \"id:%d\" does not exist for user \"uid:%d\"", transaction.TransactionId, uid)
@@ -1418,7 +1425,7 @@ func (a *TransactionsApi) TransactionCreateHandler(c *core.WebContext) (any, *er
 
 	transaction := a.createNewTransactionModel(uid, c.GetCurrentUid(), &transactionCreateReq, c.ClientIP())
 
-	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, []*models.Transaction{transaction})
+	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, []*models.Transaction{transaction}, false)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionCreateHandler] failed to get transaction used accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -1638,7 +1645,7 @@ func (a *TransactionsApi) TransactionModifyHandler(c *core.WebContext) (any, *er
 		return nil, errs.ErrNothingWillBeUpdated
 	}
 
-	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, []*models.Transaction{transaction, newTransaction})
+	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, []*models.Transaction{transaction, newTransaction}, false)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionModifyHandler] failed to get transaction used accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -1778,7 +1785,7 @@ func (a *TransactionsApi) TransactionBatchUpdateCategoriesHandler(c *core.WebCon
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
-	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, transactions)
+	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, transactions, true)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionBatchUpdateCategoriesHandler] failed to get transaction used accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -2044,7 +2051,7 @@ func (a *TransactionsApi) TransactionBatchAddTagsHandler(c *core.WebContext) (an
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
-	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, transactions)
+	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, transactions, true)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionBatchAddTagsHandler] failed to get transaction used accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -2169,7 +2176,7 @@ func (a *TransactionsApi) TransactionBatchRemoveTagsHandler(c *core.WebContext) 
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
-	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, transactions)
+	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, transactions, true)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionBatchRemoveTagsHandler] failed to get transaction used accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -2249,7 +2256,7 @@ func (a *TransactionsApi) TransactionBatchClearTagsHandler(c *core.WebContext) (
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
-	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, transactions)
+	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, transactions, true)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionBatchClearTagsHandler] failed to get transaction used accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -2357,7 +2364,7 @@ func (a *TransactionsApi) TransactionMoveAllBetweenAccountsHandler(c *core.WebCo
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
-	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, transactions)
+	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, transactions, false)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionMoveAllBetweenAccountsHandler] failed to get transaction used accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -2432,7 +2439,7 @@ func (a *TransactionsApi) TransactionDeleteHandler(c *core.WebContext) (any, *er
 		return nil, errs.ErrTransactionTypeInvalid
 	}
 
-	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, []*models.Transaction{transaction})
+	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, []*models.Transaction{transaction}, false)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionDeleteHandler] failed to get transaction used accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -2502,7 +2509,7 @@ func (a *TransactionsApi) TransactionBatchDeleteHandler(c *core.WebContext) (any
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
-	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, transactions)
+	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, transactions, false)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionBatchDeleteHandler] failed to get transaction used accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -2990,7 +2997,7 @@ func (a *TransactionsApi) TransactionImportHandler(c *core.WebContext) (any, *er
 		newTransactions[i] = transaction
 	}
 
-	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, newTransactions)
+	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, newTransactions, false)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionImportHandler] failed to get transaction used accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -3137,7 +3144,7 @@ func (a *TransactionsApi) getTransactionTagInfoResponses(tagIds []int64, allTran
 
 func (a *TransactionsApi) getTransactionAllEssentialData(c *core.WebContext, user *models.User, withPictures bool, trimCategory bool, trimTag bool) (accountMap map[int64]*models.Account, categoryMap map[int64]*models.TransactionCategory, tagMap map[int64]*models.TransactionTag, allTransactionTagIds map[int64][]int64, pictureInfoMap map[int64][]*models.TransactionPictureInfo, err error) {
 	uid := c.GetCurrentBookUid()
-	allAccounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
+	allAccounts, err := a.accounts.GetAllAccountsUsedByBook(c, uid)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.getTransactionAllEssentialData] failed to get all accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -3212,7 +3219,7 @@ func (a *TransactionsApi) getTransactionEssentialDataByTransactionIds(c *core.We
 		categoryIds = append(categoryIds, transactions[i].CategoryId)
 	}
 
-	accountMap, err = a.accounts.GetAccountsByAccountIds(c, uid, utils.ToUniqueInt64Slice(accountIds))
+	accountMap, err = a.accounts.GetAccountsUsedByBookByAccountIds(c, uid, utils.ToUniqueInt64Slice(accountIds))
 
 	if err != nil {
 		log.Errorf(c, "[transactions.getTransactionEssentialDataByTransactionIds] failed to get accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -3256,7 +3263,9 @@ func (a *TransactionsApi) getTransactionEssentialDataByTransactionIds(c *core.We
 	return accountMap, categoryMap, tagMap, allTransactionTagIds, pictureInfoMap, nil
 }
 
-func (a *TransactionsApi) getTransactionUsedAccounts(c *core.WebContext, uid int64, transactions []*models.Transaction) (map[int64]*models.Account, error) {
+// getTransactionUsedAccounts returns the accounts used by the transactions, when allowRevoked is false (the transactions are being added, changed or deleted),
+// it returns ErrSharedAccountRevoked if any of the accounts is no longer shared to the book, otherwise those accounts are also returned (marked as SharingRevoked)
+func (a *TransactionsApi) getTransactionUsedAccounts(c *core.WebContext, uid int64, transactions []*models.Transaction, allowRevoked bool) (map[int64]*models.Account, error) {
 	accountIds := make([]int64, 0, len(transactions)*2)
 
 	for i := 0; i < len(transactions); i++ {
@@ -3267,11 +3276,20 @@ func (a *TransactionsApi) getTransactionUsedAccounts(c *core.WebContext, uid int
 		}
 	}
 
-	accountMap, err := a.accounts.GetAccountsByAccountIds(c, uid, utils.ToUniqueInt64Slice(accountIds))
+	accountMap, err := a.accounts.GetAccountsUsedByBookByAccountIds(c, uid, utils.ToUniqueInt64Slice(accountIds))
 
 	if err != nil {
 		log.Errorf(c, "[transactions.getTransactionUsedAccounts] failed to get accounts for user \"uid:%d\", because %s", uid, err.Error())
 		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	if !allowRevoked {
+		for accountId, account := range accountMap {
+			if account.SharingRevoked {
+				log.Warnf(c, "[transactions.getTransactionUsedAccounts] account \"id:%d\" is no longer shared to book \"id:%d\"", accountId, uid)
+				return nil, errs.ErrSharedAccountRevoked
+			}
+		}
 	}
 
 	for i := 0; i < len(transactions); i++ {

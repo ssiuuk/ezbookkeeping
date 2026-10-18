@@ -1386,6 +1386,7 @@
         "this account is shared to a book, stop sharing it first": "此帳戶已共享到帳本，請先停止共享",
         "you can only stop sharing your own accounts": "你只能停止共享你自己的帳戶",
         "some accounts are used in a shared book, stop sharing them or remove their transactions from the shared book first": "部分帳戶正在共享帳本中使用，請先停止共享這些帳戶或從共享帳本中刪除相關交易",
+        "this account is no longer shared to this book, its transactions cannot be added, changed or deleted": "此帳戶已不再共享到此帳本，無法新增、修改或刪除使用它的交易",
         "project id is invalid": "專案ID無效",
         "project not found": "專案不存在",
         "project name is empty": "專案名稱不能為空",

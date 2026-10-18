@@ -3499,19 +3499,42 @@ func (s *TransactionService) createTransactionByScheduledTransactionTemplate(c c
 	return transaction, tagIds
 }
 
-// accountOfBookCondition matches the accounts of a book, including the accounts which book members shared to it
-const accountOfBookCondition = "deleted=? AND (uid=? OR account_id IN (SELECT account_id FROM shared_book_account WHERE book_id=?))"
+// accountOfBookCondition matches the accounts which a book can use now: its own accounts and the accounts which book members are sharing to it
+const accountOfBookCondition = "deleted=? AND (uid=? OR account_id IN (SELECT account_id FROM shared_book_account WHERE book_id=? AND revoked_unix_time=0))"
+
+// accountUsedByBookCondition also matches the accounts whose sharing to the book was revoked, they are only for reading the existing transactions of the book
+const accountUsedByBookCondition = "deleted=? AND (uid=? OR account_id IN (SELECT account_id FROM shared_book_account WHERE book_id=?))"
+
+// getAccountOfBook returns the account which the book can use now, or ErrSharedAccountRevoked when the account is no longer shared to the book
+func getAccountOfBook(sess *xorm.Session, bookId int64, accountId int64, account *models.Account, notFoundErr error) error {
+	has, err := sess.ID(accountId).Where(accountOfBookCondition, false, bookId, bookId).Get(account)
+
+	if err != nil {
+		return err
+	} else if has {
+		return nil
+	}
+
+	revoked, err := sess.Where("book_id=? AND account_id=? AND revoked_unix_time>?", bookId, accountId, 0).Exist(&models.SharedBookAccount{})
+
+	if err != nil {
+		return err
+	} else if revoked {
+		return errs.ErrSharedAccountRevoked
+	}
+
+	return notFoundErr
+}
 
 func (s *TransactionService) getAccountModels(sess *xorm.Session, transaction *models.Transaction) (sourceAccount *models.Account, destinationAccount *models.Account, err error) {
 	sourceAccount = &models.Account{}
 	destinationAccount = &models.Account{}
+	var has bool
 
-	has, err := sess.ID(transaction.AccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(sourceAccount)
+	err = getAccountOfBook(sess, transaction.Uid, transaction.AccountId, sourceAccount, errs.ErrSourceAccountNotFound)
 
 	if err != nil {
 		return nil, nil, err
-	} else if !has {
-		return nil, nil, errs.ErrSourceAccountNotFound
 	}
 
 	// check whether the related account is valid
@@ -3531,12 +3554,10 @@ func (s *TransactionService) getAccountModels(sess *xorm.Session, transaction *m
 		if transaction.RelatedAccountId <= 0 {
 			return nil, nil, errs.ErrAccountIdInvalid
 		} else {
-			has, err = sess.ID(transaction.RelatedAccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(destinationAccount)
+			err = getAccountOfBook(sess, transaction.Uid, transaction.RelatedAccountId, destinationAccount, errs.ErrDestinationAccountNotFound)
 
 			if err != nil {
 				return nil, nil, err
-			} else if !has {
-				return nil, nil, errs.ErrDestinationAccountNotFound
 			}
 		}
 	}
@@ -3599,24 +3620,20 @@ func (s *TransactionService) getOldAccountModels(sess *xorm.Session, transaction
 	if transaction.AccountId == oldTransaction.AccountId {
 		oldSourceAccount = sourceAccount
 	} else {
-		has, err := sess.ID(oldTransaction.AccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(oldSourceAccount)
+		err := getAccountOfBook(sess, transaction.Uid, oldTransaction.AccountId, oldSourceAccount, errs.ErrSourceAccountNotFound)
 
 		if err != nil {
 			return nil, nil, err
-		} else if !has {
-			return nil, nil, errs.ErrSourceAccountNotFound
 		}
 	}
 
 	if transaction.RelatedAccountId == oldTransaction.RelatedAccountId {
 		oldDestinationAccount = destinationAccount
 	} else if oldTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT || oldTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_IN {
-		has, err := sess.ID(oldTransaction.RelatedAccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(oldDestinationAccount)
+		err := getAccountOfBook(sess, transaction.Uid, oldTransaction.RelatedAccountId, oldDestinationAccount, errs.ErrDestinationAccountNotFound)
 
 		if err != nil {
 			return nil, nil, err
-		} else if !has {
-			return nil, nil, errs.ErrDestinationAccountNotFound
 		}
 	}
 
