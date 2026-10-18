@@ -62,3 +62,16 @@ func NewDataStore(databases ...*Database) (*DataStore, error) {
 		databases: databases,
 	}, nil
 }
+
+// Close closes all database instances of the data storage
+func (s *DataStore) Close() error {
+	var err error
+
+	for i := 0; i < len(s.databases); i++ {
+		if closeErr := s.databases[i].engineGroup.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}
+
+	return err
+}

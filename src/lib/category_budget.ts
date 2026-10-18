@@ -25,6 +25,53 @@ export interface CategoryBudgetSummary {
     readonly unbudgetedSpent: number;
 }
 
+export interface CategoryBudgetAmount {
+    readonly amount: number;
+    readonly currency: string;
+}
+
+/**
+ * Converts an amount in the smallest currency unit from one currency into another,
+ * returns null when there is no exchange rate between them.
+ */
+export type CategoryBudgetAmountExchanger = (amount: number, fromCurrency: string, toCurrency: string) => number | null;
+
+export interface ConvertedCategoryBudgets {
+    readonly budgets: Record<string, number>;
+    readonly unconvertedCategoryIds: string[];
+}
+
+/**
+ * Converts every budget from the currency it was saved in into the target currency, so that budgets can be compared
+ * with spending converted into the same currency. Budgets without a currency are treated as in the target currency.
+ * Budgets which cannot be converted are left out and reported in unconvertedCategoryIds.
+ */
+export function convertCategoryBudgetsToCurrency(budgets: Record<string, CategoryBudgetAmount>, targetCurrency: string, exchanger: CategoryBudgetAmountExchanger): ConvertedCategoryBudgets {
+    const result: Record<string, number> = {};
+    const unconvertedCategoryIds: string[] = [];
+
+    for (const [categoryId, budget] of Object.entries(budgets)) {
+        if (!budget.currency || budget.currency === targetCurrency) {
+            result[categoryId] = budget.amount;
+            continue;
+        }
+
+        const exchangedAmount = exchanger(budget.amount, budget.currency, targetCurrency);
+
+        if (exchangedAmount === null || !Number.isFinite(exchangedAmount)) {
+            unconvertedCategoryIds.push(categoryId);
+            continue;
+        }
+
+        result[categoryId] = exchangedAmount;
+    }
+
+    return {
+        budgets: result,
+        unconvertedCategoryIds: unconvertedCategoryIds
+    };
+}
+
 /**
  * Builds the budget vs actual rows of the given primary expense categories.
  * Amounts are in the smallest currency unit. Spending of categories without a budget is

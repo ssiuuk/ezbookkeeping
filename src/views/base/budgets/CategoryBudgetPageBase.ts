@@ -8,6 +8,7 @@ import { useTransactionCategoriesStore } from '@/stores/transactionCategory.ts';
 import { useExchangeRatesStore } from '@/stores/exchangeRates.ts';
 
 import type { Year0BasedMonth } from '@/core/datetime.ts';
+import type { BigDecimal } from '@/core/numeral.ts';
 import { CategoryType } from '@/core/category.ts';
 import { KeywordMatchMode } from '@/core/text.ts';
 
@@ -15,7 +16,13 @@ import type { TransactionCategory } from '@/models/transaction_category.ts';
 import type { TransactionCategoryBudgetInfoResponse } from '@/models/transaction_category_budget.ts';
 import type { TransactionStatisticResponse } from '@/models/transaction.ts';
 
-import { type CategoryBudgetSummary, buildCategoryBudgetSummary } from '@/lib/category_budget.ts';
+import {
+    type CategoryBudgetAmount,
+    type CategoryBudgetSummary,
+    type ConvertedCategoryBudgets,
+    buildCategoryBudgetSummary,
+    convertCategoryBudgetsToCurrency
+} from '@/lib/category_budget.ts';
 import {
     getCurrentUnixTime,
     getYear0BasedMonthObjectFromUnixTime,
@@ -39,7 +46,7 @@ export function useCategoryBudgetPageBase() {
     const saving = ref<boolean>(false);
     const editing = ref<boolean>(false);
     const currentMonth = ref<Year0BasedMonth>(getYear0BasedMonthObjectFromUnixTime(getCurrentUnixTime()));
-    const budgets = ref<Record<string, number>>({});
+    const budgets = ref<Record<string, CategoryBudgetAmount>>({});
     const editingBudgets = ref<Record<string, number>>({});
     const statistics = ref<TransactionStatisticResponse | null>(null);
 
@@ -48,8 +55,24 @@ export function useCategoryBudgetPageBase() {
 
     const primaryExpenseCategories = computed<TransactionCategory[]>(() => {
         const categories = transactionCategoriesStore.allTransactionCategories[CategoryType.Expense] ?? [];
-        return categories.filter(category => category.visible || (budgets.value[category.id] ?? 0) > 0);
+        return categories.filter(category => category.visible || (budgets.value[category.id]?.amount ?? 0) > 0);
     });
+
+    // converts amounts the same way for spending and budgets, so that both are compared in the same currency
+    function exchangeAmount(amount: BigDecimal, fromCurrency: string, toCurrency: string): BigDecimal | null {
+        if (fromCurrency === toCurrency) {
+            return amount;
+        }
+
+        const exchangedAmount = exchangeRatesStore.getExchangedAmount(amount, fromCurrency, toCurrency);
+        return exchangedAmount ? exchangedAmount.truncate() : null;
+    }
+
+    // budgets are saved in the currency they were entered in, which may differ from the current user's default currency in a shared book
+    const convertedBudgets = computed<ConvertedCategoryBudgets>(() => convertCategoryBudgetsToCurrency(budgets.value, defaultCurrency.value, (amount, fromCurrency, toCurrency) => {
+        const exchangedAmount = exchangeAmount(parseBigDecimal(amount), fromCurrency, toCurrency);
+        return exchangedAmount ? exchangedAmount.toDoubleNumber() : null;
+    }));
 
     const spending = computed<{ spentByCategoryId: Record<string, number>, incomplete: boolean }>(() => {
         const spentByCategoryId: Record<string, number> = {};
@@ -67,17 +90,11 @@ export function useCategoryBudgetPageBase() {
                 category = transactionCategoriesStore.allTransactionCategoriesMap[category.parentId] ?? category;
             }
 
-            let amount = parseBigDecimal(item.amount);
+            const amount = exchangeAmount(parseBigDecimal(item.amount), account.currency, defaultCurrency.value);
 
-            if (account.currency !== defaultCurrency.value) {
-                const exchangedAmount = exchangeRatesStore.getExchangedAmount(amount, account.currency, defaultCurrency.value);
-
-                if (!exchangedAmount) {
-                    incomplete = true;
-                    continue;
-                }
-
-                amount = exchangedAmount.truncate();
+            if (!amount) {
+                incomplete = true;
+                continue;
             }
 
             spentByCategoryId[category.id] = (spentByCategoryId[category.id] ?? 0) + amount.toDoubleNumber();
@@ -89,16 +106,35 @@ export function useCategoryBudgetPageBase() {
         };
     });
 
-    const summary = computed<CategoryBudgetSummary>(() => buildCategoryBudgetSummary(primaryExpenseCategories.value, budgets.value, spending.value.spentByCategoryId));
+    const summary = computed<CategoryBudgetSummary>(() => buildCategoryBudgetSummary(primaryExpenseCategories.value, convertedBudgets.value.budgets, spending.value.spentByCategoryId));
 
     function setBudgets(items: TransactionCategoryBudgetInfoResponse[]): void {
-        const result: Record<string, number> = {};
+        const result: Record<string, CategoryBudgetAmount> = {};
 
         for (const item of items) {
-            result[item.categoryId] = item.amount;
+            result[item.categoryId] = {
+                amount: item.amount,
+                currency: item.currency || defaultCurrency.value
+            };
         }
 
         budgets.value = result;
+    }
+
+    // the currency the budget of the given category is saved in (and edited in), new budgets are in the current user's default currency
+    function getBudgetCurrency(categoryId: string): string {
+        return budgets.value[categoryId]?.currency || defaultCurrency.value;
+    }
+
+    // the budget amount in the currency it was saved in, when that currency is not the displayed currency, otherwise empty
+    function getOriginalBudgetText(categoryId: string): string {
+        const budget = budgets.value[categoryId];
+
+        if (!budget || budget.amount <= 0 || !budget.currency || budget.currency === defaultCurrency.value) {
+            return '';
+        }
+
+        return formatAmount(budget.amount, budget.currency);
     }
 
     function loadStatistics(): Promise<void> {
@@ -154,7 +190,13 @@ export function useCategoryBudgetPageBase() {
     }
 
     function startEditing(): void {
-        editingBudgets.value = { ...budgets.value };
+        const result: Record<string, number> = {};
+
+        for (const [categoryId, budget] of Object.entries(budgets.value)) {
+            result[categoryId] = budget.amount;
+        }
+
+        editingBudgets.value = result;
         editing.value = true;
     }
 
@@ -166,7 +208,7 @@ export function useCategoryBudgetPageBase() {
     function saveBudgets(): Promise<void> {
         const items = Object.entries(editingBudgets.value)
             .filter(([, amount]) => amount > 0)
-            .map(([categoryId, amount]) => ({ categoryId: categoryId, amount: amount }));
+            .map(([categoryId, amount]) => ({ categoryId: categoryId, amount: amount, currency: getBudgetCurrency(categoryId) }));
 
         saving.value = true;
 
@@ -181,8 +223,8 @@ export function useCategoryBudgetPageBase() {
         });
     }
 
-    function formatAmount(amount: number): string {
-        return formatAmountToLocalizedNumeralsWithCurrency(parseBigDecimal(amount), defaultCurrency.value);
+    function formatAmount(amount: number, currency?: string): string {
+        return formatAmountToLocalizedNumeralsWithCurrency(parseBigDecimal(amount), currency || defaultCurrency.value);
     }
 
     return {
@@ -196,12 +238,15 @@ export function useCategoryBudgetPageBase() {
         currentMonthDisplayName,
         summary,
         incompleteSpending: computed<boolean>(() => spending.value.incomplete),
+        incompleteBudget: computed<boolean>(() => convertedBudgets.value.unconvertedCategoryIds.length > 0),
         // functions
         loadAll,
         changeMonth,
         startEditing,
         cancelEditing,
         saveBudgets,
+        getBudgetCurrency,
+        getOriginalBudgetText,
         formatAmount
     };
 }

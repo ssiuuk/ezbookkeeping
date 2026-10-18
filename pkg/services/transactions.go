@@ -2111,8 +2111,16 @@ func (s *TransactionService) DeleteAllTransactions(c core.Context, uid int64, de
 	}
 
 	return s.UserDataDB(uid).DoTransaction(c, func(sess *xorm.Session) error {
+		// The accounts are reset (or deleted) as a whole below, which is only correct when no other book uses them,
+		// so check it in the same transaction to make sure no shared book transaction can be added in the meantime
+		err := s.checkAccountsNotUsedByOtherBooks(sess, uid)
+
+		if err != nil {
+			return err
+		}
+
 		// Update all transactions to deleted
-		_, err := sess.Cols("deleted", "deleted_unix_time").Where("uid=? AND deleted=?", uid, false).Update(updateModel)
+		_, err = sess.Cols("deleted", "deleted_unix_time").Where("uid=? AND deleted=?", uid, false).Update(updateModel)
 
 		if err != nil {
 			return err
@@ -2141,6 +2149,40 @@ func (s *TransactionService) DeleteAllTransactions(c core.Context, uid int64, de
 
 		return nil
 	})
+}
+
+// CheckAccountsNotUsedByOtherBooks returns an error if any account of the user is shared to a book or used by a transaction of another book
+func (s *TransactionService) CheckAccountsNotUsedByOtherBooks(c core.Context, uid int64) error {
+	if uid <= 0 {
+		return errs.ErrUserIdInvalid
+	}
+
+	return s.checkAccountsNotUsedByOtherBooks(s.UserDataDB(uid).NewSession(c), uid)
+}
+
+// checkAccountsNotUsedByOtherBooks returns an error if any account of the user is shared to a book or used by a transaction of another book.
+// Transactions recorded in a shared book are owned by the book (not by the user) but still change the balance of the user's shared accounts,
+// so these accounts can neither be reset to zero nor be deleted together with the user's own transactions.
+func (s *TransactionService) checkAccountsNotUsedByOtherBooks(sess *xorm.Session, uid int64) error {
+	userAccountIdsCondition := "SELECT account_id FROM account WHERE uid=? AND deleted=?"
+
+	shared, err := sess.Where("account_id IN ("+userAccountIdsCondition+")", uid, false).Exist(&models.SharedBookAccount{})
+
+	if err != nil {
+		return err
+	} else if shared {
+		return errs.ErrAccountsUsedBySharedBook
+	}
+
+	usedByOtherBooks, err := sess.Where("uid<>? AND deleted=? AND (account_id IN ("+userAccountIdsCondition+") OR related_account_id IN ("+userAccountIdsCondition+"))", uid, false, uid, false, uid, false).Exist(&models.Transaction{})
+
+	if err != nil {
+		return err
+	} else if usedByOtherBooks {
+		return errs.ErrAccountsUsedBySharedBook
+	}
+
+	return nil
 }
 
 // DeleteAllTransactionsOfAccount deletes all existed transactions of specific account from database
@@ -3413,6 +3455,12 @@ func (s *TransactionService) createTransactionByScheduledTransactionTemplate(c c
 		return nil, nil
 	}
 
+	// the occurrence on the skip date has already been created (e.g. the transaction which set up the repeat), while the start time is still the recurrence anchor
+	if template.ScheduledSkipTime != nil && time.Unix(*template.ScheduledSkipTime, 0).In(templateTimezone).Format("2006-01-02") == transactionTime.Format("2006-01-02") {
+		log.Infof(c, "[transactions.CreateScheduledTransactions] transaction template \"id:%d\" does not need to create transaction, the occurrence on %s has already been created", template.TemplateId, transactionTime.Format("2006-01-02"))
+		return nil, nil
+	}
+
 	var transactionDbType models.TransactionDbType
 
 	if template.Type == models.TRANSACTION_TYPE_EXPENSE {
@@ -3451,19 +3499,42 @@ func (s *TransactionService) createTransactionByScheduledTransactionTemplate(c c
 	return transaction, tagIds
 }
 
-// accountOfBookCondition matches the accounts of a book, including the accounts which book members shared to it
-const accountOfBookCondition = "deleted=? AND (uid=? OR account_id IN (SELECT account_id FROM shared_book_account WHERE book_id=?))"
+// accountOfBookCondition matches the accounts which a book can use now: its own accounts and the accounts which book members are sharing to it
+const accountOfBookCondition = "deleted=? AND (uid=? OR account_id IN (SELECT account_id FROM shared_book_account WHERE book_id=? AND revoked_unix_time=0))"
+
+// accountUsedByBookCondition also matches the accounts whose sharing to the book was revoked, they are only for reading the existing transactions of the book
+const accountUsedByBookCondition = "deleted=? AND (uid=? OR account_id IN (SELECT account_id FROM shared_book_account WHERE book_id=?))"
+
+// getAccountOfBook returns the account which the book can use now, or ErrSharedAccountRevoked when the account is no longer shared to the book
+func getAccountOfBook(sess *xorm.Session, bookId int64, accountId int64, account *models.Account, notFoundErr error) error {
+	has, err := sess.ID(accountId).Where(accountOfBookCondition, false, bookId, bookId).Get(account)
+
+	if err != nil {
+		return err
+	} else if has {
+		return nil
+	}
+
+	revoked, err := sess.Where("book_id=? AND account_id=? AND revoked_unix_time>?", bookId, accountId, 0).Exist(&models.SharedBookAccount{})
+
+	if err != nil {
+		return err
+	} else if revoked {
+		return errs.ErrSharedAccountRevoked
+	}
+
+	return notFoundErr
+}
 
 func (s *TransactionService) getAccountModels(sess *xorm.Session, transaction *models.Transaction) (sourceAccount *models.Account, destinationAccount *models.Account, err error) {
 	sourceAccount = &models.Account{}
 	destinationAccount = &models.Account{}
+	var has bool
 
-	has, err := sess.ID(transaction.AccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(sourceAccount)
+	err = getAccountOfBook(sess, transaction.Uid, transaction.AccountId, sourceAccount, errs.ErrSourceAccountNotFound)
 
 	if err != nil {
 		return nil, nil, err
-	} else if !has {
-		return nil, nil, errs.ErrSourceAccountNotFound
 	}
 
 	// check whether the related account is valid
@@ -3483,12 +3554,10 @@ func (s *TransactionService) getAccountModels(sess *xorm.Session, transaction *m
 		if transaction.RelatedAccountId <= 0 {
 			return nil, nil, errs.ErrAccountIdInvalid
 		} else {
-			has, err = sess.ID(transaction.RelatedAccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(destinationAccount)
+			err = getAccountOfBook(sess, transaction.Uid, transaction.RelatedAccountId, destinationAccount, errs.ErrDestinationAccountNotFound)
 
 			if err != nil {
 				return nil, nil, err
-			} else if !has {
-				return nil, nil, errs.ErrDestinationAccountNotFound
 			}
 		}
 	}
@@ -3551,24 +3620,20 @@ func (s *TransactionService) getOldAccountModels(sess *xorm.Session, transaction
 	if transaction.AccountId == oldTransaction.AccountId {
 		oldSourceAccount = sourceAccount
 	} else {
-		has, err := sess.ID(oldTransaction.AccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(oldSourceAccount)
+		err := getAccountOfBook(sess, transaction.Uid, oldTransaction.AccountId, oldSourceAccount, errs.ErrSourceAccountNotFound)
 
 		if err != nil {
 			return nil, nil, err
-		} else if !has {
-			return nil, nil, errs.ErrSourceAccountNotFound
 		}
 	}
 
 	if transaction.RelatedAccountId == oldTransaction.RelatedAccountId {
 		oldDestinationAccount = destinationAccount
 	} else if oldTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT || oldTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_IN {
-		has, err := sess.ID(oldTransaction.RelatedAccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(oldDestinationAccount)
+		err := getAccountOfBook(sess, transaction.Uid, oldTransaction.RelatedAccountId, oldDestinationAccount, errs.ErrDestinationAccountNotFound)
 
 		if err != nil {
 			return nil, nil, err
-		} else if !has {
-			return nil, nil, errs.ErrDestinationAccountNotFound
 		}
 	}
 

@@ -607,8 +607,8 @@ export default {
             timeout: DEFAULT_CLEAR_ALL_TRANSACTIONS_API_TIMEOUT
         } as ApiRequestConfig);
     },
-    getAllAccounts: ({ visibleOnly }: { visibleOnly: boolean }, options?: BookRequestOptions): ApiResponsePromise<AccountInfoResponse[]> => {
-        return axios.get<ApiResponse<AccountInfoResponse[]>>('v1/accounts/list.json?visible_only=' + visibleOnly, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    getAllAccounts: ({ visibleOnly, includeRevokedShared }: { visibleOnly: boolean, includeRevokedShared?: boolean }, options?: BookRequestOptions): ApiResponsePromise<AccountInfoResponse[]> => {
+        return axios.get<ApiResponse<AccountInfoResponse[]>>('v1/accounts/list.json?visible_only=' + visibleOnly + (includeRevokedShared ? '&include_revoked_shared=true' : ''), options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },
     getAccount: ({ id }: { id: string }): ApiResponsePromise<AccountInfoResponse> => {
         return axios.get<ApiResponse<AccountInfoResponse>>('v1/accounts/get.json?id=' + id);
