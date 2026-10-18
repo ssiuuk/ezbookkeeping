@@ -45,6 +45,43 @@ func TestGetAccountMapByList_MultipleList(t *testing.T) {
 	assert.Equal(t, "Credit Card", actualAccountMap[1003].Name)
 }
 
+func TestGetVisibleAccountNameMapOfBookByList_OwnAccountTakesPrecedence(t *testing.T) {
+	bookId := int64(9001)
+	accounts := []*models.Account{
+		{
+			Uid:       bookId,
+			AccountId: 1001,
+			Name:      "Cash",
+			Type:      models.ACCOUNT_TYPE_SINGLE_ACCOUNT,
+		},
+		{
+			Uid:       1,
+			AccountId: 2001,
+			Name:      "Cash",
+			Type:      models.ACCOUNT_TYPE_SINGLE_ACCOUNT,
+		},
+		{
+			Uid:       2,
+			AccountId: 3001,
+			Name:      "Alice's Card",
+			Type:      models.ACCOUNT_TYPE_SINGLE_ACCOUNT,
+		},
+		{
+			Uid:       2,
+			AccountId: 3002,
+			Name:      "Hidden Shared",
+			Type:      models.ACCOUNT_TYPE_SINGLE_ACCOUNT,
+			Hidden:    true,
+		},
+	}
+	actualAccountMap := Accounts.GetVisibleAccountNameMapOfBookByList(accounts, bookId)
+
+	assert.Equal(t, 2, len(actualAccountMap))
+	assert.Equal(t, int64(1001), actualAccountMap["Cash"].AccountId)
+	assert.Equal(t, int64(3001), actualAccountMap["Alice's Card"].AccountId)
+	assert.NotContains(t, actualAccountMap, "Hidden Shared")
+}
+
 func TestGetVisibleAccountNameMapByList_EmptyList(t *testing.T) {
 	accounts := make([]*models.Account, 0)
 	actualAccountMap := Accounts.GetVisibleAccountNameMapByList(accounts)

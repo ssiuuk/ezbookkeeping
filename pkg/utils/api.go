@@ -4,7 +4,9 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"net/http"
+	"net/url"
 	"reflect"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 
@@ -49,10 +51,27 @@ func PrintJsonSuccessResult(c *core.WebContext, result any) {
 // PrintDataSuccessResult writes success response in custom content type to current http context
 func PrintDataSuccessResult(c *core.WebContext, contentType string, fileName string, result []byte) {
 	if fileName != "" {
-		c.Header("Content-Disposition", "attachment;filename="+fileName)
+		c.Header("Content-Disposition", GetContentDispositionOfAttachment(fileName))
 	}
 
 	c.Data(http.StatusOK, contentType, result)
+}
+
+// GetContentDispositionOfAttachment returns the content disposition header value of an attachment, the file name which contains non-ascii characters is also written in RFC 5987 encoding
+func GetContentDispositionOfAttachment(fileName string) string {
+	asciiFileName := strings.Map(func(ch rune) rune {
+		if ch < 0x20 || ch >= 0x7f || ch == '"' || ch == ';' || ch == '\\' {
+			return '_'
+		}
+
+		return ch
+	}, fileName)
+
+	if asciiFileName == fileName {
+		return "attachment;filename=" + fileName
+	}
+
+	return "attachment;filename=" + asciiFileName + ";filename*=UTF-8''" + url.PathEscape(fileName)
 }
 
 // PrintJsonErrorResult writes error response in json format to current http context
