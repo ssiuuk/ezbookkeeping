@@ -179,6 +179,9 @@ const (
 	defaultDatabaseMaxOpenConn     uint16 = 0
 	defaultDatabaseConnMaxLifetime uint32 = 14400
 
+	defaultDatabaseBackupDirName   string = "backups"
+	defaultDatabaseBackupKeepCount uint32 = 30
+
 	defaultLogMode        string = "console"
 	defaultLogFileMaxSize uint32 = 104857600 // 100 MB
 	defaultLogFileMaxDays uint32 = 7         // days
@@ -407,6 +410,9 @@ type Config struct {
 	// Cron
 	EnableRemoveExpiredTokens        bool
 	EnableCreateScheduledTransaction bool
+	EnableDatabaseBackup             bool
+	DatabaseBackupPath               string
+	DatabaseBackupKeepCount          uint32
 
 	// Secret
 	SecretKeyNoSet                        bool
@@ -1073,6 +1079,18 @@ func loadDuplicateCheckerConfiguration(config *Config, configFile *ini.File, sec
 func loadCronConfiguration(config *Config, configFile *ini.File, sectionName string) error {
 	config.EnableRemoveExpiredTokens = getConfigItemBoolValue(configFile, sectionName, "enable_remove_expired_tokens", false)
 	config.EnableCreateScheduledTransaction = getConfigItemBoolValue(configFile, sectionName, "enable_create_scheduled_transaction", false)
+	config.EnableDatabaseBackup = getConfigItemBoolValue(configFile, sectionName, "enable_database_backup", false)
+	config.DatabaseBackupKeepCount = getConfigItemUint32Value(configFile, sectionName, "database_backup_keep_count", defaultDatabaseBackupKeepCount)
+
+	if config.DatabaseConfig != nil && config.DatabaseConfig.DatabaseType == Sqlite3DbType {
+		databaseBackupPath := getConfigItemStringValue(configFile, sectionName, "database_backup_path")
+
+		if databaseBackupPath == "" {
+			config.DatabaseBackupPath = filepath.Join(filepath.Dir(config.DatabaseConfig.DatabasePath), defaultDatabaseBackupDirName)
+		} else {
+			config.DatabaseBackupPath, _ = getFinalPath(config.WorkingPath, databaseBackupPath)
+		}
+	}
 
 	return nil
 }
