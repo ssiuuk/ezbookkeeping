@@ -34,7 +34,8 @@ export const KNOWN_COLUMN_NAME_MAPPING: Record<string, ImportTransactionColumnTy
         ['Account2 Amount']: ImportTransactionColumnType.RelatedAmount,
         ['Geographic Location']: ImportTransactionColumnType.GeographicLocation,
         ['Tags']: ImportTransactionColumnType.Tags,
-        ['Description']: ImportTransactionColumnType.Description
+        ['Description']: ImportTransactionColumnType.Description,
+        ['Merchant']: ImportTransactionColumnType.Merchant
     },
     // Other common columns of transaction time
     {
@@ -135,6 +136,22 @@ export const KNOWN_COLUMN_NAME_MAPPING: Record<string, ImportTransactionColumnTy
         ['Memo']: ImportTransactionColumnType.Description,
         // zh-Hans
         ['备注']: ImportTransactionColumnType.Description,
+    },
+    // Other common columns of merchant
+    {
+        // en
+        ['Merchant Name']: ImportTransactionColumnType.Merchant,
+        ['Payee']: ImportTransactionColumnType.Merchant,
+        ['Store']: ImportTransactionColumnType.Merchant,
+        ['Shop']: ImportTransactionColumnType.Merchant,
+        ['Vendor']: ImportTransactionColumnType.Merchant,
+        // zh-Hans
+        ['商家']: ImportTransactionColumnType.Merchant,
+        ['商户']: ImportTransactionColumnType.Merchant,
+        ['商户名称']: ImportTransactionColumnType.Merchant,
+        ['交易对方']: ImportTransactionColumnType.Merchant,
+        // zh-Hant
+        ['商店']: ImportTransactionColumnType.Merchant,
     }
 ]);
 

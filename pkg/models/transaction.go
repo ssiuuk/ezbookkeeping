@@ -16,6 +16,9 @@ const MaximumTransactionAmount = 999999999999999
 const MaximumTagsCountOfTransaction = 10
 const MaximumPicturesCountOfTransaction = 10
 
+// TransactionMerchantMaxLength represents the maximum length (in characters) of transaction merchant
+const TransactionMerchantMaxLength = 64
+
 // TransactionType represents transaction type
 type TransactionType byte
 

@@ -349,6 +349,46 @@ func TestWeChatPayCsvFileImporterParseImportedData_ParseDescription(t *testing.T
 	assert.Equal(t, "Test", allNewTransactions[0].Comment)
 }
 
+func TestWeChatPayCsvFileImporterParseImportedData_ParseMerchant(t *testing.T) {
+	importer := WeChatPayTransactionDataCsvFileImporter
+	context := core.NewNullContext()
+
+	user := &models.User{
+		Uid:             1234567890,
+		DefaultCurrency: "CNY",
+	}
+
+	data := "微信支付账单明细,,,,\n" +
+		"微信昵称：[xxx],,,,\n" +
+		"起始时间：[2024-01-01 00:00:00] 终止时间：[2024-09-01 23:59:59],,,,\n" +
+		",,,,\n" +
+		"----------------------微信支付账单明细列表--------------------,,,,\n" +
+		"交易时间,交易类型,交易对方,商品,收/支,金额(元),当前状态\n" +
+		"2024-09-01 01:23:45,二维码收款,Test Payer,/,收入,￥0.12,已收钱\n" +
+		"2024-09-01 12:34:56,商户消费,Test Shop,Coffee,支出,￥123.45,支付成功\n" +
+		"2024-09-01 13:34:56,商户消费,/,Tea,支出,￥1.23,支付成功\n" +
+		"2024-09-01 23:59:59,零钱充值,Test Bank,/,/,￥0.05,充值完成\n"
+	allNewTransactions, _, _, _, _, _, err := importer.ParseImportedData(context, user, []byte(data), time.UTC, converter.DefaultImporterOptions, nil, nil, nil, nil, nil)
+	assert.Nil(t, err)
+
+	assert.Equal(t, 4, len(allNewTransactions))
+
+	assert.Equal(t, models.TRANSACTION_DB_TYPE_INCOME, allNewTransactions[0].Type)
+	assert.Equal(t, "Test Payer", allNewTransactions[0].Merchant)
+	assert.Equal(t, "", allNewTransactions[0].Comment)
+
+	assert.Equal(t, models.TRANSACTION_DB_TYPE_EXPENSE, allNewTransactions[1].Type)
+	assert.Equal(t, "Test Shop", allNewTransactions[1].Merchant)
+	assert.Equal(t, "Coffee", allNewTransactions[1].Comment)
+
+	assert.Equal(t, models.TRANSACTION_DB_TYPE_EXPENSE, allNewTransactions[2].Type)
+	assert.Equal(t, "", allNewTransactions[2].Merchant)
+	assert.Equal(t, "Tea", allNewTransactions[2].Comment)
+
+	assert.Equal(t, models.TRANSACTION_DB_TYPE_TRANSFER_OUT, allNewTransactions[3].Type)
+	assert.Equal(t, "", allNewTransactions[3].Merchant)
+}
+
 func TestWeChatPayCsvFileImporterParseImportedData_UnknownTransferTransaction(t *testing.T) {
 	importer := WeChatPayTransactionDataCsvFileImporter
 	context := core.NewNullContext()

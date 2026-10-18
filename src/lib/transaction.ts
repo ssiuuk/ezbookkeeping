@@ -31,6 +31,7 @@ export interface SetTransactionOptions {
     destinationAmount?: number;
     tagIds?: string;
     comment?: string;
+    merchant?: string;
 }
 
 export function* allTransactionPictures(transactions: Transaction[]): Iterable<[Transaction, TransactionPictureInfoBasicResponse]> {
@@ -167,6 +168,10 @@ export function setTransactionModelByTransaction(transaction: Transaction, trans
 
     if (options.comment) {
         transaction.comment = options.comment;
+    }
+
+    if (options.merchant && options.merchant.trim()) {
+        transaction.merchant = options.merchant.trim();
     }
 
     if (transaction2) {

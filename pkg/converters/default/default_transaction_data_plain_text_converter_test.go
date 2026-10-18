@@ -1,6 +1,7 @@
 package _default
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -29,6 +30,7 @@ func TestDefaultTransactionDataCSVFileConverterToExportedContent(t *testing.T) {
 		GeoLongitude:      123.45,
 		GeoLatitude:       45.67,
 		Comment:           "Hello,World",
+		Merchant:          "Star,bucks",
 	}
 	transactions[1] = &models.Transaction{
 		TransactionId:     2,
@@ -53,6 +55,7 @@ func TestDefaultTransactionDataCSVFileConverterToExportedContent(t *testing.T) {
 		RelatedAccountId:     2,
 		RelatedAccountAmount: 1735,
 		Comment:              "T\te\rs\nt\r\ntest",
+		Merchant:             "",
 	}
 
 	accountMap := make(map[int64]*models.Account, 2)
@@ -117,10 +120,10 @@ func TestDefaultTransactionDataCSVFileConverterToExportedContent(t *testing.T) {
 	allTagIndexes[2] = []int64{3, 1, 4}
 	allTagIndexes[3] = []int64{2, 3}
 
-	expectedContent := "Time,Timezone,Type,Category,Sub Category,Account,Account Currency,Amount,Account2,Account2 Currency,Account2 Amount,Geographic Location,Tags,Description\n" +
-		"2024-09-01 12:34:56,+08:00,Income,Test Category,Test Sub Category,Test Account,CNY,123.45,,,,123.450000 45.670000,Test Tag;Test Tag2,Hello World\n" +
-		"2024-09-01 12:34:56,+00:00,Expense,Test Category2,Test Sub Category2,Test Account,CNY,-0.10,,,,,Test Tag,Foo#Bar\n" +
-		"2024-09-01 12:34:56,-05:00,Transfer,Test Category3,Test Sub Category3,Test Account,CNY,123.45,Test Account2,USD,17.35,,Test Tag2,T\te s t test\n"
+	expectedContent := "Time,Timezone,Type,Category,Sub Category,Account,Account Currency,Amount,Account2,Account2 Currency,Account2 Amount,Geographic Location,Tags,Description,Merchant\n" +
+		"2024-09-01 12:34:56,+08:00,Income,Test Category,Test Sub Category,Test Account,CNY,123.45,,,,123.450000 45.670000,Test Tag;Test Tag2,Hello World,Star bucks\n" +
+		"2024-09-01 12:34:56,+00:00,Expense,Test Category2,Test Sub Category2,Test Account,CNY,-0.10,,,,,Test Tag,Foo#Bar,\n" +
+		"2024-09-01 12:34:56,-05:00,Transfer,Test Category3,Test Sub Category3,Test Account,CNY,123.45,Test Account2,USD,17.35,,Test Tag2,T\te s t test,\n"
 	actualContent, err := exporter.ToExportedContent(context, 123, transactions, accountMap, categoryMap, tagMap, allTagIndexes)
 
 	assert.Nil(t, err)
@@ -466,6 +469,130 @@ func TestDefaultTransactionDataCSVFileConverterParseImportedData_ParseDescriptio
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(allNewTransactions))
 	assert.Equal(t, "foo    bar\t#test", allNewTransactions[0].Comment)
+}
+
+func TestDefaultTransactionDataCSVFileConverterParseImportedData_ParseMerchant(t *testing.T) {
+	importer := DefaultTransactionDataCSVFileConverter
+	context := core.NewNullContext()
+
+	user := &models.User{
+		Uid:             1234567890,
+		DefaultCurrency: "CNY",
+	}
+
+	allNewTransactions, _, _, _, _, _, err := importer.ParseImportedData(context, user, []byte("Time,Type,Sub Category,Account,Amount,Account2,Account2 Amount,Description,Merchant\n"+
+		"2024-09-01 12:34:56,Expense,Test Category,Test Account,123.45,,,foo,  Test Shop  \n"+
+		"2024-09-01 12:34:57,Expense,Test Category,Test Account,1.23,,,bar,\n"), time.UTC, converter.DefaultImporterOptions, nil, nil, nil, nil, nil)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(allNewTransactions))
+	assert.Equal(t, "foo", allNewTransactions[0].Comment)
+	assert.Equal(t, "Test Shop", allNewTransactions[0].Merchant)
+	assert.Equal(t, "bar", allNewTransactions[1].Comment)
+	assert.Equal(t, "", allNewTransactions[1].Merchant)
+}
+
+func TestDefaultTransactionDataCSVFileConverterParseImportedData_ParseMerchantInCRLFFile(t *testing.T) {
+	importer := DefaultTransactionDataCSVFileConverter
+	context := core.NewNullContext()
+
+	user := &models.User{
+		Uid:             1234567890,
+		DefaultCurrency: "CNY",
+	}
+
+	allNewTransactions, _, _, _, _, _, err := importer.ParseImportedData(context, user, []byte("Time,Type,Sub Category,Account,Amount,Account2,Account2 Amount,Description,Merchant\r\n"+
+		"2024-09-01 12:34:56,Expense,Test Category,Test Account,123.45,,,foo,Test Shop\r\n"), time.UTC, converter.DefaultImporterOptions, nil, nil, nil, nil, nil)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(allNewTransactions))
+	assert.Equal(t, "Test Shop", allNewTransactions[0].Merchant)
+}
+
+func TestDefaultTransactionDataCSVFileConverterParseImportedData_ParseTooLongMerchant(t *testing.T) {
+	importer := DefaultTransactionDataCSVFileConverter
+	context := core.NewNullContext()
+
+	user := &models.User{
+		Uid:             1234567890,
+		DefaultCurrency: "CNY",
+	}
+
+	longMerchant := strings.Repeat("商", models.TransactionMerchantMaxLength+10)
+
+	allNewTransactions, _, _, _, _, _, err := importer.ParseImportedData(context, user, []byte("Time,Type,Sub Category,Account,Amount,Account2,Account2 Amount,Merchant\n"+
+		"2024-09-01 12:34:56,Expense,Test Category,Test Account,123.45,,,"+longMerchant), time.UTC, converter.DefaultImporterOptions, nil, nil, nil, nil, nil)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(allNewTransactions))
+	assert.Equal(t, strings.Repeat("商", models.TransactionMerchantMaxLength), allNewTransactions[0].Merchant)
+}
+
+func TestDefaultTransactionDataCSVFileConverterParseImportedData_ParseFileWithoutMerchantColumn(t *testing.T) {
+	importer := DefaultTransactionDataCSVFileConverter
+	context := core.NewNullContext()
+
+	user := &models.User{
+		Uid:             1234567890,
+		DefaultCurrency: "CNY",
+	}
+
+	// the file exported by previous version does not contain merchant column
+	allNewTransactions, _, _, _, _, _, err := importer.ParseImportedData(context, user, []byte("Time,Timezone,Type,Category,Sub Category,Account,Account Currency,Amount,Account2,Account2 Currency,Account2 Amount,Geographic Location,Tags,Description\n"+
+		"2024-09-01 12:34:56,+08:00,Income,Test Category,Test Sub Category,Test Account,CNY,123.45,,,,123.450000 45.670000,Test Tag;Test Tag2,Hello World\n"+
+		"2024-09-01 12:34:56,+00:00,Expense,Test Category2,Test Sub Category2,Test Account,CNY,-0.10,,,,,Test Tag,Foo#Bar\n"), time.UTC, converter.DefaultImporterOptions, nil, nil, nil, nil, nil)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(allNewTransactions))
+	assert.Equal(t, "Hello World", allNewTransactions[0].Comment)
+	assert.Equal(t, "", allNewTransactions[0].Merchant)
+	assert.Equal(t, "Foo#Bar", allNewTransactions[1].Comment)
+	assert.Equal(t, "", allNewTransactions[1].Merchant)
+}
+
+func TestDefaultTransactionDataTSVFileConverterExportAndImportMerchant(t *testing.T) {
+	tsvConverter := DefaultTransactionDataTSVFileConverter
+	context := core.NewNullContext()
+
+	user := &models.User{
+		Uid:             1234567890,
+		DefaultCurrency: "CNY",
+	}
+
+	transactions := []*models.Transaction{
+		{
+			TransactionId:     1,
+			TransactionTime:   1725165296000,
+			Type:              models.TRANSACTION_DB_TYPE_EXPENSE,
+			TimezoneUtcOffset: 480,
+			CategoryId:        2,
+			AccountId:         1,
+			Amount:            -12345,
+			Comment:           "Coffee",
+			Merchant:          "Star\tbucks",
+		},
+	}
+
+	accountMap := map[int64]*models.Account{
+		1: {AccountId: 1, Name: "Test Account", Currency: "CNY"},
+	}
+
+	categoryMap := map[int64]*models.TransactionCategory{
+		1: {CategoryId: 1, Type: models.CATEGORY_TYPE_EXPENSE, Name: "Test Category"},
+		2: {CategoryId: 2, Type: models.CATEGORY_TYPE_EXPENSE, ParentCategoryId: 1, Name: "Test Sub Category"},
+	}
+
+	exportedContent, err := tsvConverter.ToExportedContent(context, 123, transactions, accountMap, categoryMap, map[int64]*models.TransactionTag{}, map[int64][]int64{})
+	assert.Nil(t, err)
+	assert.Equal(t, "Time\tTimezone\tType\tCategory\tSub Category\tAccount\tAccount Currency\tAmount\tAccount2\tAccount2 Currency\tAccount2 Amount\tGeographic Location\tTags\tDescription\tMerchant\n"+
+		"2024-09-01 12:34:56\t+08:00\tExpense\tTest Category\tTest Sub Category\tTest Account\tCNY\t-123.45\t\t\t\t\t\tCoffee\tStar bucks\n", string(exportedContent))
+
+	allNewTransactions, _, _, _, _, _, err := tsvConverter.ParseImportedData(context, user, exportedContent, time.UTC, converter.DefaultImporterOptions, nil, nil, nil, nil, nil)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(allNewTransactions))
+	assert.Equal(t, "Coffee", allNewTransactions[0].Comment)
+	assert.Equal(t, "Star bucks", allNewTransactions[0].Merchant)
 }
 
 func TestDefaultTransactionDataCSVFileConverterParseImportedData_MissingFileHeader(t *testing.T) {

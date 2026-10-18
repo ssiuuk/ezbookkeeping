@@ -17,6 +17,7 @@ const wechatPayTransactionDataHeaderStartContentBeginning = "-------------------
 
 const wechatPayTransactionTimeColumnName = "交易时间"
 const wechatPayTransactionCategoryColumnName = "交易类型"
+const wechatPayTransactionTargetNameColumnName = "交易对方"
 const wechatPayTransactionProductNameColumnName = "商品"
 const wechatPayTransactionTypeColumnName = "收/支"
 const wechatPayTransactionAmountColumnName = "金额(元)"
@@ -38,6 +39,7 @@ var wechatPayTransactionSupportedColumns = map[datatable.TransactionDataTableCol
 	datatable.TRANSACTION_DATA_TABLE_AMOUNT:               true,
 	datatable.TRANSACTION_DATA_TABLE_RELATED_ACCOUNT_NAME: true,
 	datatable.TRANSACTION_DATA_TABLE_DESCRIPTION:          true,
+	datatable.TRANSACTION_DATA_TABLE_MERCHANT:             true,
 }
 
 var wechatPayTransactionTypeNameMapping = map[models.TransactionType]string{
@@ -147,6 +149,15 @@ func (p *weChatPayTransactionDataRowParser) Parse(ctx core.Context, user *models
 				data[datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TYPE] = wechatPayTransactionTypeNameMapping[models.TRANSACTION_TYPE_EXPENSE]
 				data[datatable.TRANSACTION_DATA_TABLE_AMOUNT] = utils.FormatAmount(-amount)
 			}
+		}
+	}
+
+	// use the counterparty as merchant for income and expense transactions
+	if data[datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TYPE] != wechatPayTransactionTypeNameMapping[models.TRANSACTION_TYPE_TRANSFER] && p.hasOriginalColumn(wechatPayTransactionTargetNameColumnName) {
+		targetName := strings.TrimSpace(dataRow.GetData(wechatPayTransactionTargetNameColumnName))
+
+		if targetName != "/" {
+			data[datatable.TRANSACTION_DATA_TABLE_MERCHANT] = targetName
 		}
 	}
 

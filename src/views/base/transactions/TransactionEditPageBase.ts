@@ -525,7 +525,8 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
             amount: response.sourceAmount,
             destinationAmount: response.destinationAmount,
             tagIds: response.tagIds ? response.tagIds.join(',') : undefined,
-            comment: response.comment
+            comment: response.comment,
+            merchant: response.merchant
         };
 
         setTransactionModel(null, options, true);

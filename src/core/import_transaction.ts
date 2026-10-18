@@ -21,6 +21,7 @@ export class ImportTransactionColumnType implements TypeAndName {
     public static readonly GeographicLocation = new ImportTransactionColumnType(12, 'Geographic Location');
     public static readonly Tags = new ImportTransactionColumnType(13, 'Tags');
     public static readonly Description = new ImportTransactionColumnType(14, 'Description');
+    public static readonly Merchant = new ImportTransactionColumnType(104, 'Merchant');
 
     public readonly type: number;
     public readonly name: string;

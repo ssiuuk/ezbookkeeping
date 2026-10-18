@@ -24,6 +24,7 @@ type RecognizedTransactionResponse struct {
 	DestinationAmount    int64           `json:"destinationAmount,omitempty"`
 	TagIds               []string        `json:"tagIds,omitempty"`
 	Comment              string          `json:"comment,omitempty"`
+	Merchant             string          `json:"merchant,omitempty"`
 }
 
 // RecognizedTransactionResult represents the result of recognized transaction
@@ -35,6 +36,7 @@ type RecognizedTransactionResult struct {
 	CategoryName           string   `json:"category,omitempty" jsonschema_description:"Category name for the transaction"`
 	TagNames               []string `json:"tags,omitempty" jsonschema_description:"List of tags associated with the transaction (maximum 10 tags allowed)"`
 	Description            string   `json:"description,omitempty" jsonschema_description:"Transaction description"`
+	Merchant               string   `json:"merchant,omitempty" jsonschema_description:"Merchant or store name of the transaction"`
 	DestinationAmount      string   `json:"destination_amount,omitempty" jsonschema_description:"Destination amount for transfer transactions"`
 	DestinationAccountName string   `json:"destination_account,omitempty" jsonschema_description:"Destination account name for transfer transactions"`
 }

@@ -12,6 +12,7 @@ export interface RecognizedTransactionResponse {
     readonly destinationAmount?: number;
     readonly tagIds?: string[];
     readonly comment?: string;
+    readonly merchant?: string;
 }
 
 export interface CodingAssistantRequest {

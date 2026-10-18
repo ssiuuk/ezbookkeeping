@@ -1,5 +1,5 @@
 import { TransactionType } from '@/core/transaction.ts';
-import { TRANSACTION_MAX_COMMENT_LENGTH } from '@/consts/transaction.ts';
+import { TRANSACTION_MAX_COMMENT_LENGTH, TRANSACTION_MAX_MERCHANT_LENGTH } from '@/consts/transaction.ts';
 
 import type { TransactionCreateRequest, TransactionGeoLocationResponse } from './transaction.ts';
 
@@ -20,6 +20,7 @@ export class ImportTransaction implements ImportTransactionResponse {
     public tagIds: string[];
     public originalTagNames: string[];
     public comment: string;
+    public merchant: string;
     public geoLocation?: TransactionGeoLocationResponse;
 
     public actualCategoryName: string;
@@ -46,6 +47,7 @@ export class ImportTransaction implements ImportTransactionResponse {
         this.tagIds = response.tagIds || [];
         this.originalTagNames = response.originalTagNames || [];
         this.comment = response.comment;
+        this.merchant = response.merchant || '';
         this.geoLocation = response.geoLocation;
 
         this.actualCategoryName = response.originalCategoryName;
@@ -70,6 +72,7 @@ export class ImportTransaction implements ImportTransactionResponse {
             tagIds: this.tagIds,
             pictureIds: [],
             comment: this.comment,
+            merchant: (this.merchant || '').trim(),
             geoLocation: this.geoLocation,
             clientSessionId: ''
         };
@@ -100,6 +103,10 @@ export class ImportTransaction implements ImportTransactionResponse {
             return false;
         }
 
+        if (this.merchant && this.merchant.trim().length > TRANSACTION_MAX_MERCHANT_LENGTH) {
+            return false;
+        }
+
         return true;
     }
 
@@ -124,6 +131,7 @@ export interface ImportTransactionRequestItem {
     readonly geoLocation?: string;
     readonly tagNames?: string;
     readonly comment?: string;
+    readonly merchant?: string;
 }
 
 export interface ImportTransactionResponse {
@@ -143,6 +151,7 @@ export interface ImportTransactionResponse {
     readonly tagIds: string[];
     readonly originalTagNames: string[];
     readonly comment: string;
+    readonly merchant?: string;
     readonly geoLocation?: TransactionGeoLocationResponse;
 }
 

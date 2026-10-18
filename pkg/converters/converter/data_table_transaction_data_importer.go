@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/mayswind/ezbookkeeping/pkg/converters/datatable"
 	"github.com/mayswind/ezbookkeeping/pkg/core"
@@ -368,6 +369,19 @@ func (c *DataTableTransactionDataImporter) ParseImportedData(ctx core.Context, u
 			description = dataRow.GetData(datatable.TRANSACTION_DATA_TABLE_PAYEE)
 		}
 
+		merchant := ""
+
+		if dataTable.HasColumn(datatable.TRANSACTION_DATA_TABLE_MERCHANT) {
+			merchant = dataRow.GetData(datatable.TRANSACTION_DATA_TABLE_MERCHANT)
+		}
+
+		// use payee as merchant if there is no merchant column (payee of transfer transaction is usually not a merchant)
+		if strings.TrimSpace(merchant) == "" && transactionDbType != models.TRANSACTION_DB_TYPE_TRANSFER_OUT && dataTable.HasColumn(datatable.TRANSACTION_DATA_TABLE_PAYEE) {
+			merchant = dataRow.GetData(datatable.TRANSACTION_DATA_TABLE_PAYEE)
+		}
+
+		merchant = c.getNormalizedMerchant(merchant)
+
 		transaction := &models.ImportTransaction{
 			Transaction: &models.Transaction{
 				Uid:                  user.Uid,
@@ -381,6 +395,7 @@ func (c *DataTableTransactionDataImporter) ParseImportedData(ctx core.Context, u
 				RelatedAccountId:     relatedAccountId,
 				RelatedAccountAmount: relatedAccountAmount,
 				Comment:              description,
+				Merchant:             merchant,
 				GeoLongitude:         geoLongitude,
 				GeoLatitude:          geoLatitude,
 				CreatedIp:            ctx.ClientIP(),
@@ -405,6 +420,16 @@ func (c *DataTableTransactionDataImporter) ParseImportedData(ctx core.Context, u
 	sort.Sort(allNewTransactions)
 
 	return allNewTransactions, allNewAccounts, allNewSubExpenseCategories, allNewSubIncomeCategories, allNewSubTransferCategories, allNewTags, nil
+}
+
+func (c *DataTableTransactionDataImporter) getNormalizedMerchant(merchant string) string {
+	merchant = strings.TrimSpace(merchant)
+
+	if utf8.RuneCountInString(merchant) > models.TransactionMerchantMaxLength {
+		merchant = strings.TrimSpace(utils.SubString(merchant, 0, models.TransactionMerchantMaxLength))
+	}
+
+	return merchant
 }
 
 func (c *DataTableTransactionDataImporter) buildTransactionTypeNameDbTypeMap() (map[string]models.TransactionDbType, error) {

@@ -43,6 +43,7 @@ var jdComFinanceTransactionSupportedColumns = map[datatable.TransactionDataTable
 	datatable.TRANSACTION_DATA_TABLE_AMOUNT:               true,
 	datatable.TRANSACTION_DATA_TABLE_RELATED_ACCOUNT_NAME: true,
 	datatable.TRANSACTION_DATA_TABLE_DESCRIPTION:          true,
+	datatable.TRANSACTION_DATA_TABLE_MERCHANT:             true,
 }
 
 var jdComFinanceTransactionTypeNameMapping = map[models.TransactionType]string{
@@ -125,6 +126,11 @@ func (p *jdComFinanceTransactionDataRowParser) Parse(ctx core.Context, user *mod
 				return nil, false, errs.NewImportError(errs.ErrTransactionTypeInvalid, rowId, memo)
 			}
 		}
+	}
+
+	// use the merchant name as merchant for income and expense transactions (for transfer transactions it is used as account)
+	if data[datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TYPE] != jdComFinanceTransactionTypeNameMapping[models.TRANSACTION_TYPE_TRANSFER] && p.hasOriginalColumn(jdComFinanceTransactionMerchantNameColumnName) {
+		data[datatable.TRANSACTION_DATA_TABLE_MERCHANT] = dataRow.GetData(jdComFinanceTransactionMerchantNameColumnName)
 	}
 
 	return data, true, nil

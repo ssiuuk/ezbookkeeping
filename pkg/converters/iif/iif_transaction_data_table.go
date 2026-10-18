@@ -39,6 +39,7 @@ var iifTransactionSupportedColumns = map[datatable.TransactionDataTableColumn]bo
 	datatable.TRANSACTION_DATA_TABLE_RELATED_ACCOUNT_NAME: true,
 	datatable.TRANSACTION_DATA_TABLE_RELATED_AMOUNT:       true,
 	datatable.TRANSACTION_DATA_TABLE_DESCRIPTION:          true,
+	datatable.TRANSACTION_DATA_TABLE_MERCHANT:             true,
 }
 
 // iifTransactionDataTable defines the structure of intuit interchange format (iif) transaction data table
@@ -401,6 +402,16 @@ func (t *iifTransactionDataRowIterator) parseTransaction(ctx core.Context, user 
 		data[datatable.TRANSACTION_DATA_TABLE_DESCRIPTION] = name
 	} else {
 		data[datatable.TRANSACTION_DATA_TABLE_DESCRIPTION] = ""
+	}
+
+	// use the name (payee, vendor or customer) as merchant for income and expense transactions
+	if data[datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TYPE] == iifTransactionTypeNameMapping[models.TRANSACTION_TYPE_INCOME] ||
+		data[datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TYPE] == iifTransactionTypeNameMapping[models.TRANSACTION_TYPE_EXPENSE] {
+		if name, _ := dataset.getTransactionDataItemValue(transactionData, iifTransactionNameColumnName); name != "" {
+			data[datatable.TRANSACTION_DATA_TABLE_MERCHANT] = name
+		} else if splitName, _ := dataset.getSplitDataItemValue(transactionData.SplitData[splitDataIndex], iifTransactionNameColumnName); splitName != "" {
+			data[datatable.TRANSACTION_DATA_TABLE_MERCHANT] = splitName
+		}
 	}
 
 	return data, nil
