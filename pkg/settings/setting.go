@@ -1079,7 +1079,7 @@ func loadDuplicateCheckerConfiguration(config *Config, configFile *ini.File, sec
 func loadCronConfiguration(config *Config, configFile *ini.File, sectionName string) error {
 	config.EnableRemoveExpiredTokens = getConfigItemBoolValue(configFile, sectionName, "enable_remove_expired_tokens", false)
 	config.EnableCreateScheduledTransaction = getConfigItemBoolValue(configFile, sectionName, "enable_create_scheduled_transaction", false)
-	config.EnableDatabaseBackup = getConfigItemBoolValue(configFile, sectionName, "enable_database_backup", false)
+	config.EnableDatabaseBackup = getConfigItemBoolValue(configFile, sectionName, "enable_database_backup", true)
 	config.DatabaseBackupKeepCount = getConfigItemUint32Value(configFile, sectionName, "database_backup_keep_count", defaultDatabaseBackupKeepCount)
 
 	if config.DatabaseConfig != nil && config.DatabaseConfig.DatabaseType == Sqlite3DbType {
