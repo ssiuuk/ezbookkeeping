@@ -106,7 +106,7 @@
                     <v-window-item value="basicInfo">
                         <v-form class="my-4">
                             <v-row>
-                                <v-col cols="12" v-if="type === TransactionEditPageType.Transaction && mode === TransactionEditPageMode.Add && showEntryBookSelection">
+                                <v-col cols="12" v-if="((type === TransactionEditPageType.Transaction && mode === TransactionEditPageMode.Add) || (type === TransactionEditPageType.Template && mode !== TransactionEditPageMode.View)) && showEntryBookSelection">
                                     <v-select
                                         item-value="id"
                                         persistent-placeholder
@@ -602,6 +602,7 @@ import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 import { useBooksStore } from '@/stores/book.ts';
 import { useProjectsStore } from '@/stores/project.ts';
 import { useEntryBookSelectionBase } from '@/views/base/books/EntryBookSelectionBase.ts';
+import { useScheduledChangeBase, SCHEDULED_CHANGE_CONFIRM_MESSAGE, SCHEDULED_CHANGE_NOT_APPLIED_MESSAGE } from '@/views/base/transactions/ScheduledChangeBase.ts';
 import { useTransactionsStore } from '@/stores/transaction.ts';
 import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
 
@@ -772,8 +773,10 @@ const {
     getBookDisplayName,
     initEntryBook,
     changeEntryBook,
-    restoreEntryBook
+    restoreEntryBook,
+    getMovingFromBookId
 } = useEntryBookSelectionBase();
+const { hasScheduledFieldChanges, applyToScheduleAndLaterTransactions } = useScheduledChangeBase();
 const transactionsStore = useTransactionsStore();
 const transactionTemplatesStore = useTransactionTemplatesStore();
 
@@ -1052,16 +1055,29 @@ function save(afterAction: AfterSaveAction): void {
     }
 
     if (props.type === TransactionEditPageType.Transaction && (mode.value === TransactionEditPageMode.Add || mode.value === TransactionEditPageMode.Edit)) {
-        const doSubmit = function () {
+        const doSubmit = function (applyToLaterScheduled: boolean) {
             submitting.value = true;
 
             const repeatTemplate = buildRepeatTemplate();
+            const sourceTemplateId = initTransaction.value?.sourceTemplateId;
+            let savedMessage = 'You have saved this transaction';
 
             transactionsStore.saveTransaction({
                 transaction: transaction.value as Transaction,
                 defaultCurrency: defaultCurrency.value,
                 isEdit: mode.value === TransactionEditPageMode.Edit,
                 clientSessionId: clientSessionId.value
+            }).then(() => {
+                if (!applyToLaterScheduled || !sourceTemplateId) {
+                    return;
+                }
+
+                return applyToScheduleAndLaterTransactions(transaction.value as Transaction, sourceTemplateId, defaultCurrency.value).then(() => {
+                    savedMessage = 'You have saved this transaction and its scheduled transaction';
+                }).catch(error => {
+                    logger.error('failed to apply changes to the scheduled transaction', error);
+                    savedMessage = SCHEDULED_CHANGE_NOT_APPLIED_MESSAGE;
+                });
             }).then(() => saveRepeatTemplate(repeatTemplate)).then(repeatSaved => {
                 const addedMessage = repeatSaved ? 'You have added a new transaction' : REPEAT_NOT_SET_UP_MESSAGE;
 
@@ -1085,7 +1101,7 @@ function save(afterAction: AfterSaveAction): void {
                             });
                         } else if (mode.value === TransactionEditPageMode.Edit) {
                             resolveFunc({
-                                message: 'You have saved this transaction'
+                                message: savedMessage
                             });
                         }
                     }
@@ -1119,20 +1135,35 @@ function save(afterAction: AfterSaveAction): void {
             });
         };
 
+        const confirmScheduledChangeAndSubmit = function () {
+            if (mode.value === TransactionEditPageMode.Edit && initTransaction.value && hasScheduledFieldChanges(initTransaction.value, transaction.value as Transaction)) {
+                confirmDialog.value?.open(SCHEDULED_CHANGE_CONFIRM_MESSAGE).then(() => {
+                    doSubmit(true);
+                }).catch(() => {
+                    doSubmit(false);
+                });
+            } else {
+                doSubmit(false);
+            }
+        };
+
         if (transaction.value.sourceAmount === 0) {
             confirmDialog.value?.open('Are you sure you want to save this transaction with a zero amount?').then(() => {
-                doSubmit();
+                confirmScheduledChangeAndSubmit();
             });
         } else {
-            doSubmit();
+            confirmScheduledChangeAndSubmit();
         }
     } else if (props.type === TransactionEditPageType.Template && (mode.value === TransactionEditPageMode.Add || mode.value === TransactionEditPageMode.Edit)) {
         submitting.value = true;
 
+        const sourceBookId = mode.value === TransactionEditPageMode.Edit ? getMovingFromBookId() : undefined;
+
         transactionTemplatesStore.saveTemplateContent({
             template: transaction.value as TransactionTemplate,
             isEdit: mode.value === TransactionEditPageMode.Edit,
-            clientSessionId: clientSessionId.value
+            clientSessionId: clientSessionId.value,
+            sourceBookId: sourceBookId
         }).then(() => {
             submitting.value = false;
 
@@ -1143,7 +1174,7 @@ function save(afterAction: AfterSaveAction): void {
                     });
                 } else if (mode.value === TransactionEditPageMode.Edit) {
                     resolveFunc({
-                        message: 'You have saved this template'
+                        message: sourceBookId ? 'You have moved this template to the selected book' : 'You have saved this template'
                     });
                 }
             }

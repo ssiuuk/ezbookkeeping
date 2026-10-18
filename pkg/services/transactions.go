@@ -3439,6 +3439,7 @@ func (s *TransactionService) createTransactionByScheduledTransactionTemplate(c c
 		Merchant:          template.Merchant,
 		CreatedIp:         c.ClientIP(),
 		ScheduledCreated:  true,
+		SourceTemplateId:  template.TemplateId,
 	}
 
 	if template.Type == models.TRANSACTION_TYPE_TRANSFER {

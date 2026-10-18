@@ -687,6 +687,9 @@ export default {
     getTransactionMerchantStatistics: (req: TransactionMerchantStatisticRequest, options?: BookRequestOptions): ApiResponsePromise<TransactionMerchantStatisticResponse> => {
         return axios.get<ApiResponse<TransactionMerchantStatisticResponse>>(`v1/transactions/statistics/merchants.json?start_time=${req.startTime}&end_time=${req.endTime}`, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },
+    getLaterScheduledTransactionIds: (req: { id: string }): ApiResponsePromise<string[]> => {
+        return axios.get<ApiResponse<string[]>>(`v1/transactions/later_scheduled.json?id=${req.id}`);
+    },
     getTransactionMerchants: (options?: BookRequestOptions): ApiResponsePromise<string[]> => {
         return axios.get<ApiResponse<string[]>>('v1/transactions/merchants/list.json', options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },

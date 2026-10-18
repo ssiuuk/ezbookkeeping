@@ -203,6 +203,7 @@ export interface TransactionTemplateModifyRequest {
     readonly scheduledEndDate?: string;
     readonly timeZone?: string;
     readonly utcOffset?: number;
+    readonly sourceBookId?: string;
 }
 
 export interface TransactionTemplateHideRequest {

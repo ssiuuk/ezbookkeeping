@@ -73,7 +73,7 @@
                 :header="tt('Book')"
                 :title="entryBookDisplayName"
                 @click="showEntryBookSheet = true"
-                v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction && mode === TransactionEditPageMode.Add && showEntryBookSelection"
+                v-if="((pageTypeAndMode?.type === TransactionEditPageType.Transaction && mode === TransactionEditPageMode.Add) || (pageTypeAndMode?.type === TransactionEditPageType.Template && mode !== TransactionEditPageMode.View)) && showEntryBookSelection"
             >
             </f7-list-item>
 
@@ -648,6 +648,7 @@ import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
 import { useBooksStore } from '@/stores/book.ts';
 import { useProjectsStore } from '@/stores/project.ts';
 import { useEntryBookSelectionBase } from '@/views/base/books/EntryBookSelectionBase.ts';
+import { useScheduledChangeBase, SCHEDULED_CHANGE_CONFIRM_MESSAGE, SCHEDULED_CHANGE_NOT_APPLIED_MESSAGE } from '@/views/base/transactions/ScheduledChangeBase.ts';
 import { REPEAT_NOT_SET_UP_MESSAGE, useTransactionRepeatBase } from '@/views/base/transactions/TransactionRepeatBase.ts';
 import type { BookInfoResponse } from '@/models/book.ts';
 
@@ -803,8 +804,13 @@ const {
     getBookDisplayName,
     initEntryBook,
     changeEntryBook,
-    restoreEntryBook
+    restoreEntryBook,
+    getMovingFromBookId
 } = useEntryBookSelectionBase();
+const { hasScheduledFieldChanges, applyToScheduleAndLaterTransactions } = useScheduledChangeBase();
+
+// the transaction as loaded, to find out whether a transaction created by a scheduled transaction has changed
+const originalTransaction = ref<Transaction | null>(null);
 
 const showEntryBookSheet = ref<boolean>(false);
 
@@ -1200,6 +1206,9 @@ function init(): void {
         );
 
         if (pageTypeAndMode.type === TransactionEditPageType.Transaction && query['id'] && responses[4] instanceof Transaction) {
+            originalTransaction.value = Transaction.of(transaction.value as Transaction);
+            originalTransaction.value.sourceTemplateId = responses[4].sourceTemplateId;
+
             if (fromTransaction && query['withTime'] && query['withTime'] === 'true') {
                 transaction.value.time = fromTransaction.time;
                 transaction.value.timeZone = fromTransaction.timeZone;
@@ -1263,17 +1272,30 @@ function save(afterAction: AfterSaveAction): void {
     }
 
     if (pageTypeAndMode?.type === TransactionEditPageType.Transaction && (mode.value === TransactionEditPageMode.Add || mode.value === TransactionEditPageMode.Edit)) {
-        const doSubmit = function () {
+        const doSubmit = function (applyToLaterScheduled: boolean) {
             submitting.value = true;
             showLoading(() => submitting.value);
 
             const repeatTemplate = buildRepeatTemplate();
+            const sourceTemplateId = originalTransaction.value?.sourceTemplateId;
+            let savedMessage = 'You have saved this transaction';
 
             transactionsStore.saveTransaction({
                 transaction: transaction.value as Transaction,
                 defaultCurrency: defaultCurrency.value,
                 isEdit: mode.value === TransactionEditPageMode.Edit,
                 clientSessionId: clientSessionId.value
+            }).then(() => {
+                if (!applyToLaterScheduled || !sourceTemplateId) {
+                    return;
+                }
+
+                return applyToScheduleAndLaterTransactions(transaction.value as Transaction, sourceTemplateId, defaultCurrency.value).then(() => {
+                    savedMessage = 'You have saved this transaction and its scheduled transaction';
+                }).catch(error => {
+                    logger.error('failed to apply changes to the scheduled transaction', error);
+                    savedMessage = SCHEDULED_CHANGE_NOT_APPLIED_MESSAGE;
+                });
             }).then(() => saveRepeatTemplate(repeatTemplate)).then(repeatSaved => {
                 const addedMessage = repeatSaved ? 'You have added a new transaction' : REPEAT_NOT_SET_UP_MESSAGE;
 
@@ -1294,7 +1316,7 @@ function save(afterAction: AfterSaveAction): void {
                     if (mode.value === TransactionEditPageMode.Add) {
                         showToast(addedMessage, repeatSaved ? undefined : 3000);
                     } else if (mode.value === TransactionEditPageMode.Edit) {
-                        showToast('You have saved this transaction');
+                        showToast(savedMessage);
                     }
 
                     router.back();
@@ -1330,21 +1352,36 @@ function save(afterAction: AfterSaveAction): void {
             });
         };
 
+        const confirmScheduledChangeAndSubmit = function () {
+            if (mode.value === TransactionEditPageMode.Edit && originalTransaction.value && hasScheduledFieldChanges(originalTransaction.value, transaction.value as Transaction)) {
+                showConfirm(SCHEDULED_CHANGE_CONFIRM_MESSAGE, () => {
+                    doSubmit(true);
+                }, () => {
+                    doSubmit(false);
+                });
+            } else {
+                doSubmit(false);
+            }
+        };
+
         if (transaction.value.sourceAmount === 0) {
             showConfirm('Are you sure you want to save this transaction with a zero amount?', () => {
-                doSubmit();
+                confirmScheduledChangeAndSubmit();
             });
         } else {
-            doSubmit();
+            confirmScheduledChangeAndSubmit();
         }
     } else if (pageTypeAndMode?.type === TransactionEditPageType.Template && (mode.value === TransactionEditPageMode.Add || mode.value === TransactionEditPageMode.Edit)) {
         submitting.value = true;
         showLoading(() => submitting.value);
 
+        const sourceBookId = mode.value === TransactionEditPageMode.Edit ? getMovingFromBookId() : undefined;
+
         transactionTemplatesStore.saveTemplateContent({
             template: transaction.value as TransactionTemplate,
             isEdit: mode.value === TransactionEditPageMode.Edit,
-            clientSessionId: clientSessionId.value
+            clientSessionId: clientSessionId.value,
+            sourceBookId: sourceBookId
         }).then(() => {
             submitting.value = false;
             submitted.value = true;
@@ -1353,7 +1390,7 @@ function save(afterAction: AfterSaveAction): void {
             if (mode.value === TransactionEditPageMode.Add) {
                 showToast('You have added a new template');
             } else if (mode.value === TransactionEditPageMode.Edit) {
-                showToast('You have saved this template');
+                showToast(sourceBookId ? 'You have moved this template to the selected book' : 'You have saved this template');
             }
 
             router.back();

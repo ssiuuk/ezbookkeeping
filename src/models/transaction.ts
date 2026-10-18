@@ -34,6 +34,7 @@ export class Transaction implements TransactionInfoResponse {
     public createdByUid?: string; // only for displaying transaction
     public projectId: string = NO_PROJECT_ID;
     public merchant: string = '';
+    public sourceTemplateId?: string; // only for transactions created by a scheduled transaction
 
     private _pictures?: TransactionPicture[];
     private _geoLocation?: TransactionGeoLocation;
@@ -385,6 +386,7 @@ export class Transaction implements TransactionInfoResponse {
         transaction.createdByUid = transactionResponse.createdByUid;
         transaction.projectId = transactionResponse.projectId || NO_PROJECT_ID;
         transaction.merchant = transactionResponse.merchant || '';
+        transaction.sourceTemplateId = transactionResponse.sourceTemplateId;
 
         return transaction;
     }
@@ -715,6 +717,7 @@ export interface TransactionInfoResponse {
     readonly geoLocation?: TransactionGeoLocationResponse;
     readonly createdByUid?: string;
     readonly projectId?: string;
+    readonly sourceTemplateId?: string;
     readonly editable: boolean;
 }
 

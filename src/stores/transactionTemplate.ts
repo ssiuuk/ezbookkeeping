@@ -224,7 +224,8 @@ export const useTransactionTemplatesStore = defineStore('transactionTemplates', 
         });
     }
 
-    function saveTemplateContent({ template, isEdit, clientSessionId }: { template: TransactionTemplate, isEdit: boolean, clientSessionId: string }): Promise<TransactionTemplate> {
+    // sourceBookId moves an edited template from that book to the book of the request
+    function saveTemplateContent({ template, isEdit, clientSessionId, sourceBookId }: { template: TransactionTemplate, isEdit: boolean, clientSessionId: string, sourceBookId?: string }): Promise<TransactionTemplate> {
         return new Promise((resolve, reject) => {
             let promise: ApiResponsePromise<TransactionTemplateInfoResponse>;
 
@@ -238,7 +239,7 @@ export const useTransactionTemplatesStore = defineStore('transactionTemplates', 
             if (!isEdit) {
                 promise = services.addTransactionTemplate(template.toTemplateCreateRequest(clientSessionId));
             } else {
-                promise = services.modifyTransactionTemplate(template.toTemplateModifyRequest());
+                promise = services.modifyTransactionTemplate(sourceBookId ? { ...template.toTemplateModifyRequest(), sourceBookId } : template.toTemplateModifyRequest());
             }
 
             promise.then(response => {
@@ -257,6 +258,9 @@ export const useTransactionTemplatesStore = defineStore('transactionTemplates', 
 
                 if (!isEdit) {
                     addTemplateToTransactionTemplateList(template.templateType, template);
+                } else if (sourceBookId) {
+                    // the template has left the book whose list is cached
+                    removeTemplateFromTransactionTemplateList(template.templateType, template);
                 } else {
                     updateTemplateInTransactionTemplateList(template.templateType, template);
                 }
