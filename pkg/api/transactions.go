@@ -2848,6 +2848,7 @@ func (a *TransactionsApi) TransactionParseImportFileHandler(c *core.WebContext) 
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
+	accounts = getAccountsOfBookWithUniqueNames(c, a.accounts, a.users, accounts, uid)
 	accountMap := a.accounts.GetVisibleAccountNameMapOfBookByList(accounts, uid)
 
 	categories, err := a.transactionCategories.GetAllCategoriesByUid(c, uid, 0, -1)

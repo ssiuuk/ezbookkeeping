@@ -945,26 +945,78 @@ func (s *AccountService) GetVisibleAccountNameMapByList(accounts []*models.Accou
 	return accountMap
 }
 
-// GetVisibleAccountNameMapOfBookByList returns visible account map of a book by a list, the accounts owned by the book take precedence over the accounts shared to it when the names are the same
+// GetVisibleAccountNameMapOfBookByList returns visible account map of a book by a list, a name which belongs to an account shared to the book and also to any other visible account of the book is ambiguous and left out, so that the caller cannot silently pick the wrong account and the user has to choose one
 func (s *AccountService) GetVisibleAccountNameMapOfBookByList(accounts []*models.Account, bookId int64) map[string]*models.Account {
-	sharedAccounts := make([]*models.Account, 0, len(accounts))
-	ownAccounts := make([]*models.Account, 0, len(accounts))
+	accountMap := s.GetVisibleAccountNameMapByList(accounts)
+	nameCounts := make(map[string]int, len(accountMap))
+	nameHasSharedAccount := make(map[string]bool)
 
 	for i := 0; i < len(accounts); i++ {
-		if accounts[i].Uid == bookId {
-			ownAccounts = append(ownAccounts, accounts[i])
-		} else {
-			sharedAccounts = append(sharedAccounts, accounts[i])
+		account := accounts[i]
+
+		if account.Hidden || account.Type == models.ACCOUNT_TYPE_MULTI_SUB_ACCOUNTS {
+			continue
+		}
+
+		nameCounts[account.Name]++
+
+		if account.Uid != bookId {
+			nameHasSharedAccount[account.Name] = true
 		}
 	}
 
-	accountMap := s.GetVisibleAccountNameMapByList(sharedAccounts)
-
-	for name, account := range s.GetVisibleAccountNameMapByList(ownAccounts) {
-		accountMap[name] = account
+	for name, count := range nameCounts {
+		if count > 1 && nameHasSharedAccount[name] {
+			delete(accountMap, name)
+		}
 	}
 
 	return accountMap
+}
+
+// GetUniqueAccountNamesOfBook returns the names to use for the accounts of a book in exported files and import matching, when an account shared to the book has the same name as another account of the book, the shared account is named with its owner's nickname, and the account id is appended when the names are still the same
+func (s *AccountService) GetUniqueAccountNamesOfBook(accounts []*models.Account, bookId int64, ownerNicknames map[int64]string) map[int64]string {
+	accountNames := make(map[int64]string, len(accounts))
+	nameCounts := make(map[string]int, len(accounts))
+	nameHasSharedAccount := make(map[string]bool)
+
+	for i := 0; i < len(accounts); i++ {
+		nameCounts[accounts[i].Name]++
+
+		if accounts[i].Uid != bookId {
+			nameHasSharedAccount[accounts[i].Name] = true
+		}
+	}
+
+	for i := 0; i < len(accounts); i++ {
+		account := accounts[i]
+		name := account.Name
+
+		if nameCounts[name] > 1 && nameHasSharedAccount[name] && account.Uid != bookId {
+			if nickname := ownerNicknames[account.Uid]; nickname != "" {
+				name = fmt.Sprintf("%s (%s)", name, nickname)
+			}
+		}
+
+		accountNames[account.AccountId] = name
+	}
+
+	uniqueNameCounts := make(map[string]int, len(accountNames))
+
+	for _, name := range accountNames {
+		uniqueNameCounts[name]++
+	}
+
+	for i := 0; i < len(accounts); i++ {
+		account := accounts[i]
+		name := accountNames[account.AccountId]
+
+		if uniqueNameCounts[name] > 1 && nameHasSharedAccount[account.Name] && account.Uid != bookId {
+			accountNames[account.AccountId] = fmt.Sprintf("%s #%d", name, account.AccountId)
+		}
+	}
+
+	return accountNames
 }
 
 // GetAccountNames returns a list with account names from account models list

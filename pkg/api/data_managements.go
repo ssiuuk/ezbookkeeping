@@ -451,6 +451,8 @@ func (a *DataManagementsApi) getExportedFileContent(c *core.WebContext, fileType
 		return nil, "", errs.ErrOperationFailed
 	}
 
+	accounts = getAccountsOfBookWithUniqueNames(c, a.accounts, a.users, accounts, uid)
+
 	categories, err := a.categories.GetAllCategoriesByUid(c, uid, 0, -1)
 
 	if err != nil {

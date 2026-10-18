@@ -20,6 +20,8 @@ const (
 	databaseBackupFileNameSuffix     = ".db"
 	databaseBackupFileNameTimeLayout = "20060102-150405"
 	databaseBackupTempFileSuffix     = ".tmp"
+	databaseBackupDirMode            = 0700
+	databaseBackupFileMode           = 0600
 )
 
 var databaseBackupFileNamePattern = regexp.MustCompile(`^ezbookkeeping-\d{8}-\d{6}\.db$`)
@@ -90,7 +92,8 @@ func backupSqliteDatabase(c core.Context, db *Database, backupDir string, now ti
 		return "", err
 	}
 
-	if err = os.MkdirAll(backupDir, 0755); err != nil {
+	// backups hold every user's data, so a new backup directory is only accessible to the server user
+	if err = os.MkdirAll(backupDir, databaseBackupDirMode); err != nil {
 		return "", err
 	}
 
@@ -103,6 +106,18 @@ func backupSqliteDatabase(c core.Context, db *Database, backupDir string, now ti
 
 	// VACUUM INTO requires that the target file does not exist or is empty
 	if err = os.Remove(tempFilePath); err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
+
+	// create the empty target with private permissions before writing, VACUUM INTO keeps the mode of an existing empty file
+	tempFile, err := os.OpenFile(tempFilePath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, databaseBackupFileMode)
+
+	if err != nil {
+		return "", err
+	}
+
+	if err = tempFile.Close(); err != nil {
+		_ = os.Remove(tempFilePath)
 		return "", err
 	}
 

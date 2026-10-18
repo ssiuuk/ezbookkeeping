@@ -45,7 +45,7 @@ func TestGetAccountMapByList_MultipleList(t *testing.T) {
 	assert.Equal(t, "Credit Card", actualAccountMap[1003].Name)
 }
 
-func TestGetVisibleAccountNameMapOfBookByList_OwnAccountTakesPrecedence(t *testing.T) {
+func TestGetVisibleAccountNameMapOfBookByList_AmbiguousSharedNameIsLeftOut(t *testing.T) {
 	bookId := int64(9001)
 	accounts := []*models.Account{
 		{
@@ -76,10 +76,44 @@ func TestGetVisibleAccountNameMapOfBookByList_OwnAccountTakesPrecedence(t *testi
 	}
 	actualAccountMap := Accounts.GetVisibleAccountNameMapOfBookByList(accounts, bookId)
 
-	assert.Equal(t, 2, len(actualAccountMap))
-	assert.Equal(t, int64(1001), actualAccountMap["Cash"].AccountId)
+	assert.Equal(t, 1, len(actualAccountMap))
+	assert.NotContains(t, actualAccountMap, "Cash")
 	assert.Equal(t, int64(3001), actualAccountMap["Alice's Card"].AccountId)
 	assert.NotContains(t, actualAccountMap, "Hidden Shared")
+}
+
+func TestGetVisibleAccountNameMapOfBookByList_DuplicateOwnAccountNamesAreKept(t *testing.T) {
+	bookId := int64(9001)
+	accounts := []*models.Account{
+		{Uid: bookId, AccountId: 1001, Name: "Cash", Type: models.ACCOUNT_TYPE_SINGLE_ACCOUNT},
+		{Uid: bookId, AccountId: 1002, Name: "Cash", Type: models.ACCOUNT_TYPE_SINGLE_ACCOUNT},
+	}
+	actualAccountMap := Accounts.GetVisibleAccountNameMapOfBookByList(accounts, bookId)
+
+	// a personal book keeps the existing behaviour for its own accounts
+	assert.Equal(t, int64(1002), actualAccountMap["Cash"].AccountId)
+}
+
+func TestGetUniqueAccountNamesOfBook(t *testing.T) {
+	bookId := int64(9001)
+	accounts := []*models.Account{
+		{Uid: bookId, AccountId: 1001, Name: "Cash"},
+		{Uid: 1, AccountId: 2001, Name: "Cash"},
+		{Uid: 1, AccountId: 2002, Name: "Visa"},
+		{Uid: 1, AccountId: 2003, Name: "Visa"},
+		{Uid: 2, AccountId: 3001, Name: "Visa"},
+		{Uid: 2, AccountId: 3002, Name: "Savings"},
+		{Uid: bookId, AccountId: 1002, Name: "Mortgage"},
+	}
+	actualNames := Accounts.GetUniqueAccountNamesOfBook(accounts, bookId, map[int64]string{1: "Bob", 2: "Alice"})
+
+	assert.Equal(t, "Cash", actualNames[1001])
+	assert.Equal(t, "Cash (Bob)", actualNames[2001])
+	assert.Equal(t, "Visa (Bob) #2002", actualNames[2002])
+	assert.Equal(t, "Visa (Bob) #2003", actualNames[2003])
+	assert.Equal(t, "Visa (Alice)", actualNames[3001])
+	assert.Equal(t, "Savings", actualNames[3002])
+	assert.Equal(t, "Mortgage", actualNames[1002])
 }
 
 func TestGetVisibleAccountNameMapByList_EmptyList(t *testing.T) {
