@@ -3413,6 +3413,12 @@ func (s *TransactionService) createTransactionByScheduledTransactionTemplate(c c
 		return nil, nil
 	}
 
+	// the occurrence on the skip date has already been created (e.g. the transaction which set up the repeat), while the start time is still the recurrence anchor
+	if template.ScheduledSkipTime != nil && time.Unix(*template.ScheduledSkipTime, 0).In(templateTimezone).Format("2006-01-02") == transactionTime.Format("2006-01-02") {
+		log.Infof(c, "[transactions.CreateScheduledTransactions] transaction template \"id:%d\" does not need to create transaction, the occurrence on %s has already been created", template.TemplateId, transactionTime.Format("2006-01-02"))
+		return nil, nil
+	}
+
 	var transactionDbType models.TransactionDbType
 
 	if template.Type == models.TRANSACTION_TYPE_EXPENSE {

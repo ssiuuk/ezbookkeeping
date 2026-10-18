@@ -19,7 +19,7 @@ import {
 } from '@/lib/datetime.ts';
 import { generateRandomUUID } from '@/lib/misc.ts';
 import { isUserScheduledTransactionEnabled } from '@/lib/server_settings.ts';
-import { getRepeatScheduledStartDate } from '@/lib/template.ts';
+import { getRepeatScheduledDates } from '@/lib/template.ts';
 import logger from '@/lib/logger.ts';
 
 import { TransactionEditPageMode, TransactionEditPageType } from './TransactionEditPageBase.ts';
@@ -79,12 +79,9 @@ export function useTransactionRepeatBase(pageType: TransactionEditPageType, mode
         template.utcOffset = current.utcOffset;
         template.scheduledFrequencyType = repeatFrequencyType.value;
         template.scheduledFrequency = repeatFrequency.value;
-        template.scheduledStartDate = getRepeatScheduledStartDate(
-            repeatFrequencyType.value,
-            repeatFrequency.value,
-            parseDateTimeFromUnixTimeWithTimezoneOffset(current.time, current.utcOffset),
-            parseDateTimeFromUnixTimeWithTimezoneOffset(getCurrentUnixTime(), current.utcOffset)
-        );
+        const repeatDates = getRepeatScheduledDates(parseDateTimeFromUnixTimeWithTimezoneOffset(current.time, current.utcOffset));
+        template.scheduledStartDate = repeatDates.startDate;
+        template.scheduledSkipDate = repeatDates.skipDate;
 
         return template;
     }
