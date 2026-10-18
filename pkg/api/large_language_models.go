@@ -400,8 +400,9 @@ func (a *LargeLanguageModelsApi) getUserEssentialData(c *core.WebContext, uid in
 		return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 
-	accounts = getAccountsOfBookWithUniqueNames(c, a.accounts, a.users, accounts, uid)
-	accountMap := a.accounts.GetVisibleAccountNameMapOfBookByList(accounts, uid)
+	accountNaming := getBookAccountNaming(c, a.users, accounts, uid)
+	accountMap := getUniqueAccountNameMap(a.accounts, accounts, accountNaming)
+	accounts = renameAccountsToUniqueNames(a.accounts, accounts, accountNaming)
 	accountNames := make([]string, 0, len(accounts))
 
 	for i := 0; i < len(accounts); i++ {
