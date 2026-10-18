@@ -57,6 +57,29 @@ func (s *AccountService) GetAllAccountsByUid(c core.Context, uid int64) ([]*mode
 	return accounts, err
 }
 
+// GetAllAccountsOfBook returns all account models of a book, including the accounts which book members shared to it
+func (s *AccountService) GetAllAccountsOfBook(c core.Context, bookId int64) ([]*models.Account, error) {
+	if bookId <= 0 {
+		return nil, errs.ErrUserIdInvalid
+	}
+
+	var accounts []*models.Account
+	err := s.UserDataDB(bookId).NewSession(c).Where(accountOfBookCondition, false, bookId, bookId).OrderBy("parent_account_id asc, display_order asc").Find(&accounts)
+
+	return accounts, err
+}
+
+// GetTotalAccountCountOfBook returns total account count of a book, including the accounts which book members shared to it
+func (s *AccountService) GetTotalAccountCountOfBook(c core.Context, bookId int64) (int64, error) {
+	if bookId <= 0 {
+		return 0, errs.ErrUserIdInvalid
+	}
+
+	count, err := s.UserDataDB(bookId).NewSession(c).Where(accountOfBookCondition, false, bookId, bookId).Count(&models.Account{})
+
+	return count, err
+}
+
 // GetAccountByAccountId returns account model according to account id
 func (s *AccountService) GetAccountByAccountId(c core.Context, uid int64, accountId int64) (*models.Account, error) {
 	if uid <= 0 {
@@ -919,6 +942,28 @@ func (s *AccountService) GetVisibleAccountNameMapByList(accounts []*models.Accou
 
 		accountMap[account.Name] = account
 	}
+	return accountMap
+}
+
+// GetVisibleAccountNameMapOfBookByList returns visible account map of a book by a list, the accounts owned by the book take precedence over the accounts shared to it when the names are the same
+func (s *AccountService) GetVisibleAccountNameMapOfBookByList(accounts []*models.Account, bookId int64) map[string]*models.Account {
+	sharedAccounts := make([]*models.Account, 0, len(accounts))
+	ownAccounts := make([]*models.Account, 0, len(accounts))
+
+	for i := 0; i < len(accounts); i++ {
+		if accounts[i].Uid == bookId {
+			ownAccounts = append(ownAccounts, accounts[i])
+		} else {
+			sharedAccounts = append(sharedAccounts, accounts[i])
+		}
+	}
+
+	accountMap := s.GetVisibleAccountNameMapByList(sharedAccounts)
+
+	for name, account := range s.GetVisibleAccountNameMapByList(ownAccounts) {
+		accountMap[name] = account
+	}
+
 	return accountMap
 }
 

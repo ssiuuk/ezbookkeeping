@@ -5,6 +5,7 @@ import (
 	"math"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/mayswind/ezbookkeeping/pkg/converters"
 	"github.com/mayswind/ezbookkeeping/pkg/core"
@@ -36,6 +37,7 @@ type DataManagementsApi struct {
 	insightsExploreres      *services.InsightsExplorerService
 	categoryBudgets         *services.TransactionCategoryBudgetService
 	projects                *services.ProjectService
+	books                   *services.BookService
 }
 
 // Initialize a data management api singleton instance
@@ -58,6 +60,7 @@ var (
 		insightsExploreres:      services.InsightsExplorers,
 		categoryBudgets:         services.TransactionCategoryBudgets,
 		projects:                services.Projects,
+		books:                   services.Books,
 	}
 )
 
@@ -73,12 +76,9 @@ func (a *DataManagementsApi) ExportDataToEzbookkeepingTSVHandler(c *core.WebCont
 
 // DataStatisticsHandler returns user data statistics
 func (a *DataManagementsApi) DataStatisticsHandler(c *core.WebContext) (any, *errs.Error) {
-	uid := c.GetCurrentUid()
-
-	if c.GetCurrentBookUid() != uid {
-		return nil, errs.ErrOperationNotAvailableInSharedBook
-	}
-	totalAccountCount, err := a.accounts.GetTotalAccountCountByUid(c, uid)
+	// the statistics are of the current book, a shared book also counts the accounts which book members shared to it
+	uid := c.GetCurrentBookUid()
+	totalAccountCount, err := a.accounts.GetTotalAccountCountOfBook(c, uid)
 
 	if err != nil {
 		log.Errorf(c, "[data_managements.DataStatisticsHandler] failed to get total account count for user \"uid:%d\", because %s", uid, err.Error())
@@ -416,16 +416,14 @@ func (a *DataManagementsApi) getExportedFileContent(c *core.WebContext, fileType
 		clientTimezone = time.Local
 	}
 
-	uid := c.GetCurrentUid()
-
-	if c.GetCurrentBookUid() != uid {
-		return nil, "", errs.ErrOperationNotAvailableInSharedBook
-	}
-	user, err := a.users.GetUserById(c, uid)
+	// the data owner is the current book (a shared book id or the user's own uid), the user settings come from the logged-in user
+	uid := c.GetCurrentBookUid()
+	currentUid := c.GetCurrentUid()
+	user, err := a.users.GetUserById(c, currentUid)
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
-			log.Warnf(c, "[data_managements.getExportedFileContent] failed to get user for user \"uid:%d\", because %s", uid, err.Error())
+			log.Warnf(c, "[data_managements.getExportedFileContent] failed to get user for user \"uid:%d\", because %s", currentUid, err.Error())
 		}
 
 		return nil, "", errs.ErrUserNotFound
@@ -435,7 +433,18 @@ func (a *DataManagementsApi) getExportedFileContent(c *core.WebContext, fileType
 		return nil, "", errs.ErrNotPermittedToPerformThisAction
 	}
 
-	accounts, err := a.accounts.GetAllAccountsByUid(c, uid)
+	var sharedBook *models.SharedBook
+
+	if uid != currentUid {
+		sharedBook, err = a.books.GetSharedBookById(c, uid)
+
+		if err != nil {
+			log.Errorf(c, "[data_managements.getExportedFileContent] failed to get shared book \"id:%d\", because %s", uid, err.Error())
+			return nil, "", errs.Or(err, errs.ErrOperationFailed)
+		}
+	}
+
+	accounts, err := a.accounts.GetAllAccountsOfBook(c, uid)
 
 	if err != nil {
 		log.Errorf(c, "[data_managements.getExportedFileContent] failed to get all accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -524,16 +533,44 @@ func (a *DataManagementsApi) getExportedFileContent(c *core.WebContext, fileType
 		return nil, "", errs.Or(err, errs.ErrOperationFailed)
 	}
 
-	fileName := a.getFileName(user, clientTimezone, fileType)
+	fileName := a.getFileName(user, sharedBook, clientTimezone, fileType)
 
 	return result, fileName, nil
 }
 
-func (a *DataManagementsApi) getFileName(user *models.User, clientTimezone *time.Location, fileExtension string) string {
+func (a *DataManagementsApi) getFileName(user *models.User, sharedBook *models.SharedBook, clientTimezone *time.Location, fileExtension string) string {
 	currentTime := utils.FormatUnixTimeToLongDateTimeWithoutSecond(time.Now().Unix(), clientTimezone)
 	currentTime = strings.Replace(currentTime, "-", "_", -1)
 	currentTime = strings.Replace(currentTime, " ", "_", -1)
 	currentTime = strings.Replace(currentTime, ":", "_", -1)
 
+	if sharedBook != nil {
+		bookName := getFileNameSafeText(sharedBook.Name)
+
+		if bookName == "" {
+			bookName = utils.Int64ToString(sharedBook.BookId)
+		}
+
+		return fmt.Sprintf("%s_book_%s_%s.%s", user.Username, bookName, currentTime, fileExtension)
+	}
+
 	return fmt.Sprintf("%s_%s.%s", user.Username, currentTime, fileExtension)
+}
+
+// getFileNameSafeText replaces the characters which are not allowed or unsafe in file names with underscores
+func getFileNameSafeText(text string) string {
+	var builder strings.Builder
+
+	for _, ch := range strings.TrimSpace(text) {
+		switch {
+		case ch == '/' || ch == '\\' || ch == ':' || ch == '*' || ch == '?' || ch == '"' || ch == '<' || ch == '>' || ch == '|' || ch == ';' || ch == ',':
+			builder.WriteRune('_')
+		case unicode.IsSpace(ch) || unicode.IsControl(ch):
+			builder.WriteRune('_')
+		default:
+			builder.WriteRune(ch)
+		}
+	}
+
+	return builder.String()
 }

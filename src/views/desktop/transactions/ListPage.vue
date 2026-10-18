@@ -721,6 +721,7 @@ import { useTheme } from 'vuetify';
 
 import { useI18n } from '@/locales/helpers.ts';
 import { type TransactionListDisplayTotalAmount, TransactionListPageType, useTransactionListPageBase } from '@/views/base/transactions/TransactionListPageBase.ts';
+import { useExportFileName } from '@/views/base/users/DataManagementPageBase.ts';
 
 import { useSettingsStore } from '@/stores/setting.ts';
 import { useUserStore } from '@/stores/user.ts';
@@ -905,6 +906,8 @@ const {
     getTransactionTypeName,
     getTransactionPictureUrl
 } = useTransactionListPageBase();
+
+const { getExportFileName } = useExportFileName();
 
 const settingsStore = useSettingsStore();
 const userStore = useUserStore();
@@ -1703,17 +1706,7 @@ function exportTransactions(fileExtension: string): void {
         return;
     }
 
-    const nickname = userStore.currentUserNickname;
-    let exportFileName = '';
-
-    if (nickname) {
-        exportFileName = tt('dataExport.exportFilename', {
-            nickname: nickname
-        }) + '.' + fileExtension;
-    } else {
-        exportFileName = tt('dataExport.defaultExportFilename') + '.' + fileExtension;
-    }
-
+    const exportFileName = getExportFileName(fileExtension);
     const exportTransactionReq = transactionsStore.getExportTransactionDataRequestByTransactionFilter();
 
     exportingData.value = true;
