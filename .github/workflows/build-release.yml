@@ -249,6 +249,8 @@ jobs:
 
   publish-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     needs:
       - setup
       - build-linux-docker-and-package-x86
