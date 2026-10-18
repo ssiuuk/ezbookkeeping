@@ -1831,3 +1831,137 @@ func TestCreateTransactionByScheduledTransactionTemplate_SkippedDate(t *testing.
 	assert.Equal(t, expectedValue, actualValue)
 	assert.Equal(t, []int64{}, actualTagIds)
 }
+
+// collectScheduledTransactionDates runs the scheduled job decision for every local date from fromDate to toDate (inclusive) and returns the local dates on which a transaction is created
+func collectScheduledTransactionDates(t *testing.T, template *models.TransactionTemplate, location *time.Location, fromDate string, toDate string) []string {
+	from, err := time.ParseInLocation("2006-01-02", fromDate, location)
+	assert.Equal(t, nil, err)
+	to, err := time.ParseInLocation("2006-01-02", toDate, location)
+	assert.Equal(t, nil, err)
+
+	dates := make([]string, 0)
+
+	for date := from; !date.After(to); date = time.Date(date.Year(), date.Month(), date.Day()+1, 0, 0, 0, 0, location) {
+		startTimeInUTC := date.In(time.UTC)
+		todayFirstUnixTimeInUTC := time.Date(startTimeInUTC.Year(), startTimeInUTC.Month(), startTimeInUTC.Day(), 0, 0, 0, 0, time.UTC).Unix()
+		transaction, _ := Transactions.createTransactionByScheduledTransactionTemplate(core.NewNullContext(), template, startTimeInUTC, todayFirstUnixTimeInUTC)
+
+		if transaction != nil {
+			dates = append(dates, time.Unix(utils.GetUnixTimeFromTransactionTime(transaction.TransactionTime), 0).In(location).Format("2006-01-02"))
+		}
+	}
+
+	return dates
+}
+
+// newRepeatScheduledTransactionTemplate returns a scheduled template like the one created by repeating a transaction, the start date is the transaction date (the anchor) and the skip date is the date of the already created transaction
+func newRepeatScheduledTransactionTemplate(t *testing.T, frequencyType models.TransactionScheduleFrequencyType, frequency string, startDate string, skipDate string, location *time.Location) *models.TransactionTemplate {
+	startTime, err := utils.ParseFromLongDateFirstTimeInTimezone(startDate, location)
+	assert.Equal(t, nil, err)
+	startUnixTime := startTime.Unix()
+
+	template := &models.TransactionTemplate{
+		Type:                   models.TRANSACTION_TYPE_EXPENSE,
+		ScheduledFrequencyType: frequencyType,
+		ScheduledFrequency:     frequency,
+		ScheduledStartTime:     &startUnixTime,
+		ScheduledTimezoneName:  location.String(),
+		CreatedUnixTime:        time.Date(2026, 10, 18, 4, 0, 0, 0, time.UTC).Unix(),
+	}
+
+	if skipDate != "" {
+		skipTime, err := utils.ParseFromLongDateFirstTimeInTimezone(skipDate, location)
+		assert.Equal(t, nil, err)
+		skipUnixTime := skipTime.Unix()
+		template.ScheduledSkipTime = &skipUnixTime
+	}
+
+	template.ScheduledAt = utils.GetScheduledTransactionScheduledAt(template.CreatedUnixTime, location)
+
+	return template
+}
+
+func TestCreateTransactionByScheduledTransactionTemplate_RepeatFutureMonthEndAnchor(t *testing.T) {
+	location, err := time.LoadLocation("Asia/Shanghai")
+	assert.Equal(t, nil, err)
+
+	// A future transaction on January 31, 2027 repeating every month, the transaction itself has already been created.
+	template := newRepeatScheduledTransactionTemplate(t, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS, "1", "2027-01-31", "2027-01-31", location)
+
+	assert.Equal(t, []string{
+		"2027-02-28",
+		"2027-03-31",
+		"2027-04-30",
+		"2027-05-31",
+		"2027-06-30",
+		"2027-07-31",
+		"2027-08-31",
+		"2027-09-30",
+		"2027-10-31",
+		"2027-11-30",
+		"2027-12-31",
+		"2028-01-31",
+		"2028-02-29",
+	}, collectScheduledTransactionDates(t, template, location, "2026-10-18", "2028-03-01"))
+
+	// Every 3 months from November 30 keeps the 30th after the short February.
+	template = newRepeatScheduledTransactionTemplate(t, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS, "3", "2026-11-30", "2026-11-30", location)
+
+	assert.Equal(t, []string{
+		"2027-02-28",
+		"2027-05-30",
+		"2027-08-30",
+		"2027-11-30",
+	}, collectScheduledTransactionDates(t, template, location, "2026-10-18", "2027-12-31"))
+}
+
+func TestCreateTransactionByScheduledTransactionTemplate_RepeatFutureLeapDayAnchor(t *testing.T) {
+	location, err := time.LoadLocation("America/New_York")
+	assert.Equal(t, nil, err)
+
+	// A future transaction on February 29, 2028 repeating every year, the transaction itself has already been created.
+	template := newRepeatScheduledTransactionTemplate(t, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_YEARS, "1", "2028-02-29", "2028-02-29", location)
+
+	assert.Equal(t, []string{
+		"2029-02-28",
+		"2030-02-28",
+		"2031-02-28",
+		"2032-02-29",
+		"2033-02-28",
+	}, collectScheduledTransactionDates(t, template, location, "2026-10-18", "2033-12-31"))
+}
+
+func TestCreateTransactionByScheduledTransactionTemplate_RepeatFutureDaysAndWeeks(t *testing.T) {
+	location := time.UTC
+
+	template := newRepeatScheduledTransactionTemplate(t, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS, "3", "2026-10-20", "2026-10-20", location)
+	assert.Equal(t, []string{"2026-10-23", "2026-10-26", "2026-10-29"}, collectScheduledTransactionDates(t, template, location, "2026-10-18", "2026-10-31"))
+
+	template = newRepeatScheduledTransactionTemplate(t, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_WEEKS, "2", "2026-10-20", "2026-10-20", location)
+	assert.Equal(t, []string{"2026-11-03", "2026-11-17", "2026-12-01"}, collectScheduledTransactionDates(t, template, location, "2026-10-18", "2026-12-07"))
+}
+
+func TestCreateTransactionByScheduledTransactionTemplate_RepeatTodayAndPastAnchor(t *testing.T) {
+	location, err := time.LoadLocation("Asia/Shanghai")
+	assert.Equal(t, nil, err)
+
+	// A transaction today repeating every month must not be created again by the scheduled job today.
+	template := newRepeatScheduledTransactionTemplate(t, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS, "1", "2026-10-18", "2026-10-18", location)
+	assert.Equal(t, []string{"2026-11-18", "2026-12-18", "2027-01-18"}, collectScheduledTransactionDates(t, template, location, "2026-10-18", "2027-01-31"))
+
+	// A past transaction keeps its date as the anchor, and the scheduled job only creates the occurrences from now on.
+	template = newRepeatScheduledTransactionTemplate(t, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS, "1", "2026-01-31", "2026-01-31", location)
+	assert.Equal(t, []string{"2026-10-31", "2026-11-30", "2026-12-31", "2027-01-31", "2027-02-28", "2027-03-31"}, collectScheduledTransactionDates(t, template, location, "2026-10-19", "2027-04-01"))
+
+	// The other frequency types also skip the created transaction date.
+	template = newRepeatScheduledTransactionTemplate(t, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_DAILY, "0", "2026-10-20", "2026-10-20", location)
+	assert.Equal(t, []string{"2026-10-21", "2026-10-22"}, collectScheduledTransactionDates(t, template, location, "2026-10-18", "2026-10-22"))
+
+	// Only the created occurrence is skipped, so moving the start date earlier keeps the occurrences before the skip date.
+	template = newRepeatScheduledTransactionTemplate(t, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS, "1", "2026-12-01", "2027-01-31", location)
+	assert.Equal(t, []string{"2026-12-01", "2027-01-01", "2027-02-01"}, collectScheduledTransactionDates(t, template, location, "2026-10-18", "2027-02-28"))
+
+	// Without the skip marker the start date itself is an occurrence.
+	template = newRepeatScheduledTransactionTemplate(t, models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_MONTHS, "1", "2027-01-31", "", location)
+	assert.Equal(t, []string{"2027-01-31", "2027-02-28", "2027-03-31"}, collectScheduledTransactionDates(t, template, location, "2027-01-01", "2027-04-01"))
+}

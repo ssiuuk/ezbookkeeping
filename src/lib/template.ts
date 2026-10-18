@@ -1,6 +1,5 @@
 import { reversed } from '@/core/base.ts';
-import type { DateTime, DateTimeUnit, TextualYearMonthDay } from '@/core/datetime.ts';
-import { ScheduledTemplateFrequencyType } from '@/core/template.ts';
+import type { DateTime, TextualYearMonthDay } from '@/core/datetime.ts';
 import { TransactionTemplate } from '@/models/transaction_template.ts';
 
 export function isNoAvailableTemplate(templates: TransactionTemplate[], showHidden: boolean): boolean {
@@ -57,40 +56,19 @@ export function getScheduledFrequencyValues(frequency: string | undefined): numb
     return ret;
 }
 
-function getEveryNIntervalAmountAndUnit(frequencyType: number, n: number): { amount: number, unit: DateTimeUnit } | null {
-    if (frequencyType === ScheduledTemplateFrequencyType.EveryNDays.type) {
-        return { amount: n, unit: 'days' };
-    } else if (frequencyType === ScheduledTemplateFrequencyType.EveryNWeeks.type) {
-        return { amount: n * 7, unit: 'days' };
-    } else if (frequencyType === ScheduledTemplateFrequencyType.EveryNMonths.type) {
-        return { amount: n, unit: 'months' };
-    } else if (frequencyType === ScheduledTemplateFrequencyType.EveryNYears.type) {
-        return { amount: n, unit: 'years' };
-    } else {
-        return null;
-    }
+export interface RepeatScheduledDates {
+    readonly startDate: TextualYearMonthDay;
+    readonly skipDate: TextualYearMonthDay;
 }
 
-// returns the start date of a scheduled template which repeats a transaction, so that its first occurrence is the next one after the transaction date
-// the every N types use the start date as the anchor, so the transaction date is kept unless the scheduled job could still create a transaction on that date
-export function getRepeatScheduledStartDate(frequencyType: number, frequency: string, transactionDateTime: DateTime, currentDateTime: DateTime): TextualYearMonthDay {
+// returns the dates of a scheduled template which repeats a transaction
+// the start date is the transaction date, which the every N types use as the recurrence anchor (so a month end or leap day anchor is not lost by clamping),
+// and the skip date tells the scheduled job that the occurrence on the transaction date has already been created, so it is not duplicated
+export function getRepeatScheduledDates(transactionDateTime: DateTime): RepeatScheduledDates {
     const transactionDate = transactionDateTime.getGregorianCalendarYearDashMonthDashDay();
 
-    if (!ScheduledTemplateFrequencyType.isEveryNInterval(frequencyType)) {
-        return transactionDateTime.add(1, 'days').getGregorianCalendarYearDashMonthDashDay();
-    }
-
-    // the scheduled job runs at the start of each day, so it has already run for today and earlier dates
-    if (transactionDate <= currentDateTime.getGregorianCalendarYearDashMonthDashDay()) {
-        return transactionDate;
-    }
-
-    const values = getScheduledFrequencyValues(frequency);
-    const interval = getEveryNIntervalAmountAndUnit(frequencyType, values.length === 1 && values[0] ? values[0] : 1);
-
-    if (!interval) {
-        return transactionDate;
-    }
-
-    return transactionDateTime.add(interval.amount, interval.unit).getGregorianCalendarYearDashMonthDashDay();
+    return {
+        startDate: transactionDate,
+        skipDate: transactionDate
+    };
 }

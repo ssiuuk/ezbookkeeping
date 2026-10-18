@@ -149,7 +149,7 @@ func (s *TransactionTemplateService) ModifyTemplate(c core.Context, template *mo
 			return err
 		}
 
-		updatedRows, err := sess.ID(template.TemplateId).Cols("name", "type", "category_id", "account_id", "scheduled_frequency_type", "scheduled_frequency", "scheduled_start_time", "scheduled_end_time", "scheduled_at", "scheduled_timezone_name", "scheduled_timezone_utc_offset", "tag_ids", "amount", "related_account_id", "related_account_amount", "hide_amount", "comment", "merchant", "updated_unix_time").Where("uid=? AND deleted=?", template.Uid, false).Update(template)
+		updatedRows, err := sess.ID(template.TemplateId).Cols("name", "type", "category_id", "account_id", "scheduled_frequency_type", "scheduled_frequency", "scheduled_start_time", "scheduled_end_time", "scheduled_skip_time", "scheduled_at", "scheduled_timezone_name", "scheduled_timezone_utc_offset", "tag_ids", "amount", "related_account_id", "related_account_amount", "hide_amount", "comment", "merchant", "updated_unix_time").Where("uid=? AND deleted=?", template.Uid, false).Update(template)
 
 		if err != nil {
 			return err
@@ -183,7 +183,7 @@ func (s *TransactionTemplateService) MoveTemplateToBook(c core.Context, template
 			return err
 		}
 
-		updatedRows, err := sess.ID(template.TemplateId).Cols("uid", "display_order", "name", "type", "category_id", "account_id", "scheduled_frequency_type", "scheduled_frequency", "scheduled_start_time", "scheduled_end_time", "scheduled_at", "scheduled_timezone_name", "scheduled_timezone_utc_offset", "tag_ids", "amount", "related_account_id", "related_account_amount", "hide_amount", "comment", "merchant", "updated_unix_time").Where("uid=? AND deleted=?", sourceUid, false).Update(template)
+		updatedRows, err := sess.ID(template.TemplateId).Cols("uid", "display_order", "name", "type", "category_id", "account_id", "scheduled_frequency_type", "scheduled_frequency", "scheduled_start_time", "scheduled_end_time", "scheduled_skip_time", "scheduled_at", "scheduled_timezone_name", "scheduled_timezone_utc_offset", "tag_ids", "amount", "related_account_id", "related_account_amount", "hide_amount", "comment", "merchant", "updated_unix_time").Where("uid=? AND deleted=?", sourceUid, false).Update(template)
 
 		if err != nil {
 			return err

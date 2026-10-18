@@ -357,6 +357,18 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 			newTemplate.ScheduledEndTime = &endUnixTime
 		}
 
+		// the skip marker is kept when the request does not carry it, so that editing or moving the template does not lose it
+		if templateModifyReq.ScheduledSkipDate != nil {
+			newTemplate.ScheduledSkipTime, err = a.parseScheduledSkipTime(*templateModifyReq.ScheduledSkipDate, location)
+
+			if err != nil {
+				log.Errorf(c, "[transaction_templates.TemplateModifyHandler] failed to parse scheduled skip date for user \"uid:%d\", because %s", uid, err.Error())
+				return nil, errs.Or(err, errs.ErrOperationFailed)
+			}
+		} else {
+			newTemplate.ScheduledSkipTime = template.ScheduledSkipTime
+		}
+
 		if newTemplate.ScheduledStartTime != nil && newTemplate.ScheduledEndTime != nil && *newTemplate.ScheduledStartTime > *newTemplate.ScheduledEndTime {
 			return nil, errs.ErrScheduledTransactionTemplateStartDataLaterThanEndDate
 		}
@@ -381,6 +393,7 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 				newTemplate.ScheduledFrequency == template.ScheduledFrequency &&
 				newTemplate.ScheduledStartTime == template.ScheduledStartTime &&
 				newTemplate.ScheduledEndTime == template.ScheduledEndTime &&
+				isSameInt64Pointer(newTemplate.ScheduledSkipTime, template.ScheduledSkipTime) &&
 				newTemplate.ScheduledAt == template.ScheduledAt &&
 				newTemplate.ScheduledTimezoneName == template.ScheduledTimezoneName &&
 				newTemplate.ScheduledTimezoneUtcOffset == template.ScheduledTimezoneUtcOffset {
@@ -583,12 +596,45 @@ func (a *TransactionTemplatesApi) createNewTemplateModel(c *core.WebContext, uid
 			template.ScheduledEndTime = &endUnixTime
 		}
 
+		if templateCreateReq.ScheduledSkipDate != nil {
+			template.ScheduledSkipTime, err = a.parseScheduledSkipTime(*templateCreateReq.ScheduledSkipDate, location)
+
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		if template.ScheduledStartTime != nil && template.ScheduledEndTime != nil && *template.ScheduledStartTime > *template.ScheduledEndTime {
 			return nil, errs.ErrScheduledTransactionTemplateStartDataLaterThanEndDate
 		}
 	}
 
 	return template, nil
+}
+
+// parseScheduledSkipTime returns the first time of the given local date, the scheduled job does not create a transaction on that date
+// because the occurrence of that date has already been created (e.g. the transaction which sets up the repeat), an empty date clears the skip marker
+func (a *TransactionTemplatesApi) parseScheduledSkipTime(skipDate string, location *time.Location) (*int64, error) {
+	if skipDate == "" {
+		return nil, nil
+	}
+
+	skipTime, err := utils.ParseFromLongDateFirstTimeInTimezone(skipDate, location)
+
+	if err != nil {
+		return nil, err
+	}
+
+	skipUnixTime := skipTime.Unix()
+	return &skipUnixTime, nil
+}
+
+func isSameInt64Pointer(a *int64, b *int64) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+
+	return *a == *b
 }
 
 func (a *TransactionTemplatesApi) getOrderedFrequencyValues(frequencyValue string) string {
