@@ -32,7 +32,7 @@
                             <v-row>
                                 <v-col cols="12" md="4">
                                     <div class="text-body-medium text-medium-emphasis">{{ tt('Total Budget') }}</div>
-                                    <div class="text-h6">{{ formatAmount(summary.totalBudget) }}</div>
+                                    <div class="text-h6">{{ formatAmount(summary.totalBudget) }}<span v-if="incompleteBudget">+</span></div>
                                 </v-col>
                                 <v-col cols="12" md="4">
                                     <div class="text-body-medium text-medium-emphasis">{{ tt('Spent') }}</div>
@@ -75,12 +75,15 @@
                                     </div>
                                 </td>
                                 <td class="text-right">
-                                    <amount-input density="compact" :currency="defaultCurrency" :show-currency="true"
+                                    <amount-input density="compact" :currency="getBudgetCurrency(row.category.id)" :show-currency="true"
                                                   :disabled="saving"
                                                   v-model="editingBudgets[row.category.id]"
                                                   v-if="editing"/>
-                                    <span class="text-medium-emphasis" v-else-if="!row.budget">-</span>
-                                    <span v-else>{{ formatAmount(row.budget) }}</span>
+                                    <span class="text-medium-emphasis" v-else-if="!row.budget && !getOriginalBudgetText(row.category.id)">-</span>
+                                    <div v-else>
+                                        <div v-if="row.budget">{{ formatAmount(row.budget) }}</div>
+                                        <div class="text-body-small text-medium-emphasis" v-if="getOriginalBudgetText(row.category.id)">{{ getOriginalBudgetText(row.category.id) }}</div>
+                                    </div>
                                 </td>
                                 <td class="text-right">{{ formatAmount(row.spent) }}</td>
                                 <td class="text-right" :class="{ 'text-error': row.overBudget }">
@@ -128,15 +131,17 @@ const {
     saving,
     editing,
     editingBudgets,
-    defaultCurrency,
     currentMonthDisplayName,
     summary,
     incompleteSpending,
+    incompleteBudget,
     loadAll,
     changeMonth: changeBudgetMonth,
     startEditing,
     cancelEditing,
     saveBudgets,
+    getBudgetCurrency,
+    getOriginalBudgetText,
     formatAmount
 } = useCategoryBudgetPageBase();
 

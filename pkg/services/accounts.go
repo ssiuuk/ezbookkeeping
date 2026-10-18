@@ -57,7 +57,7 @@ func (s *AccountService) GetAllAccountsByUid(c core.Context, uid int64) ([]*mode
 	return accounts, err
 }
 
-// GetAllAccountsOfBook returns all account models of a book, including the accounts which book members shared to it
+// GetAllAccountsOfBook returns all account models which a book can use now, including the accounts which book members are sharing to it
 func (s *AccountService) GetAllAccountsOfBook(c core.Context, bookId int64) ([]*models.Account, error) {
 	if bookId <= 0 {
 		return nil, errs.ErrUserIdInvalid
@@ -69,7 +69,30 @@ func (s *AccountService) GetAllAccountsOfBook(c core.Context, bookId int64) ([]*
 	return accounts, err
 }
 
-// GetTotalAccountCountOfBook returns total account count of a book, including the accounts which book members shared to it
+// GetAllAccountsUsedByBook returns all account models which the transactions of a book can use, including the accounts which are no longer shared to the book,
+// those are marked as SharingRevoked and do not carry their balance, they are only for reading the existing transactions of the book
+func (s *AccountService) GetAllAccountsUsedByBook(c core.Context, bookId int64) ([]*models.Account, error) {
+	if bookId <= 0 {
+		return nil, errs.ErrUserIdInvalid
+	}
+
+	var accounts []*models.Account
+	err := s.UserDataDB(bookId).NewSession(c).Where(accountUsedByBookCondition, false, bookId, bookId).OrderBy("parent_account_id asc, display_order asc").Find(&accounts)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.markAccountsNoLongerSharedToBook(c, bookId, accounts)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return accounts, nil
+}
+
+// GetTotalAccountCountOfBook returns total account count of a book, including the accounts which book members are sharing to it
 func (s *AccountService) GetTotalAccountCountOfBook(c core.Context, bookId int64) (int64, error) {
 	if bookId <= 0 {
 		return 0, errs.ErrUserIdInvalid
@@ -187,8 +210,8 @@ func (s *AccountService) GetAccountsByAccountIds(c core.Context, uid int64, acco
 	}
 
 	var accounts []*models.Account
-	// a shared book can also use the accounts which book members shared to it
-	err := s.UserDataDB(uid).NewSession(c).Where("deleted=? AND (uid=? OR account_id IN (SELECT account_id FROM shared_book_account WHERE book_id=?))", false, uid, uid).In("account_id", accountIds).Find(&accounts)
+	// a shared book can also use the accounts which book members are sharing to it
+	err := s.UserDataDB(uid).NewSession(c).Where(accountOfBookCondition, false, uid, uid).In("account_id", accountIds).Find(&accounts)
 
 	if err != nil {
 		return nil, err
@@ -198,16 +221,107 @@ func (s *AccountService) GetAccountsByAccountIds(c core.Context, uid int64, acco
 	return accountMap, err
 }
 
-// GetAccountsSharedToBook returns all accounts which book members shared to the given book
+// GetAccountsUsedByBookByAccountIds returns account models according to account ids, including the accounts which are no longer shared to the book,
+// those are marked as SharingRevoked and do not carry their balance, they are only for reading the existing transactions of the book
+func (s *AccountService) GetAccountsUsedByBookByAccountIds(c core.Context, bookId int64, accountIds []int64) (map[int64]*models.Account, error) {
+	if bookId <= 0 {
+		return nil, errs.ErrUserIdInvalid
+	}
+
+	if accountIds == nil {
+		return nil, errs.ErrAccountIdInvalid
+	}
+
+	var accounts []*models.Account
+	err := s.UserDataDB(bookId).NewSession(c).Where(accountUsedByBookCondition, false, bookId, bookId).In("account_id", accountIds).Find(&accounts)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.markAccountsNoLongerSharedToBook(c, bookId, accounts)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return s.GetAccountMapByList(accounts), nil
+}
+
+// GetAccountsSharedToBook returns all accounts which book members are sharing to the given book
 func (s *AccountService) GetAccountsSharedToBook(c core.Context, bookId int64) ([]*models.Account, error) {
 	if bookId <= 0 {
 		return nil, errs.ErrUserIdInvalid
 	}
 
 	var accounts []*models.Account
-	err := s.UserDataDB(bookId).NewSession(c).Where("deleted=? AND account_id IN (SELECT account_id FROM shared_book_account WHERE book_id=?)", false, bookId).OrderBy("category asc, display_order asc").Find(&accounts)
+	err := s.UserDataDB(bookId).NewSession(c).Where("deleted=? AND account_id IN (SELECT account_id FROM shared_book_account WHERE book_id=? AND revoked_unix_time=0)", false, bookId).OrderBy("category asc, display_order asc").Find(&accounts)
 
 	return accounts, err
+}
+
+// GetAccountsNoLongerSharedToBook returns all accounts whose sharing to the given book was revoked while existing transactions of the book still use them,
+// they are marked as SharingRevoked and do not carry their balance
+func (s *AccountService) GetAccountsNoLongerSharedToBook(c core.Context, bookId int64) ([]*models.Account, error) {
+	if bookId <= 0 {
+		return nil, errs.ErrUserIdInvalid
+	}
+
+	var accounts []*models.Account
+	err := s.UserDataDB(bookId).NewSession(c).Where("deleted=? AND uid<>? AND account_id IN (SELECT account_id FROM shared_book_account WHERE book_id=? AND revoked_unix_time>0)", false, bookId, bookId).OrderBy("category asc, display_order asc").Find(&accounts)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < len(accounts); i++ {
+		markAccountNoLongerShared(accounts[i])
+	}
+
+	return accounts, nil
+}
+
+// markAccountsNoLongerSharedToBook marks the accounts whose sharing to the given book was revoked
+func (s *AccountService) markAccountsNoLongerSharedToBook(c core.Context, bookId int64, accounts []*models.Account) error {
+	hasOtherUserAccount := false
+
+	for i := 0; i < len(accounts); i++ {
+		if accounts[i].Uid != bookId {
+			hasOtherUserAccount = true
+			break
+		}
+	}
+
+	if !hasOtherUserAccount {
+		return nil
+	}
+
+	var revokedSharedAccounts []*models.SharedBookAccount
+	err := s.UserDB().NewSession(c).Where("book_id=? AND revoked_unix_time>?", bookId, 0).Find(&revokedSharedAccounts)
+
+	if err != nil {
+		return err
+	}
+
+	revokedAccountIds := make(map[int64]bool, len(revokedSharedAccounts))
+
+	for i := 0; i < len(revokedSharedAccounts); i++ {
+		revokedAccountIds[revokedSharedAccounts[i].AccountId] = true
+	}
+
+	for i := 0; i < len(accounts); i++ {
+		if accounts[i].Uid != bookId && revokedAccountIds[accounts[i].AccountId] {
+			markAccountNoLongerShared(accounts[i])
+		}
+	}
+
+	return nil
+}
+
+// markAccountNoLongerShared marks an account as no longer shared to the book which it is read for, and drops its current balance
+func markAccountNoLongerShared(account *models.Account) {
+	account.SharingRevoked = true
+	account.Balance = 0
 }
 
 // GetMaxDisplayOrder returns the max display order according to account category

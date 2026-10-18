@@ -11,6 +11,7 @@ export class TransactionTemplate extends Transaction implements TransactionTempl
     public scheduledFrequency?: string;
     public scheduledStartDate?: TextualYearMonthDay;
     public scheduledEndDate?: TextualYearMonthDay;
+    public scheduledSkipDate?: TextualYearMonthDay; // the occurrence on this date has already been created, so the scheduled job skips it
     public scheduledAt?: number;
     public displayOrder: number;
     public hidden: boolean;
@@ -37,6 +38,7 @@ export class TransactionTemplate extends Transaction implements TransactionTempl
             this.scheduledFrequency = other.scheduledFrequency;
             this.scheduledStartDate = other.scheduledStartDate;
             this.scheduledEndDate = other.scheduledEndDate;
+            this.scheduledSkipDate = other.scheduledSkipDate;
             this.timeZone = other.timeZone;
             this.utcOffset = other.utcOffset;
         }
@@ -60,6 +62,7 @@ export class TransactionTemplate extends Transaction implements TransactionTempl
             scheduledFrequency: this.templateType === TemplateType.Schedule.type ? this.scheduledFrequency : undefined,
             scheduledStartDate: this.templateType === TemplateType.Schedule.type && this.scheduledStartDate ? this.scheduledStartDate : undefined,
             scheduledEndDate: this.templateType === TemplateType.Schedule.type && this.scheduledEndDate ? this.scheduledEndDate : undefined,
+            scheduledSkipDate: this.templateType === TemplateType.Schedule.type && this.scheduledSkipDate ? this.scheduledSkipDate : undefined,
             timeZone: this.templateType === TemplateType.Schedule.type ? this.timeZone : undefined,
             utcOffset: this.templateType === TemplateType.Schedule.type ? this.utcOffset : undefined,
             clientSessionId: clientSessionId
@@ -84,6 +87,7 @@ export class TransactionTemplate extends Transaction implements TransactionTempl
             scheduledFrequency: this.templateType === TemplateType.Schedule.type ? this.scheduledFrequency : undefined,
             scheduledStartDate: this.templateType === TemplateType.Schedule.type && this.scheduledStartDate ? this.scheduledStartDate : undefined,
             scheduledEndDate: this.templateType === TemplateType.Schedule.type && this.scheduledEndDate ? this.scheduledEndDate : undefined,
+            scheduledSkipDate: this.templateType === TemplateType.Schedule.type && this.scheduledSkipDate ? this.scheduledSkipDate : undefined,
             timeZone: this.templateType === TemplateType.Schedule.type ? this.timeZone : undefined,
             utcOffset: this.templateType === TemplateType.Schedule.type ? this.utcOffset : undefined
         };
@@ -147,6 +151,7 @@ export class TransactionTemplate extends Transaction implements TransactionTempl
         );
 
         template.merchant = templateResponse.merchant || '';
+        template.scheduledSkipDate = templateResponse.scheduledSkipDate ?? undefined;
 
         return template;
     }
@@ -179,6 +184,7 @@ export interface TransactionTemplateCreateRequest {
     readonly scheduledFrequency?: string;
     readonly scheduledStartDate?: string;
     readonly scheduledEndDate?: string;
+    readonly scheduledSkipDate?: string;
     readonly timeZone?: string;
     readonly utcOffset?: number;
     readonly clientSessionId: string;
@@ -201,6 +207,7 @@ export interface TransactionTemplateModifyRequest {
     readonly scheduledFrequency?: string;
     readonly scheduledStartDate?: string;
     readonly scheduledEndDate?: string;
+    readonly scheduledSkipDate?: string;
     readonly timeZone?: string;
     readonly utcOffset?: number;
     readonly sourceBookId?: string;
@@ -231,6 +238,7 @@ export interface TransactionTemplateInfoResponse extends TransactionInfoResponse
     readonly scheduledFrequency?: string;
     readonly scheduledStartDate?: TextualYearMonthDay;
     readonly scheduledEndDate?: TextualYearMonthDay;
+    readonly scheduledSkipDate?: TextualYearMonthDay;
     readonly scheduledAt?: number;
     readonly timeZone?: string;
     readonly displayOrder: number;
