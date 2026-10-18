@@ -106,6 +106,18 @@
                     <v-window-item value="basicInfo">
                         <v-form class="my-4">
                             <v-row>
+                                <v-col cols="12" v-if="type === TransactionEditPageType.Transaction && mode === TransactionEditPageMode.Add && showEntryBookSelection">
+                                    <v-select
+                                        item-value="id"
+                                        persistent-placeholder
+                                        :disabled="loading || submitting || recognizing"
+                                        :label="tt('Book')"
+                                        :items="allBooks"
+                                        :item-title="getBookDisplayName"
+                                        :model-value="entryBookId"
+                                        @update:model-value="onEntryBookChanged"
+                                    />
+                                </v-col>
                                 <v-col cols="12" v-if="type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate">
                                     <v-text-field
                                         type="text"
@@ -155,13 +167,15 @@
                                                                    secondary-icon-field="icon" secondary-icon-type-field="iconType" secondary-icon-type="category" secondary-color-field="color"
                                                                    secondary-hidden-field="hidden"
                                                                    :readonly="mode === TransactionEditPageMode.View"
-                                                                   :disabled="loading || submitting || recognizing || !hasVisibleExpenseCategories"
+                                                                   :disabled="loading || submitting || recognizing || (!hasVisibleExpenseCategories && mode === TransactionEditPageMode.View)"
                                                                    :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
                                                                    :show-selection-primary-text="true"
                                                                    :custom-selection-primary-text="getTransactionPrimaryCategoryName(transaction.expenseCategoryId, allCategories[CategoryType.Expense])"
                                                                    :custom-selection-secondary-text="getTransactionSecondaryCategoryName(transaction.expenseCategoryId, allCategories[CategoryType.Expense])"
                                                                    :label="tt('Category')" :placeholder="tt('Category')"
                                                                    :items="allCategories[CategoryType.Expense] || []"
+                                                                   :add-item-text="tt('Add Secondary Category')"
+                                                                   @add:item="addSecondaryCategory(CategoryType.Expense, $event)"
                                                                    v-model="transaction.expenseCategoryId">
                                                 </two-column-select>
                                             </div>
@@ -179,13 +193,15 @@
                                                                    secondary-icon-field="icon" secondary-icon-type-field="iconType" secondary-icon-type="category" secondary-color-field="color"
                                                                    secondary-hidden-field="hidden"
                                                                    :readonly="mode === TransactionEditPageMode.View"
-                                                                   :disabled="loading || submitting || recognizing || !hasVisibleIncomeCategories"
+                                                                   :disabled="loading || submitting || recognizing || (!hasVisibleIncomeCategories && mode === TransactionEditPageMode.View)"
                                                                    :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
                                                                    :show-selection-primary-text="true"
                                                                    :custom-selection-primary-text="getTransactionPrimaryCategoryName(transaction.incomeCategoryId, allCategories[CategoryType.Income])"
                                                                    :custom-selection-secondary-text="getTransactionSecondaryCategoryName(transaction.incomeCategoryId, allCategories[CategoryType.Income])"
                                                                    :label="tt('Category')" :placeholder="tt('Category')"
                                                                    :items="allCategories[CategoryType.Income] || []"
+                                                                   :add-item-text="tt('Add Secondary Category')"
+                                                                   @add:item="addSecondaryCategory(CategoryType.Income, $event)"
                                                                    v-model="transaction.incomeCategoryId">
                                                 </two-column-select>
                                             </div>
@@ -203,13 +219,15 @@
                                                                    secondary-icon-field="icon" secondary-icon-type-field="iconType" secondary-icon-type="category" secondary-color-field="color"
                                                                    secondary-hidden-field="hidden"
                                                                    :readonly="mode === TransactionEditPageMode.View"
-                                                                   :disabled="loading || submitting || recognizing || !hasVisibleTransferCategories"
+                                                                   :disabled="loading || submitting || recognizing || (!hasVisibleTransferCategories && mode === TransactionEditPageMode.View)"
                                                                    :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
                                                                    :show-selection-primary-text="true"
                                                                    :custom-selection-primary-text="getTransactionPrimaryCategoryName(transaction.transferCategoryId, allCategories[CategoryType.Transfer])"
                                                                    :custom-selection-secondary-text="getTransactionSecondaryCategoryName(transaction.transferCategoryId, allCategories[CategoryType.Transfer])"
                                                                    :label="tt('Category')" :placeholder="tt('Category')"
                                                                    :items="allCategories[CategoryType.Transfer] || []"
+                                                                   :add-item-text="tt('Add Secondary Category')"
+                                                                   @add:item="addSecondaryCategory(CategoryType.Transfer, $event)"
                                                                    v-model="transaction.transferCategoryId">
                                                 </two-column-select>
                                             </div>
@@ -308,6 +326,7 @@
                                         :clearable="true"
                                         :label="tt('Start Date')"
                                         :no-data-text="tt('No limit')"
+                                        :max-years-after-current-year="SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR"
                                         v-model="transaction.scheduledStartDate" />
                                 </v-col>
                                 <v-col cols="12" md="6" v-if="type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate && transaction.templateType === TemplateType.Schedule.type">
@@ -317,6 +336,7 @@
                                         :clearable="true"
                                         :label="tt('End Date')"
                                         :no-data-text="tt('No limit')"
+                                        :max-years-after-current-year="SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR"
                                         v-model="transaction.scheduledEndDate" />
                                 </v-col>
                                 <v-col cols="12" md="12" v-if="type === TransactionEditPageType.Transaction">
@@ -351,6 +371,23 @@
                                         @tag:saving="onSavingTag"
                                     />
                                 </v-col>
+                                <v-col cols="12" md="12" v-if="showProjectField">
+                                    <v-select
+                                        item-title="name"
+                                        item-value="id"
+                                        persistent-placeholder
+                                        :readonly="mode === TransactionEditPageMode.View"
+                                        :disabled="loading || submitting || recognizing"
+                                        :label="tt('Project')"
+                                        :placeholder="tt('None')"
+                                        :items="allProjectSelectItems"
+                                        v-model="transaction.projectId"
+                                    >
+                                        <template #prepend-inner>
+                                            <v-icon :icon="mdiBriefcaseOutline" size="20" />
+                                        </template>
+                                    </v-select>
+                                </v-col>
                                 <v-col cols="12" md="12">
                                     <v-textarea
                                         type="text"
@@ -363,6 +400,12 @@
                                         :placeholder="tt('Your transaction description (optional)')"
                                         v-model="transaction.comment"
                                     />
+                                </v-col>
+                                <v-col class="pt-0" cols="12" md="12" v-if="type === TransactionEditPageType.Transaction && mode !== TransactionEditPageMode.Add && transactionCreatorName">
+                                    <div class="d-flex align-center text-body-medium text-medium-emphasis">
+                                        <v-icon class="me-1" :icon="mdiAccountEditOutline" size="18" />
+                                        <span>{{ tt('format.misc.addedByUser', { name: transactionCreatorName }) }}</span>
+                                    </div>
                                 </v-col>
                             </v-row>
                         </v-form>
@@ -499,6 +542,7 @@
         </one-column-dialog-layout>
     </v-dialog>
 
+    <category-edit-dialog ref="categoryEditDialog" />
     <confirm-dialog ref="confirmDialog"/>
     <snack-bar ref="snackbar" />
     <input ref="pictureInput" type="file" style="display: none" :accept="SUPPORTED_IMAGE_EXTENSIONS" @change="onUploadPicture($event)" />
@@ -508,9 +552,11 @@
 import MapView from '@/components/common/MapView.vue';
 import ConfirmDialog from '@/components/desktop/ConfirmDialog.vue';
 import SnackBar from '@/components/desktop/SnackBar.vue';
+import CategoryEditDialog from '@/views/desktop/categories/list/dialogs/EditDialog.vue';
 
 import { ref, computed, useTemplateRef, watch, nextTick } from 'vue';
 
+import type { TwoLevelItemAddEvent } from '@/components/base/TwoLevelItemSelectionBase.ts';
 import { useI18n } from '@/locales/helpers.ts';
 import {
     TransactionEditPageMode,
@@ -525,6 +571,9 @@ import { useUserStore } from '@/stores/user.ts';
 import { useAccountsStore } from '@/stores/account.ts';
 import { useTransactionCategoriesStore } from '@/stores/transactionCategory.ts';
 import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
+import { useBooksStore } from '@/stores/book.ts';
+import { useProjectsStore } from '@/stores/project.ts';
+import { useEntryBookSelectionBase } from '@/views/base/books/EntryBookSelectionBase.ts';
 import { useTransactionsStore } from '@/stores/transaction.ts';
 import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
 
@@ -536,7 +585,9 @@ import { KnownFileType } from '@/core/file.ts';
 
 import { KnownErrorCode } from '@/consts/api.ts';
 import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
+import { SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR } from '@/consts/transaction.ts';
 
+import type { TransactionCategory } from '@/models/transaction_category.ts';
 import { TransactionTemplate } from '@/models/transaction_template.ts';
 import type { TransactionPictureInfoBasicResponse } from '@/models/transaction_picture_info.ts';
 import { Transaction } from '@/models/transaction.ts';
@@ -549,7 +600,8 @@ import {
 import { generateRandomUUID } from '@/lib/misc.ts';
 import {
     getTransactionPrimaryCategoryName,
-    getTransactionSecondaryCategoryName
+    getTransactionSecondaryCategoryName,
+    getParentCategoryIdForNewSubCategory
 } from '@/lib/category.ts';
 import { type SetTransactionOptions } from '@/lib/transaction.ts';
 import {
@@ -575,7 +627,9 @@ import {
     mdiMenuDown,
     mdiImagePlusOutline,
     mdiTrashCanOutline,
-    mdiFullscreen
+    mdiFullscreen,
+    mdiAccountEditOutline,
+    mdiBriefcaseOutline
 } from '@mdi/js';
 
 export interface TransactionEditOptions extends SetTransactionOptions {
@@ -596,6 +650,7 @@ interface TransactionEditResponse {
 type MapViewType = InstanceType<typeof MapView>;
 type ConfirmDialogType = InstanceType<typeof ConfirmDialog>;
 type SnackBarType = InstanceType<typeof SnackBar>;
+type CategoryEditDialogType = InstanceType<typeof CategoryEditDialog>;
 
 const props = defineProps<{
     type: TransactionEditPageType;
@@ -621,6 +676,8 @@ const {
     setGeoLocationByClickMap,
     transaction,
     defaultCurrency,
+    showProjectField,
+    allProjectSelectItems,
     imageUploadQualityType,
     allTimezones,
     allVisibleAccounts,
@@ -650,6 +707,7 @@ const {
     inputIsEmpty,
     createNewTransactionModel,
     setTransactionModel,
+    resetTransactionBookRelatedFields,
     updateTransactionModelFromRecognizedResponse,
     updateTransactionModelByAfterSaveAction,
     updateTransactionTime,
@@ -663,12 +721,27 @@ const userStore = useUserStore();
 const accountsStore = useAccountsStore();
 const transactionCategoriesStore = useTransactionCategoriesStore();
 const transactionTagsStore = useTransactionTagsStore();
+const booksStore = useBooksStore();
+const projectsStore = useProjectsStore();
+
+const {
+    entryBookId,
+    allBooks,
+    showEntryBookSelection,
+    getBookDisplayName,
+    initEntryBook,
+    changeEntryBook,
+    restoreEntryBook
+} = useEntryBookSelectionBase();
 const transactionsStore = useTransactionsStore();
 const transactionTemplatesStore = useTransactionTemplatesStore();
 
 const map = useTemplateRef<MapViewType>('map');
 const confirmDialog = useTemplateRef<ConfirmDialogType>('confirmDialog');
 const snackbar = useTemplateRef<SnackBarType>('snackbar');
+const categoryEditDialog = useTemplateRef<CategoryEditDialogType>('categoryEditDialog');
+
+const transactionCreatorName = computed<string>(() => booksStore.currentBookMembers.length > 1 ? booksStore.getMemberDisplayName(transaction.value.createdByUid) : '');
 const pictureInput = useTemplateRef<HTMLInputElement>('pictureInput');
 
 let resolveFunc: ((response?: TransactionEditResponse) => void) | null = null;
@@ -737,6 +810,7 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
     noTransactionDraft.value = options.noTransactionDraft || false;
 
     initOptions.value = options;
+    initEntryBook();
 
     const newTransaction = createNewTransactionModel(options.type);
     setTransactionModel(newTransaction, options, true);
@@ -747,6 +821,9 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
         transactionCategoriesStore.loadAllCategories({ force: false }),
         transactionTagsStore.loadAllTags({ force: false })
     ];
+
+    // projects are optional for a transaction, so failing to load them should not block the dialog
+    projectsStore.loadAllProjects({ force: false }).catch(error => logger.warn('failed to load projects', error));
 
     if (props.type === TransactionEditPageType.Transaction) {
         if (options && options.id) {
@@ -885,8 +962,34 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
     });
 
     return new Promise((resolve, reject) => {
-        resolveFunc = resolve;
-        rejectFunc = reject;
+        // switch requests back to the selected book before the caller reloads its data
+        resolveFunc = response => {
+            restoreEntryBook().finally(() => resolve(response));
+        };
+        rejectFunc = reason => {
+            restoreEntryBook().finally(() => reject(reason));
+        };
+    });
+}
+
+function onEntryBookChanged(bookId: string): void {
+    const book = allBooks.value.find(item => item.id === bookId);
+
+    if (!book) {
+        return;
+    }
+
+    loading.value = true;
+
+    changeEntryBook(book).then(() => {
+        resetTransactionBookRelatedFields();
+        loading.value = false;
+    }).catch(error => {
+        loading.value = false;
+
+        if (!error.processed) {
+            snackbar.value?.showError(error);
+        }
     });
 }
 
@@ -1262,6 +1365,47 @@ function viewOrRemovePicture(pictureInfo: TransactionPictureInfoBasicResponse): 
     });
 }
 
+function addSecondaryCategory(categoryType: CategoryType, event: TwoLevelItemAddEvent): void {
+    let selectedCategoryId: string = '';
+
+    if (categoryType === CategoryType.Expense) {
+        selectedCategoryId = transaction.value.expenseCategoryId;
+    } else if (categoryType === CategoryType.Income) {
+        selectedCategoryId = transaction.value.incomeCategoryId;
+    } else if (categoryType === CategoryType.Transfer) {
+        selectedCategoryId = transaction.value.transferCategoryId;
+    }
+
+    const preferredPrimaryCategory = event.primaryItem as TransactionCategory | undefined;
+    const parentId = getParentCategoryIdForNewSubCategory(allCategories.value, categoryType, preferredPrimaryCategory?.id, selectedCategoryId);
+
+    if (!parentId) {
+        snackbar.value?.showMessage('No available primary category');
+        return;
+    }
+
+    categoryEditDialog.value?.open({
+        type: categoryType,
+        parentId: parentId,
+        name: event.filterContent.trim(),
+        allowChangingParent: true
+    }).then(result => {
+        if (categoryType === CategoryType.Expense) {
+            transaction.value.expenseCategoryId = result.category.id;
+        } else if (categoryType === CategoryType.Income) {
+            transaction.value.incomeCategoryId = result.category.id;
+        } else if (categoryType === CategoryType.Transfer) {
+            transaction.value.transferCategoryId = result.category.id;
+        }
+
+        snackbar.value?.showMessage(result.message);
+    }).catch(error => {
+        if (error) {
+            snackbar.value?.showError(error);
+        }
+    });
+}
+
 function onSavingTag(state: boolean): void {
     submitting.value = state;
 }
@@ -1286,6 +1430,12 @@ function onUploadPicture(event: Event): void {
 function onShowDateTimeError(error: string): void {
     snackbar.value?.showError(error);
 }
+
+watch(showState, (newValue) => {
+    if (!newValue) {
+        restoreEntryBook();
+    }
+});
 
 watch(activeTab, (newValue) => {
     if (newValue === 'map') {

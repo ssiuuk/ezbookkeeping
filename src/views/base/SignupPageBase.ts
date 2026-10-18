@@ -6,6 +6,7 @@ import { useRootStore } from '@/stores/index.ts';
 import { useSettingsStore } from '@/stores/setting.ts';
 import { useUserStore } from '@/stores/user.ts';
 import { useExchangeRatesStore } from '@/stores/exchangeRates.ts';
+import { useBooksStore } from '@/stores/book.ts';
 
 import { CategoryType } from '@/core/category.ts';
 import type { RegisterResponse } from '@/models/auth_response.ts';
@@ -21,6 +22,7 @@ export function useSignupPageBase() {
     const settingsStore = useSettingsStore();
     const userStore = useUserStore();
     const exchangeRatesStore = useExchangeRatesStore();
+    const booksStore = useBooksStore();
 
     const user = ref<User>(userStore.generateNewUserModel(getCurrentLanguageTag()));
     const submitting = ref<boolean>(false);
@@ -119,6 +121,7 @@ export function useSignupPageBase() {
         updateMapCacheExpiration(settingsStore.appSettings.mapCacheExpiration);
         exchangeRatesStore.removeExpiredExchangeRates(true);
         exchangeRatesStore.autoUpdateExchangeRatesData();
+        booksStore.initBooks();
 
         if (response.notificationContent) {
             rootStore.setNotificationContent(response.notificationContent);

@@ -14,6 +14,7 @@ const tokenLocalStorageKey: string = 'ebk_user_token';
 const webauthnConfigLocalStorageKey: string = 'ebk_user_webauthn_config';
 const userInfoLocalStorageKey: string = 'ebk_user_info';
 const transactionDraftLocalStorageKey: string = 'ebk_user_draft_transaction';
+const currentBookIdLocalStorageKey: string = 'ebk_user_current_book_id';
 
 const tokenSessionStorageKey: string = 'ebk_user_session_token';
 const encryptedTokenSessionStorageKey: string = 'ebk_user_session_encrypted_token';
@@ -302,6 +303,18 @@ export function clearUserTransactionDraft(): void {
     localStorage.removeItem(transactionDraftLocalStorageKey);
 }
 
+export function getCurrentBookId(): string | null {
+    return localStorage.getItem(currentBookIdLocalStorageKey);
+}
+
+export function setCurrentBookId(bookId: string | null): void {
+    if (bookId) {
+        localStorage.setItem(currentBookIdLocalStorageKey, bookId);
+    } else {
+        localStorage.removeItem(currentBookIdLocalStorageKey);
+    }
+}
+
 export function clearCurrentSessionToken(): void {
     sessionStorage.removeItem(tokenSessionStorageKey);
     sessionStorage.removeItem(encryptedTokenSessionStorageKey);
@@ -316,6 +329,7 @@ export function clearCurrentTokenAndUserInfo(clearAppLockState: boolean): void {
     sessionStorage.removeItem(tokenSessionStorageKey);
     sessionStorage.removeItem(encryptedTokenSessionStorageKey);
     localStorage.removeItem(tokenLocalStorageKey);
+    localStorage.removeItem(currentBookIdLocalStorageKey);
     clearUserTransactionDraft();
     clearCurrentUserInfo();
 }

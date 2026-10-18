@@ -34,6 +34,8 @@ type DataManagementsApi struct {
 	userCustomIcons         *services.UserCustomIconService
 	userCustomExchangeRates *services.UserCustomExchangeRatesService
 	insightsExploreres      *services.InsightsExplorerService
+	categoryBudgets         *services.TransactionCategoryBudgetService
+	projects                *services.ProjectService
 }
 
 // Initialize a data management api singleton instance
@@ -54,6 +56,8 @@ var (
 		userCustomIcons:         services.UserCustomIcons,
 		userCustomExchangeRates: services.UserCustomExchangeRates,
 		insightsExploreres:      services.InsightsExplorers,
+		categoryBudgets:         services.TransactionCategoryBudgets,
+		projects:                services.Projects,
 	}
 )
 
@@ -70,6 +74,10 @@ func (a *DataManagementsApi) ExportDataToEzbookkeepingTSVHandler(c *core.WebCont
 // DataStatisticsHandler returns user data statistics
 func (a *DataManagementsApi) DataStatisticsHandler(c *core.WebContext) (any, *errs.Error) {
 	uid := c.GetCurrentUid()
+
+	if c.GetCurrentBookUid() != uid {
+		return nil, errs.ErrOperationNotAvailableInSharedBook
+	}
 	totalAccountCount, err := a.accounts.GetTotalAccountCountByUid(c, uid)
 
 	if err != nil {
@@ -159,6 +167,10 @@ func (a *DataManagementsApi) ClearAllDataHandler(c *core.WebContext) (any, *errs
 	}
 
 	uid := c.GetCurrentUid()
+
+	if c.GetCurrentBookUid() != uid {
+		return nil, errs.ErrOperationNotAvailableInSharedBook
+	}
 	claims := c.GetTokenClaims()
 
 	if claims == nil {
@@ -198,6 +210,20 @@ func (a *DataManagementsApi) ClearAllDataHandler(c *core.WebContext) (any, *errs
 
 	if err != nil {
 		log.Errorf(c, "[data_managements.ClearAllDataHandler] failed to delete all transactions, because %s", err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	err = a.categoryBudgets.DeleteAllBudgets(c, uid)
+
+	if err != nil {
+		log.Errorf(c, "[data_managements.ClearAllDataHandler] failed to delete all transaction category budgets, because %s", err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	err = a.projects.DeleteAllProjects(c, uid)
+
+	if err != nil {
+		log.Errorf(c, "[data_managements.ClearAllDataHandler] failed to delete all projects, because %s", err.Error())
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
@@ -258,6 +284,10 @@ func (a *DataManagementsApi) ClearAllTransactionsHandler(c *core.WebContext) (an
 	}
 
 	uid := c.GetCurrentUid()
+
+	if c.GetCurrentBookUid() != uid {
+		return nil, errs.ErrOperationNotAvailableInSharedBook
+	}
 	claims := c.GetTokenClaims()
 
 	if claims == nil {
@@ -308,6 +338,10 @@ func (a *DataManagementsApi) ClearAllTransactionsByAccountHandler(c *core.WebCon
 	}
 
 	uid := c.GetCurrentUid()
+
+	if c.GetCurrentBookUid() != uid {
+		return nil, errs.ErrOperationNotAvailableInSharedBook
+	}
 	claims := c.GetTokenClaims()
 
 	if claims == nil {
@@ -383,6 +417,10 @@ func (a *DataManagementsApi) getExportedFileContent(c *core.WebContext, fileType
 	}
 
 	uid := c.GetCurrentUid()
+
+	if c.GetCurrentBookUid() != uid {
+		return nil, "", errs.ErrOperationNotAvailableInSharedBook
+	}
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {

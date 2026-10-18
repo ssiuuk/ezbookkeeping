@@ -166,7 +166,7 @@ func (h *mcpQueryTransactionsToolHandler) Handle(c *core.WebContext, callToolReq
 		matchModeType = core.MATCH_MODE_IGNORE_CASE
 	}
 
-	totalCount, err := services.GetTransactionService().GetTransactionCount(c, uid, maxTransactionTime, minTransactionTime, transactionType, filterCategoryIds, filterAccountIds, nil, false, "", queryTransactionsRequest.Keyword, matchModeType, false)
+	totalCount, err := services.GetTransactionService().GetTransactionCount(c, uid, maxTransactionTime, minTransactionTime, transactionType, filterCategoryIds, filterAccountIds, nil, false, "", queryTransactionsRequest.Keyword, matchModeType, false, 0)
 
 	if err != nil {
 		log.Errorf(c, "[query_transactions_tool_handler.Handle] failed to get transaction count for user \"uid:%d\", because %s", uid, err.Error())

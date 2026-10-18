@@ -38,7 +38,7 @@ var (
 
 // TransactionPictureUploadHandler saves transaction picture by request parameters for current user
 func (a *TransactionPicturesApi) TransactionPictureUploadHandler(c *core.WebContext) (any, *errs.Error) {
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	form, err := c.MultipartForm()
 
 	if err != nil {
@@ -138,7 +138,7 @@ func (a *TransactionPicturesApi) TransactionPictureGetHandler(c *core.WebContext
 		return nil, "", errs.ErrTransactionPictureIdInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	pictureData, err := a.pictures.GetPictureByPictureId(c, uid, pictureId, fileExtension)
 
 	if err != nil {
@@ -162,7 +162,7 @@ func (a *TransactionPicturesApi) TransactionPictureRemoveUnusedHandler(c *core.W
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	err = a.pictures.RemoveUnusedTransactionPicture(c, uid, pictureDeleteReq.Id)
 
 	if err != nil {

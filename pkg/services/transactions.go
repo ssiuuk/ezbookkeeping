@@ -56,7 +56,7 @@ func (s *TransactionService) GetAllTransactions(c core.Context, uid int64, pageC
 	var allTransactions []*models.Transaction
 
 	for maxTransactionTime > 0 {
-		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, 0, 0, nil, nil, nil, false, "", "", core.MATCH_MODE_DEFAULT, false, 1, pageCount, false, noDuplicated)
+		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, 0, 0, nil, nil, nil, false, "", "", core.MATCH_MODE_DEFAULT, false, 0, 1, pageCount, false, noDuplicated)
 
 		if err != nil {
 			return nil, err
@@ -84,7 +84,7 @@ func (s *TransactionService) GetAllSpecifiedTransactions(c core.Context, uid int
 	var allTransactions []*models.Transaction
 
 	for maxTransactionTime > 0 {
-		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, minTransactionTime, transactionType, categoryIds, accountIds, tagFilters, noTags, amountFilter, keyword, matchMode, mustHavePictures, 1, pageCount, false, noDuplicated)
+		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, minTransactionTime, transactionType, categoryIds, accountIds, tagFilters, noTags, amountFilter, keyword, matchMode, mustHavePictures, 0, 1, pageCount, false, noDuplicated)
 
 		if err != nil {
 			return nil, err
@@ -112,7 +112,7 @@ func (s *TransactionService) GetAllTransactionsInOneAccountWithAccountBalanceByM
 	var allTransactions []*models.Transaction
 
 	for maxTransactionTime > 0 {
-		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, 0, 0, nil, []int64{accountId}, nil, false, "", "", core.MATCH_MODE_DEFAULT, false, 1, pageCount, false, true)
+		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, 0, 0, nil, []int64{accountId}, nil, false, "", "", core.MATCH_MODE_DEFAULT, false, 0, 1, pageCount, false, true)
 
 		if err != nil {
 			return nil, nil, nil, nil, nil, err
@@ -202,7 +202,7 @@ func (s *TransactionService) GetAllAccountsDailyOpeningAndClosingBalance(c core.
 	var allTransactions []*models.Transaction
 
 	for maxTransactionTime > 0 {
-		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, 0, 0, nil, nil, nil, false, "", "", core.MATCH_MODE_DEFAULT, false, 1, pageCountForLoadTransactionAmounts, false, false)
+		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, 0, 0, nil, nil, nil, false, "", "", core.MATCH_MODE_DEFAULT, false, 0, 1, pageCountForLoadTransactionAmounts, false, false)
 
 		if err != nil {
 			return nil, err
@@ -353,7 +353,7 @@ func (s *TransactionService) GetTransactionsByMaxTimeUpToCount(c core.Context, u
 		firstFetchCount = finalExpectedCount
 	}
 
-	transactions, err := s.getTransactionsByMaxTimeWithOffset(c, uid, maxTransactionTime, minTransactionTime, transactionType, categoryIds, accountIds, tagFilters, noTags, amountFilter, keyword, matchMode, mustHavePictures, startOffset, firstFetchCount, noDuplicated)
+	transactions, err := s.getTransactionsByMaxTimeWithOffset(c, uid, maxTransactionTime, minTransactionTime, transactionType, categoryIds, accountIds, tagFilters, noTags, amountFilter, keyword, matchMode, mustHavePictures, 0, startOffset, firstFetchCount, noDuplicated)
 
 	if err != nil {
 		return nil, err
@@ -375,7 +375,7 @@ func (s *TransactionService) GetTransactionsByMaxTimeUpToCount(c core.Context, u
 			fetchCount = remainingCount
 		}
 
-		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, minTransactionTime, transactionType, categoryIds, accountIds, tagFilters, noTags, amountFilter, keyword, matchMode, mustHavePictures, 1, int32(fetchCount), false, noDuplicated)
+		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, minTransactionTime, transactionType, categoryIds, accountIds, tagFilters, noTags, amountFilter, keyword, matchMode, mustHavePictures, 0, 1, int32(fetchCount), false, noDuplicated)
 
 		if err != nil {
 			return nil, err
@@ -394,7 +394,7 @@ func (s *TransactionService) GetTransactionsByMaxTimeUpToCount(c core.Context, u
 }
 
 // GetTransactionsByMaxTime returns transactions before given time
-func (s *TransactionService) GetTransactionsByMaxTime(c core.Context, uid int64, maxTransactionTime int64, minTransactionTime int64, transactionType models.TransactionType, categoryIds []int64, accountIds []int64, tagFilters []*models.TransactionTagFilter, noTags bool, amountFilter string, keyword string, matchMode core.MatchMode, mustHavePictures bool, page int32, count int32, needOneMoreItem bool, noDuplicated bool) ([]*models.Transaction, error) {
+func (s *TransactionService) GetTransactionsByMaxTime(c core.Context, uid int64, maxTransactionTime int64, minTransactionTime int64, transactionType models.TransactionType, categoryIds []int64, accountIds []int64, tagFilters []*models.TransactionTagFilter, noTags bool, amountFilter string, keyword string, matchMode core.MatchMode, mustHavePictures bool, projectId int64, page int32, count int32, needOneMoreItem bool, noDuplicated bool) ([]*models.Transaction, error) {
 	if uid <= 0 {
 		return nil, errs.ErrUserIdInvalid
 	}
@@ -415,11 +415,11 @@ func (s *TransactionService) GetTransactionsByMaxTime(c core.Context, uid int64,
 		finalCount++
 	}
 
-	return s.getTransactionsByMaxTimeWithOffset(c, uid, maxTransactionTime, minTransactionTime, transactionType, categoryIds, accountIds, tagFilters, noTags, amountFilter, keyword, matchMode, mustHavePictures, int(count*(page-1)), finalCount, noDuplicated)
+	return s.getTransactionsByMaxTimeWithOffset(c, uid, maxTransactionTime, minTransactionTime, transactionType, categoryIds, accountIds, tagFilters, noTags, amountFilter, keyword, matchMode, mustHavePictures, projectId, int(count*(page-1)), finalCount, noDuplicated)
 }
 
 // getTransactionsByMaxTimeWithOffset returns transactions before given time with explicit offset and limit
-func (s *TransactionService) getTransactionsByMaxTimeWithOffset(c core.Context, uid int64, maxTransactionTime int64, minTransactionTime int64, transactionType models.TransactionType, categoryIds []int64, accountIds []int64, tagFilters []*models.TransactionTagFilter, noTags bool, amountFilter string, keyword string, matchMode core.MatchMode, mustHavePictures bool, offset int, limit int, noDuplicated bool) ([]*models.Transaction, error) {
+func (s *TransactionService) getTransactionsByMaxTimeWithOffset(c core.Context, uid int64, maxTransactionTime int64, minTransactionTime int64, transactionType models.TransactionType, categoryIds []int64, accountIds []int64, tagFilters []*models.TransactionTagFilter, noTags bool, amountFilter string, keyword string, matchMode core.MatchMode, mustHavePictures bool, projectId int64, offset int, limit int, noDuplicated bool) ([]*models.Transaction, error) {
 	if uid <= 0 {
 		return nil, errs.ErrUserIdInvalid
 	}
@@ -441,6 +441,7 @@ func (s *TransactionService) getTransactionsByMaxTimeWithOffset(c core.Context, 
 	sess := s.UserDataDB(uid).NewSession(c).Where(condition, conditionParams...)
 	sess = s.appendFilterTagIdsConditionToQuery(sess, uid, maxTransactionTime, minTransactionTime, tagFilters, noTags)
 	sess = s.appendFilterPicturesConditionToQuery(sess, uid, mustHavePictures)
+	sess = s.appendFilterProjectConditionToQuery(sess, projectId)
 
 	err = sess.Limit(limit, offset).OrderBy("transaction_time desc").Find(&transactions)
 
@@ -448,7 +449,7 @@ func (s *TransactionService) getTransactionsByMaxTimeWithOffset(c core.Context, 
 }
 
 // GetTransactionsInMonthByPage returns all transactions in given year and month
-func (s *TransactionService) GetTransactionsInMonthByPage(c core.Context, uid int64, year int32, month int32, transactionType models.TransactionType, categoryIds []int64, accountIds []int64, tagFilters []*models.TransactionTagFilter, noTags bool, amountFilter string, keyword string, matchMode core.MatchMode, mustHavePictures bool) ([]*models.Transaction, error) {
+func (s *TransactionService) GetTransactionsInMonthByPage(c core.Context, uid int64, year int32, month int32, transactionType models.TransactionType, categoryIds []int64, accountIds []int64, tagFilters []*models.TransactionTagFilter, noTags bool, amountFilter string, keyword string, matchMode core.MatchMode, mustHavePictures bool, projectId int64) ([]*models.Transaction, error) {
 	if uid <= 0 {
 		return nil, errs.ErrUserIdInvalid
 	}
@@ -476,6 +477,7 @@ func (s *TransactionService) GetTransactionsInMonthByPage(c core.Context, uid in
 	sess := s.UserDataDB(uid).NewSession(c).Where(condition, conditionParams...)
 	sess = s.appendFilterTagIdsConditionToQuery(sess, uid, maxTransactionTime, minTransactionTime, tagFilters, noTags)
 	sess = s.appendFilterPicturesConditionToQuery(sess, uid, mustHavePictures)
+	sess = s.appendFilterProjectConditionToQuery(sess, projectId)
 
 	err = sess.OrderBy("transaction_time desc").Find(&transactions)
 
@@ -534,11 +536,11 @@ func (s *TransactionService) GetTransactionsByTransactionIds(c core.Context, uid
 
 // GetAllTransactionCount returns total count of transactions
 func (s *TransactionService) GetAllTransactionCount(c core.Context, uid int64) (int64, error) {
-	return s.GetTransactionCount(c, uid, 0, 0, 0, nil, nil, nil, false, "", "", core.MATCH_MODE_DEFAULT, false)
+	return s.GetTransactionCount(c, uid, 0, 0, 0, nil, nil, nil, false, "", "", core.MATCH_MODE_DEFAULT, false, 0)
 }
 
 // GetTransactionCount returns count of transactions
-func (s *TransactionService) GetTransactionCount(c core.Context, uid int64, maxTransactionTime int64, minTransactionTime int64, transactionType models.TransactionType, categoryIds []int64, accountIds []int64, tagFilters []*models.TransactionTagFilter, noTags bool, amountFilter string, keyword string, matchMode core.MatchMode, mustHavePictures bool) (int64, error) {
+func (s *TransactionService) GetTransactionCount(c core.Context, uid int64, maxTransactionTime int64, minTransactionTime int64, transactionType models.TransactionType, categoryIds []int64, accountIds []int64, tagFilters []*models.TransactionTagFilter, noTags bool, amountFilter string, keyword string, matchMode core.MatchMode, mustHavePictures bool, projectId int64) (int64, error) {
 	if uid <= 0 {
 		return 0, errs.ErrUserIdInvalid
 	}
@@ -558,6 +560,7 @@ func (s *TransactionService) GetTransactionCount(c core.Context, uid int64, maxT
 	sess := s.UserDataDB(uid).NewSession(c).Where(condition, conditionParams...)
 	sess = s.appendFilterTagIdsConditionToQuery(sess, uid, maxTransactionTime, minTransactionTime, tagFilters, noTags)
 	sess = s.appendFilterPicturesConditionToQuery(sess, uid, mustHavePictures)
+	sess = s.appendFilterProjectConditionToQuery(sess, projectId)
 
 	return sess.Count(&models.Transaction{})
 }
@@ -1046,6 +1049,17 @@ func (s *TransactionService) ModifyTransaction(c core.Context, transaction *mode
 			transaction.RelatedAccountAmount = 0
 			updateCols = append(updateCols, "related_account_id")
 			updateCols = append(updateCols, "related_account_amount")
+		}
+
+		if transaction.ProjectId != oldTransaction.ProjectId {
+			// Get and verify project
+			err = s.isProjectValid(sess, transaction)
+
+			if err != nil {
+				return err
+			}
+
+			updateCols = append(updateCols, "project_id")
 		}
 
 		if transaction.HideAmount != oldTransaction.HideAmount {
@@ -2174,9 +2188,11 @@ func (s *TransactionService) GetRelatedTransferTransaction(originalTransaction *
 		RelatedAccountId:     originalTransaction.AccountId,
 		RelatedAccountAmount: originalTransaction.Amount,
 		Comment:              originalTransaction.Comment,
+		ProjectId:            originalTransaction.ProjectId,
 		GeoLongitude:         originalTransaction.GeoLongitude,
 		GeoLatitude:          originalTransaction.GeoLatitude,
 		CreatedIp:            originalTransaction.CreatedIp,
+		CreatedByUid:         originalTransaction.CreatedByUid,
 		CreatedUnixTime:      originalTransaction.CreatedUnixTime,
 		UpdatedUnixTime:      originalTransaction.UpdatedUnixTime,
 		DeletedUnixTime:      originalTransaction.DeletedUnixTime,
@@ -2301,7 +2317,7 @@ func (s *TransactionService) GetAccountsDailyIncomeAndExpense(c core.Context, ui
 }
 
 // GetAccountsAndCategoriesTotalInflowAndOutflow returns the every accounts and categories total inflows and outflows amount by specific date range
-func (s *TransactionService) GetAccountsAndCategoriesTotalInflowAndOutflow(c core.Context, uid int64, startUnixTime int64, endUnixTime int64, tagFilters []*models.TransactionTagFilter, noTags bool, keyword string, matchMode core.MatchMode, clientTimezone *time.Location, useTransactionTimezone bool) ([]*models.TransactionTotalAmount, error) {
+func (s *TransactionService) GetAccountsAndCategoriesTotalInflowAndOutflow(c core.Context, uid int64, startUnixTime int64, endUnixTime int64, tagFilters []*models.TransactionTagFilter, noTags bool, keyword string, matchMode core.MatchMode, projectId int64, clientTimezone *time.Location, useTransactionTimezone bool) ([]*models.TransactionTotalAmount, error) {
 	if uid <= 0 {
 		return nil, errs.ErrUserIdInvalid
 	}
@@ -2361,6 +2377,7 @@ func (s *TransactionService) GetAccountsAndCategoriesTotalInflowAndOutflow(c cor
 
 		sess := s.UserDataDB(uid).NewSession(c).Select("type, category_id, account_id, related_account_id, transaction_time, timezone_utc_offset, amount").Where(finalCondition, finalConditionParams...)
 		sess = s.appendFilterTagIdsConditionToQuery(sess, uid, maxTransactionTime, minTransactionTime, tagFilters, noTags)
+		sess = s.appendFilterProjectConditionToQuery(sess, projectId)
 
 		err := sess.Limit(pageCountForLoadTransactionAmounts, 0).OrderBy("transaction_time desc").Find(&transactions)
 
@@ -2453,7 +2470,7 @@ func (s *TransactionService) GetUnreconciledTransactionCounts(c core.Context, ui
 }
 
 // GetAccountsAndCategoriesMonthlyInflowAndOutflow returns the every accounts monthly inflows and outflows amount by specific date range
-func (s *TransactionService) GetAccountsAndCategoriesMonthlyInflowAndOutflow(c core.Context, uid int64, startYear int32, startMonth int32, endYear int32, endMonth int32, tagFilters []*models.TransactionTagFilter, noTags bool, keyword string, matchMode core.MatchMode, clientTimezone *time.Location, useTransactionTimezone bool) (map[int32][]*models.TransactionTotalAmount, error) {
+func (s *TransactionService) GetAccountsAndCategoriesMonthlyInflowAndOutflow(c core.Context, uid int64, startYear int32, startMonth int32, endYear int32, endMonth int32, tagFilters []*models.TransactionTagFilter, noTags bool, keyword string, matchMode core.MatchMode, projectId int64, clientTimezone *time.Location, useTransactionTimezone bool) (map[int32][]*models.TransactionTotalAmount, error) {
 	if uid <= 0 {
 		return nil, errs.ErrUserIdInvalid
 	}
@@ -2518,6 +2535,7 @@ func (s *TransactionService) GetAccountsAndCategoriesMonthlyInflowAndOutflow(c c
 
 		sess := s.UserDataDB(uid).NewSession(c).Select("type, category_id, account_id, related_account_id, transaction_time, timezone_utc_offset, amount").Where(finalCondition, finalConditionParams...)
 		sess = s.appendFilterTagIdsConditionToQuery(sess, uid, maxTransactionTime, minTransactionTime, tagFilters, noTags)
+		sess = s.appendFilterProjectConditionToQuery(sess, projectId)
 
 		err := sess.Limit(pageCountForLoadTransactionAmounts, 0).OrderBy("transaction_time desc").Find(&transactions)
 
@@ -2644,6 +2662,13 @@ func (s *TransactionService) doCreateTransaction(c core.Context, database *datas
 
 	// Get and verify category
 	err = s.isCategoryValid(sess, transaction)
+
+	if err != nil {
+		return err
+	}
+
+	// Get and verify project
+	err = s.isProjectValid(sess, transaction)
 
 	if err != nil {
 		return err
@@ -3194,6 +3219,16 @@ func (s *TransactionService) appendFilterTagIdsConditionToQuery(sess *xorm.Sessi
 	return sess
 }
 
+func (s *TransactionService) appendFilterProjectConditionToQuery(sess *xorm.Session, projectId int64) *xorm.Session {
+	if projectId <= 0 {
+		return sess
+	}
+
+	sess.And("project_id=?", projectId)
+
+	return sess
+}
+
 func (s *TransactionService) appendFilterPicturesConditionToQuery(sess *xorm.Session, uid int64, mustHavePictures bool) *xorm.Session {
 	if !mustHavePictures {
 		return sess
@@ -3332,11 +3367,14 @@ func (s *TransactionService) createTransactionByScheduledTransactionTemplate(c c
 	return transaction, tagIds
 }
 
+// accountOfBookCondition matches the accounts of a book, including the accounts which book members shared to it
+const accountOfBookCondition = "deleted=? AND (uid=? OR account_id IN (SELECT account_id FROM shared_book_account WHERE book_id=?))"
+
 func (s *TransactionService) getAccountModels(sess *xorm.Session, transaction *models.Transaction) (sourceAccount *models.Account, destinationAccount *models.Account, err error) {
 	sourceAccount = &models.Account{}
 	destinationAccount = &models.Account{}
 
-	has, err := sess.ID(transaction.AccountId).Where("uid=? AND deleted=?", transaction.Uid, false).Get(sourceAccount)
+	has, err := sess.ID(transaction.AccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(sourceAccount)
 
 	if err != nil {
 		return nil, nil, err
@@ -3361,7 +3399,7 @@ func (s *TransactionService) getAccountModels(sess *xorm.Session, transaction *m
 		if transaction.RelatedAccountId <= 0 {
 			return nil, nil, errs.ErrAccountIdInvalid
 		} else {
-			has, err = sess.ID(transaction.RelatedAccountId).Where("uid=? AND deleted=?", transaction.Uid, false).Get(destinationAccount)
+			has, err = sess.ID(transaction.RelatedAccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(destinationAccount)
 
 			if err != nil {
 				return nil, nil, err
@@ -3429,7 +3467,7 @@ func (s *TransactionService) getOldAccountModels(sess *xorm.Session, transaction
 	if transaction.AccountId == oldTransaction.AccountId {
 		oldSourceAccount = sourceAccount
 	} else {
-		has, err := sess.ID(oldTransaction.AccountId).Where("uid=? AND deleted=?", transaction.Uid, false).Get(oldSourceAccount)
+		has, err := sess.ID(oldTransaction.AccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(oldSourceAccount)
 
 		if err != nil {
 			return nil, nil, err
@@ -3441,7 +3479,7 @@ func (s *TransactionService) getOldAccountModels(sess *xorm.Session, transaction
 	if transaction.RelatedAccountId == oldTransaction.RelatedAccountId {
 		oldDestinationAccount = destinationAccount
 	} else if oldTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT || oldTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_IN {
-		has, err := sess.ID(oldTransaction.RelatedAccountId).Where("uid=? AND deleted=?", transaction.Uid, false).Get(oldDestinationAccount)
+		has, err := sess.ID(oldTransaction.RelatedAccountId).Where(accountOfBookCondition, false, transaction.Uid, transaction.Uid).Get(oldDestinationAccount)
 
 		if err != nil {
 			return nil, nil, err
@@ -3539,6 +3577,35 @@ func (s *TransactionService) isCategoryValid(sess *xorm.Session, transaction *mo
 		if parentCategory.Hidden {
 			return errs.ErrCannotUseHiddenTransactionCategory
 		}
+	}
+
+	return nil
+}
+
+func (s *TransactionService) isProjectValid(sess *xorm.Session, transaction *models.Transaction) error {
+	if transaction.ProjectId == 0 {
+		return nil
+	}
+
+	if transaction.ProjectId < 0 {
+		return errs.ErrProjectIdInvalid
+	}
+
+	if transaction.Type == models.TRANSACTION_DB_TYPE_MODIFY_BALANCE {
+		return errs.ErrProjectCannotBeSetForBalanceModification
+	}
+
+	project := &models.Project{}
+	has, err := sess.ID(transaction.ProjectId).Where("uid=? AND deleted=?", transaction.Uid, false).Get(project)
+
+	if err != nil {
+		return err
+	} else if !has {
+		return errs.ErrProjectNotFound
+	}
+
+	if project.Hidden {
+		return errs.ErrCannotUseHiddenProject
 	}
 
 	return nil

@@ -16,6 +16,10 @@ import HomePage from '@/views/desktop/HomePage.vue';
 import TransactionListPage from '@/views/desktop/transactions/ListPage.vue';
 
 import StatisticsTransactionPage from '@/views/desktop/statistics/TransactionPage.vue';
+import BudgetPage from '@/views/desktop/budgets/BudgetPage.vue';
+import HouseholdReportPage from '@/views/desktop/reports/HouseholdReportPage.vue';
+import ProjectListPage from '@/views/desktop/projects/ListPage.vue';
+import ProjectReportPage from '@/views/desktop/projects/ReportPage.vue';
 
 import InsightsExplorerPage from '@/views/desktop/insights/ExplorerPage.vue';
 
@@ -36,6 +40,7 @@ import UserBasicSettingPage from '@/views/desktop/users/UserBasicSettingPage.vue
 import UserSecuritySettingPage from '@/views/desktop/users/UserSecuritySettingPage.vue';
 import TwoFactorAuthPage from '@/views/desktop/users/TwoFactorAuthPage.vue';
 import DataManagementPage from '@/views/desktop/users/DataManagementPage.vue';
+import SharedBooksPage from '@/views/desktop/users/SharedBooksPage.vue';
 import PreferencesSettingsPage from '@/views/desktop/settings/PreferencesSettingsPage.vue';
 import ApplicationLockPage from '@/views/desktop/settings/ApplicationLockPage.vue';
 import StatisticsSettingPage from '@/views/desktop/settings/StatisticsSettingPage.vue';
@@ -126,6 +131,29 @@ const router = createRouter({
             })
         },
         {
+            path: '/budgets',
+            component: BudgetPage,
+            beforeEnter: checkLogin
+        },
+        {
+            path: '/reports/household',
+            component: HouseholdReportPage,
+            beforeEnter: checkLogin
+        },
+        {
+            path: '/projects',
+            component: ProjectListPage,
+            beforeEnter: checkLogin
+        },
+        {
+            path: '/projects/report',
+            component: ProjectReportPage,
+            beforeEnter: checkLogin,
+            props: route => ({
+                initId: route.query['id']
+            })
+        },
+        {
             path: '/statistics/transaction',
             component: StatisticsTransactionPage,
             beforeEnter: checkLogin,
@@ -212,6 +240,11 @@ const router = createRouter({
                 {
                     path: '/settings/user/two_factor',
                     component: TwoFactorAuthPage,
+                    beforeEnter: checkLogin
+                },
+                {
+                    path: '/settings/user/shared_books',
+                    component: SharedBooksPage,
                     beforeEnter: checkLogin
                 },
                 {

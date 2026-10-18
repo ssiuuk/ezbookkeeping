@@ -55,8 +55,8 @@ func (a *LargeLanguageModelsApi) RecognizeTransactionTextHandler(c *core.WebCont
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -127,7 +127,7 @@ func (a *LargeLanguageModelsApi) RecognizeTransactionTextHandler(c *core.WebCont
 		UserPromptType: data.LARGE_LANGUAGE_MODEL_REQUEST_PROMPT_TYPE_TEXT,
 	}
 
-	llmResponse, err := llm.Container.GetJsonResponseByTextRecognitionModel(c, c.GetCurrentUid(), a.CurrentConfig(), llmRequest)
+	llmResponse, err := llm.Container.GetJsonResponseByTextRecognitionModel(c, c.GetCurrentBookUid(), a.CurrentConfig(), llmRequest)
 
 	if err != nil {
 		log.Errorf(c, "[large_language_models.RecognizeTransactionTextHandler] failed to get llm response user \"uid:%d\", because %s", uid, err.Error())
@@ -161,8 +161,8 @@ func (a *LargeLanguageModelsApi) RecognizeReceiptImageHandler(c *core.WebContext
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -263,7 +263,7 @@ func (a *LargeLanguageModelsApi) RecognizeReceiptImageHandler(c *core.WebContext
 		UserPromptContentType: contentType,
 	}
 
-	llmResponse, err := llm.Container.GetJsonResponseByReceiptImageRecognitionModel(c, c.GetCurrentUid(), a.CurrentConfig(), llmRequest)
+	llmResponse, err := llm.Container.GetJsonResponseByReceiptImageRecognitionModel(c, c.GetCurrentBookUid(), a.CurrentConfig(), llmRequest)
 
 	if err != nil {
 		log.Errorf(c, "[large_language_models.RecognizeReceiptImageHandler] failed to get llm response user \"uid:%d\", because %s", uid, err.Error())
@@ -290,8 +290,8 @@ func (a *LargeLanguageModelsApi) GenerateCodeHandler(c *core.WebContext) (any, *
 		return nil, errs.ErrLargeLanguageModelProviderNotEnabled
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -356,7 +356,7 @@ func (a *LargeLanguageModelsApi) GenerateCodeHandler(c *core.WebContext) (any, *
 		UserPromptType: data.LARGE_LANGUAGE_MODEL_REQUEST_PROMPT_TYPE_TEXT,
 	}
 
-	llmResponse, err := llm.Container.GetJsonResponseByCodingAssistantModel(c, c.GetCurrentUid(), a.CurrentConfig(), llmRequest)
+	llmResponse, err := llm.Container.GetJsonResponseByCodingAssistantModel(c, c.GetCurrentBookUid(), a.CurrentConfig(), llmRequest)
 
 	if err != nil {
 		log.Errorf(c, "[large_language_models.GenerateCodeHandler] failed to get llm response for user \"uid:%d\", because %s", uid, err.Error())

@@ -126,12 +126,12 @@ const (
 // Transaction represents transaction data stored in database
 type Transaction struct {
 	TransactionId        int64             `xorm:"PK"`
-	Uid                  int64             `xorm:"UNIQUE(UQE_transaction_uid_time) INDEX(IDX_transaction_uid_deleted_time) INDEX(IDX_transaction_uid_deleted_type_time) INDEX(IDX_transaction_uid_deleted_type_account_id_time) INDEX(IDX_transaction_uid_deleted_category_id_time) INDEX(IDX_transaction_uid_deleted_account_id_time) INDEX(IDX_transaction_uid_deleted_time_longitude_latitude) NOT NULL"`
-	Deleted              bool              `xorm:"INDEX(IDX_transaction_uid_deleted_time) INDEX(IDX_transaction_uid_deleted_type_time) INDEX(IDX_transaction_uid_deleted_type_account_id_time) INDEX(IDX_transaction_uid_deleted_category_id_time) INDEX(IDX_transaction_uid_deleted_account_id_time) INDEX(IDX_transaction_uid_deleted_time_longitude_latitude) NOT NULL"`
+	Uid                  int64             `xorm:"UNIQUE(UQE_transaction_uid_time) INDEX(IDX_transaction_uid_deleted_time) INDEX(IDX_transaction_uid_deleted_type_time) INDEX(IDX_transaction_uid_deleted_type_account_id_time) INDEX(IDX_transaction_uid_deleted_category_id_time) INDEX(IDX_transaction_uid_deleted_account_id_time) INDEX(IDX_transaction_uid_deleted_time_longitude_latitude) INDEX(IDX_transaction_uid_deleted_project_id_time) NOT NULL"`
+	Deleted              bool              `xorm:"INDEX(IDX_transaction_uid_deleted_time) INDEX(IDX_transaction_uid_deleted_type_time) INDEX(IDX_transaction_uid_deleted_type_account_id_time) INDEX(IDX_transaction_uid_deleted_category_id_time) INDEX(IDX_transaction_uid_deleted_account_id_time) INDEX(IDX_transaction_uid_deleted_time_longitude_latitude) INDEX(IDX_transaction_uid_deleted_project_id_time) NOT NULL"`
 	Type                 TransactionDbType `xorm:"INDEX(IDX_transaction_uid_deleted_type_time) INDEX(IDX_transaction_uid_deleted_type_account_id_time) NOT NULL"`
 	CategoryId           int64             `xorm:"INDEX(IDX_transaction_uid_deleted_category_id_time) NOT NULL"`
 	AccountId            int64             `xorm:"INDEX(IDX_transaction_uid_deleted_account_id_time) INDEX(IDX_transaction_uid_deleted_type_account_id_time) NOT NULL"`
-	TransactionTime      int64             `xorm:"UNIQUE(UQE_transaction_uid_time) INDEX(IDX_transaction_uid_deleted_time) INDEX(IDX_transaction_uid_deleted_type_time) INDEX(IDX_transaction_uid_deleted_type_account_id_time) INDEX(IDX_transaction_uid_deleted_category_id_time) INDEX(IDX_transaction_uid_deleted_account_id_time) NOT NULL"`
+	TransactionTime      int64             `xorm:"UNIQUE(UQE_transaction_uid_time) INDEX(IDX_transaction_uid_deleted_time) INDEX(IDX_transaction_uid_deleted_type_time) INDEX(IDX_transaction_uid_deleted_type_account_id_time) INDEX(IDX_transaction_uid_deleted_category_id_time) INDEX(IDX_transaction_uid_deleted_account_id_time) INDEX(IDX_transaction_uid_deleted_project_id_time) NOT NULL"`
 	TimezoneUtcOffset    int16             `xorm:"NOT NULL"`
 	Amount               int64             `xorm:"NOT NULL"`
 	RelatedId            int64             `xorm:"NOT NULL"`
@@ -141,7 +141,9 @@ type Transaction struct {
 	Comment              string            `xorm:"VARCHAR(255) NOT NULL"`
 	GeoLongitude         float64           `xorm:"INDEX(IDX_transaction_uid_deleted_time_longitude_latitude)"`
 	GeoLatitude          float64           `xorm:"INDEX(IDX_transaction_uid_deleted_time_longitude_latitude)"`
+	ProjectId            int64             `xorm:"INDEX(IDX_transaction_uid_deleted_project_id_time) NOT NULL DEFAULT 0"`
 	CreatedIp            string            `xorm:"VARCHAR(39)"`
+	CreatedByUid         int64
 	ScheduledCreated     bool
 	CreatedUnixTime      int64
 	UpdatedUnixTime      int64
@@ -174,6 +176,7 @@ type TransactionCreateRequest struct {
 	HideAmount           bool                           `json:"hideAmount"`
 	TagIds               []string                       `json:"tagIds"`
 	PictureIds           []string                       `json:"pictureIds"`
+	ProjectId            int64                          `json:"projectId,string" binding:"min=0"`
 	Comment              string                         `json:"comment" binding:"max=255"`
 	GeoLocation          *TransactionGeoLocationRequest `json:"geoLocation" binding:"omitempty"`
 	ClientSessionId      string                         `json:"clientSessionId"`
@@ -193,6 +196,7 @@ type TransactionModifyRequest struct {
 	HideAmount           bool                           `json:"hideAmount"`
 	TagIds               []string                       `json:"tagIds"`
 	PictureIds           []string                       `json:"pictureIds"`
+	ProjectId            int64                          `json:"projectId,string" binding:"min=0"`
 	Comment              string                         `json:"comment" binding:"max=255"`
 	GeoLocation          *TransactionGeoLocationRequest `json:"geoLocation" binding:"omitempty"`
 }
@@ -229,6 +233,7 @@ type TransactionCountRequest struct {
 	AmountFilter     string          `form:"amount_filter" binding:"validAmountFilter"`
 	Keyword          string          `form:"keyword"`
 	MatchMode        core.MatchMode  `form:"match_mode" binding:"min=0,max=1"`
+	ProjectId        int64           `form:"project_id" binding:"min=0"`
 	MustHavePictures bool            `form:"must_have_pictures"`
 	MaxTime          int64           `form:"max_time" binding:"min=0"` // Transaction time sequence id
 	MinTime          int64           `form:"min_time" binding:"min=0"` // Transaction time sequence id
@@ -243,6 +248,7 @@ type TransactionListByMaxTimeRequest struct {
 	AmountFilter     string          `form:"amount_filter" binding:"validAmountFilter"`
 	Keyword          string          `form:"keyword"`
 	MatchMode        core.MatchMode  `form:"match_mode" binding:"min=0,max=1"`
+	ProjectId        int64           `form:"project_id" binding:"min=0"`
 	MustHavePictures bool            `form:"must_have_pictures"`
 	MaxTime          int64           `form:"max_time" binding:"min=0"` // Transaction time sequence id
 	MinTime          int64           `form:"min_time" binding:"min=0"` // Transaction time sequence id
@@ -266,6 +272,7 @@ type TransactionListInMonthByPageRequest struct {
 	AmountFilter     string          `form:"amount_filter" binding:"validAmountFilter"`
 	Keyword          string          `form:"keyword"`
 	MatchMode        core.MatchMode  `form:"match_mode" binding:"min=0,max=1"`
+	ProjectId        int64           `form:"project_id" binding:"min=0"`
 	MustHavePictures bool            `form:"must_have_pictures"`
 	WithPictures     bool            `form:"with_pictures"`
 	TrimAccount      bool            `form:"trim_account"`
@@ -305,6 +312,7 @@ type TransactionStatisticRequest struct {
 	TagFilter              string         `form:"tag_filter" binding:"validTagFilter"`
 	Keyword                string         `form:"keyword"`
 	MatchMode              core.MatchMode `form:"match_mode" binding:"min=0,max=1"`
+	ProjectId              int64          `form:"project_id" binding:"min=0"`
 	UseTransactionTimezone bool           `form:"use_transaction_timezone"`
 }
 
@@ -314,6 +322,7 @@ type TransactionStatisticTrendsRequest struct {
 	TagFilter              string         `form:"tag_filter" binding:"validTagFilter"`
 	Keyword                string         `form:"keyword"`
 	MatchMode              core.MatchMode `form:"match_mode" binding:"min=0,max=1"`
+	ProjectId              int64          `form:"project_id" binding:"min=0"`
 	UseTransactionTimezone bool           `form:"use_transaction_timezone"`
 }
 
@@ -438,6 +447,8 @@ type TransactionInfoResponse struct {
 	Pictures             TransactionPictureInfoBasicResponseSlice `json:"pictures,omitempty"`
 	Comment              string                                   `json:"comment"`
 	GeoLocation          *TransactionGeoLocationResponse          `json:"geoLocation,omitempty"`
+	CreatedByUid         int64                                    `json:"createdByUid,string"`
+	ProjectId            int64                                    `json:"projectId,string"`
 	Editable             bool                                     `json:"editable"`
 }
 
@@ -671,6 +682,12 @@ func (t *Transaction) ToTransactionInfoResponse(tagIds []int64, editable bool) *
 		geoLocation = nil
 	}
 
+	createdByUid := t.CreatedByUid
+
+	if createdByUid == 0 {
+		createdByUid = t.Uid
+	}
+
 	return &TransactionInfoResponse{
 		Id:                   t.TransactionId,
 		TimeSequenceId:       t.TransactionTime,
@@ -686,6 +703,8 @@ func (t *Transaction) ToTransactionInfoResponse(tagIds []int64, editable bool) *
 		TagIds:               utils.Int64ArrayToStringArray(tagIds),
 		Comment:              t.Comment,
 		GeoLocation:          geoLocation,
+		CreatedByUid:         createdByUid,
+		ProjectId:            t.ProjectId,
 		Editable:             editable,
 	}
 }

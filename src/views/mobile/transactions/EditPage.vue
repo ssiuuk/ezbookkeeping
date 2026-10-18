@@ -67,6 +67,16 @@
             ></f7-list-input>
 
             <f7-list-item
+                class="list-item-with-header-and-title"
+                link="#"
+                :header="tt('Book')"
+                :title="entryBookDisplayName"
+                @click="showEntryBookSheet = true"
+                v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction && mode === TransactionEditPageMode.Add && showEntryBookSelection"
+            >
+            </f7-list-item>
+
+            <f7-list-item
                 class="transaction-edit-amount"
                 link="#" no-chevron
                 :class="sourceAmountClass"
@@ -103,7 +113,7 @@
                 class="list-item-with-header-and-title list-item-title-hide-overflow"
                 key="expenseCategorySelection"
                 link="#" no-chevron
-                :class="{ 'disabled': !hasVisibleExpenseCategories, 'readonly': mode === TransactionEditPageMode.View }"
+                :class="{ 'disabled': !hasVisibleExpenseCategories && mode === TransactionEditPageMode.View, 'readonly': mode === TransactionEditPageMode.View }"
                 :header="tt('Category')"
                 @click="showCategorySheet = true"
                 v-if="transaction.type === TransactionType.Expense"
@@ -126,8 +136,10 @@
                                            secondary-hidden-field="hidden"
                                            :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
                                            :items="allCategories[CategoryType.Expense]"
+                                           :add-item-text="mode !== TransactionEditPageMode.View ? tt('Add Secondary Category') : undefined"
                                            v-model:show="showCategorySheet"
-                                           v-model="transaction.expenseCategoryId">
+                                           v-model="transaction.expenseCategoryId"
+                                           @add:item="addSecondaryCategory(CategoryType.Expense, $event)">
                 </tree-view-selection-sheet>
             </f7-list-item>
 
@@ -135,7 +147,7 @@
                 class="list-item-with-header-and-title list-item-title-hide-overflow"
                 key="incomeCategorySelection"
                 link="#" no-chevron
-                :class="{ 'disabled': !hasVisibleIncomeCategories, 'readonly': mode === TransactionEditPageMode.View }"
+                :class="{ 'disabled': !hasVisibleIncomeCategories && mode === TransactionEditPageMode.View, 'readonly': mode === TransactionEditPageMode.View }"
                 :header="tt('Category')"
                 @click="showCategorySheet = true"
                 v-if="transaction.type === TransactionType.Income"
@@ -158,8 +170,10 @@
                                            secondary-hidden-field="hidden"
                                            :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
                                            :items="allCategories[CategoryType.Income]"
+                                           :add-item-text="mode !== TransactionEditPageMode.View ? tt('Add Secondary Category') : undefined"
                                            v-model:show="showCategorySheet"
-                                           v-model="transaction.incomeCategoryId">
+                                           v-model="transaction.incomeCategoryId"
+                                           @add:item="addSecondaryCategory(CategoryType.Income, $event)">
                 </tree-view-selection-sheet>
             </f7-list-item>
 
@@ -167,7 +181,7 @@
                 class="list-item-with-header-and-title list-item-title-hide-overflow"
                 key="transferCategorySelection"
                 link="#" no-chevron
-                :class="{ 'disabled': !hasVisibleTransferCategories, 'readonly': mode === TransactionEditPageMode.View }"
+                :class="{ 'disabled': !hasVisibleTransferCategories && mode === TransactionEditPageMode.View, 'readonly': mode === TransactionEditPageMode.View }"
                 :header="tt('Category')"
                 @click="showCategorySheet = true"
                 v-if="transaction.type === TransactionType.Transfer"
@@ -190,8 +204,10 @@
                                            secondary-hidden-field="hidden"
                                            :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
                                            :items="allCategories[CategoryType.Transfer]"
+                                           :add-item-text="mode !== TransactionEditPageMode.View ? tt('Add Secondary Category') : undefined"
                                            v-model:show="showCategorySheet"
-                                           v-model="transaction.transferCategoryId">
+                                           v-model="transaction.transferCategoryId"
+                                           @add:item="addSecondaryCategory(CategoryType.Transfer, $event)">
                 </tree-view-selection-sheet>
             </f7-list-item>
 
@@ -288,7 +304,8 @@
                 @click="showScheduledStartDateSheet = true"
                 v-if="pageTypeAndMode?.type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate && transaction.templateType === TemplateType.Schedule.type"
             >
-                <date-selection-sheet v-model:show="showScheduledStartDateSheet"
+                <date-selection-sheet :max-years-after-current-year="SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR"
+                                      v-model:show="showScheduledStartDateSheet"
                                       v-model="transaction.scheduledStartDate">
                 </date-selection-sheet>
             </f7-list-item>
@@ -302,7 +319,8 @@
                 @click="showScheduledEndDateSheet = true"
                 v-if="pageTypeAndMode?.type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate && transaction.templateType === TemplateType.Schedule.type"
             >
-                <date-selection-sheet v-model:show="showScheduledEndDateSheet"
+                <date-selection-sheet :max-years-after-current-year="SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR"
+                                      v-model:show="showScheduledEndDateSheet"
                                       v-model="transaction.scheduledEndDate">
                 </date-selection-sheet>
             </f7-list-item>
@@ -389,6 +407,29 @@
             </f7-list-item>
 
             <f7-list-item
+                link="#"
+                :no-chevron="mode === TransactionEditPageMode.View"
+                class="list-item-with-header-and-title list-item-title-hide-overflow"
+                :class="{ 'readonly': mode === TransactionEditPageMode.View }"
+                :header="tt('Project')"
+                :title="transactionProjectName"
+                v-if="showProjectField"
+                @click="showProjectPopup = true"
+            >
+                <list-item-selection-popup value-type="item"
+                                           key-field="id" value-field="id"
+                                           title-field="name"
+                                           :title="tt('Project')"
+                                           :enable-filter="allProjectSelectItems.length > 8"
+                                           :filter-placeholder="tt('Project')"
+                                           :filter-no-items-text="tt('No results')"
+                                           :items="allProjectSelectItems"
+                                           v-model="transaction.projectId"
+                                           v-model:show="showProjectPopup">
+                </list-item-selection-popup>
+            </f7-list-item>
+
+            <f7-list-item
                 link="#" no-chevron
                 :header="tt('Pictures')"
                 v-if="showTransactionPictures || (transaction.pictures && transaction.pictures.length > 0)"
@@ -439,7 +480,24 @@
                 v-textarea-auto-size
                 v-model:value="transaction.comment"
             ></f7-list-input>
+
+            <f7-list-item class="transaction-edit-created-by"
+                          :title="tt('format.misc.addedByUser', { name: transactionCreatorName })"
+                          v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction && mode !== TransactionEditPageMode.Add && transactionCreatorName"></f7-list-item>
         </f7-list>
+
+        <f7-actions close-by-outside-click close-on-escape :opened="showEntryBookSheet" @actions:closed="showEntryBookSheet = false">
+            <f7-actions-group>
+                <f7-actions-label>{{ tt('Book') }}</f7-actions-label>
+                <f7-actions-button :key="book.id"
+                                   :class="{ 'color-theme': book.id === entryBook?.id }"
+                                   v-for="book in allBooks"
+                                   @click="onEntryBookChanged(book)">{{ getBookDisplayName(book) }}</f7-actions-button>
+            </f7-actions-group>
+            <f7-actions-group>
+                <f7-actions-button bold close>{{ tt('Cancel') }}</f7-actions-button>
+            </f7-actions-group>
+        </f7-actions>
 
         <f7-actions close-by-outside-click close-on-escape :opened="showGeoLocationActionSheet" @actions:closed="showGeoLocationActionSheet = false">
             <f7-actions-group>
@@ -523,6 +581,7 @@
 import { ref, computed, useTemplateRef } from 'vue';
 import type { PhotoBrowser, Router } from 'framework7/types';
 
+import type { TwoLevelItemAddEvent } from '@/components/base/TwoLevelItemSelectionBase.ts';
 import { useI18n } from '@/locales/helpers.ts';
 import { useI18nUIComponents, isiOS, showLoading, hideLoading, closeAllDialog } from '@/lib/ui/mobile.ts';
 import {
@@ -540,7 +599,12 @@ import { useTransactionCategoriesStore } from '@/stores/transactionCategory.ts';
 import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 import { useTransactionsStore } from '@/stores/transaction.ts';
 import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
+import { useBooksStore } from '@/stores/book.ts';
+import { useProjectsStore } from '@/stores/project.ts';
+import { useEntryBookSelectionBase } from '@/views/base/books/EntryBookSelectionBase.ts';
+import type { BookInfoResponse } from '@/models/book.ts';
 
+import { entries, keys } from '@/core/base.ts';
 import { CategoryType } from '@/core/category.ts';
 import {
     TransactionType,
@@ -551,7 +615,7 @@ import {
 import { ScheduledTemplateFrequencyType, TemplateType } from '@/core/template.ts';
 import { KnownFileType } from '@/core/file.ts';
 
-import { TRANSACTION_MAX_AMOUNT, TRANSACTION_MIN_AMOUNT } from '@/consts/transaction.ts';
+import { TRANSACTION_MAX_AMOUNT, TRANSACTION_MIN_AMOUNT, SCHEDULED_TRANSACTION_MAX_YEARS_AFTER_CURRENT_YEAR } from '@/consts/transaction.ts';
 import { KnownErrorCode } from '@/consts/api.ts';
 import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
 
@@ -567,7 +631,7 @@ import {
     parseDateTimeFromUnixTimeWithTimezoneOffset
 } from '@/lib/datetime.ts';
 import { generateRandomUUID } from '@/lib/misc.ts';
-import { getTransactionPrimaryCategoryName, getTransactionSecondaryCategoryName } from '@/lib/category.ts';
+import { getTransactionPrimaryCategoryName, getTransactionSecondaryCategoryName, getParentCategoryIdForNewSubCategory } from '@/lib/category.ts';
 import { type SetTransactionOptions } from '@/lib/transaction.ts';
 import {
     isTransactionFromAITextRecognitionEnabled,
@@ -618,6 +682,9 @@ const {
     numeralSystem,
     currentTimezoneOffsetMinutes,
     defaultCurrency,
+    showProjectField,
+    allProjectSelectItems,
+    transactionProjectName,
     firstDayOfWeek,
     imageUploadQualityType,
     allTimezones,
@@ -646,6 +713,7 @@ const {
     inputEmptyProblemMessage,
     inputIsEmpty,
     setTransactionModel,
+    resetTransactionBookRelatedFields,
     updateTransactionModelFromRecognizedResponse,
     updateTransactionModelByAfterSaveAction,
     updateTransactionTime,
@@ -664,6 +732,23 @@ const transactionCategoriesStore = useTransactionCategoriesStore();
 const transactionTagsStore = useTransactionTagsStore();
 const transactionsStore = useTransactionsStore();
 const transactionTemplatesStore = useTransactionTemplatesStore();
+const booksStore = useBooksStore();
+const projectsStore = useProjectsStore();
+
+const {
+    allBooks,
+    showEntryBookSelection,
+    entryBook,
+    entryBookDisplayName,
+    getBookDisplayName,
+    initEntryBook,
+    changeEntryBook,
+    restoreEntryBook
+} = useEntryBookSelectionBase();
+
+const showEntryBookSheet = ref<boolean>(false);
+
+const transactionCreatorName = computed<string>(() => booksStore.currentBookMembers.length > 1 ? booksStore.getMemberDisplayName(transaction.value.createdByUid) : '');
 
 const pictureBrowser = useTemplateRef<PhotoBrowser.PhotoBrowser>('pictureBrowser');
 const pictureInput = useTemplateRef<HTMLInputElement>('pictureInput');
@@ -680,6 +765,7 @@ const showMoreActionSheet = ref<boolean>(false);
 const showSourceAmountSheet = ref<boolean>(false);
 const showDestinationAmountSheet = ref<boolean>(false);
 const showCategorySheet = ref<boolean>(false);
+const pendingAddedCategory = ref<{ type: CategoryType; existingCategoryIds: Record<string, boolean> } | null>(null);
 const showSourceAccountSheet = ref<boolean>(false);
 const showDestinationAccountSheet = ref<boolean>(false);
 const showTransactionDateTimeSheet = ref<boolean>(false);
@@ -688,6 +774,7 @@ const showScheduledStartDateSheet = ref<boolean>(false);
 const showScheduledEndDateSheet = ref<boolean>(false);
 const showGeoLocationMapSheet = ref<boolean>(false);
 const showTransactionTagSheet = ref<boolean>(false);
+const showProjectPopup = ref<boolean>(false);
 const showTransactionPictures = ref<boolean>(pageTypeAndMode?.type === TransactionEditPageType.Transaction
     && (pageTypeAndMode?.mode === TransactionEditPageMode.Add || pageTypeAndMode?.mode === TransactionEditPageMode.Edit)
     && settingsStore.appSettings.alwaysShowTransactionPicturesInMobileTransactionEditPage);
@@ -943,6 +1030,7 @@ function init(): void {
     }
 
     loading.value = true;
+    initEntryBook();
 
     const promises: Promise<unknown>[] = [
         accountsStore.loadAllAccounts({ force: false }),
@@ -950,6 +1038,9 @@ function init(): void {
         transactionTagsStore.loadAllTags({ force: false }),
         transactionTemplatesStore.loadAllTemplates({ force: false, templateType: TemplateType.Normal.type })
     ];
+
+    // projects are optional for a transaction, so failing to load them should not block the page
+    projectsStore.loadAllProjects({ force: false }).catch(error => logger.warn('failed to load projects', error));
 
     if (pageTypeAndMode.type === TransactionEditPageType.Transaction) {
         if (query['id']) {
@@ -1447,8 +1538,70 @@ function onUploadPicture(event: Event): void {
     uploadPicture(pictureFile);
 }
 
+function addSecondaryCategory(categoryType: CategoryType, event: TwoLevelItemAddEvent): void {
+    const parentId = getParentCategoryIdForNewSubCategory(allCategories.value, categoryType, undefined, getSelectedCategoryId(categoryType));
+
+    if (!parentId) {
+        showToast('No available primary category');
+        return;
+    }
+
+    const existingCategoryIds: Record<string, boolean> = {};
+
+    for (const categoryId of keys(transactionCategoriesStore.allTransactionCategoriesMap)) {
+        existingCategoryIds[categoryId] = true;
+    }
+
+    pendingAddedCategory.value = {
+        type: categoryType,
+        existingCategoryIds: existingCategoryIds
+    };
+
+    const name = event.filterContent.trim();
+    props.f7router.navigate(`/category/add?type=${categoryType}&parentId=${parentId}&allowChangingParent=true${name ? `&name=${encodeURIComponent(name)}` : ''}`);
+}
+
+function getSelectedCategoryId(categoryType: CategoryType): string {
+    if (categoryType === CategoryType.Expense) {
+        return transaction.value.expenseCategoryId;
+    } else if (categoryType === CategoryType.Income) {
+        return transaction.value.incomeCategoryId;
+    } else if (categoryType === CategoryType.Transfer) {
+        return transaction.value.transferCategoryId;
+    } else {
+        return '';
+    }
+}
+
+function selectAddedCategory(): void {
+    const pending = pendingAddedCategory.value;
+
+    if (!pending) {
+        return;
+    }
+
+    pendingAddedCategory.value = null;
+
+    for (const [categoryId, category] of entries(transactionCategoriesStore.allTransactionCategoriesMap)) {
+        if (pending.existingCategoryIds[categoryId] || category.type !== pending.type || !category.parentId || category.parentId === '0') {
+            continue;
+        }
+
+        if (pending.type === CategoryType.Expense) {
+            transaction.value.expenseCategoryId = categoryId;
+        } else if (pending.type === CategoryType.Income) {
+            transaction.value.incomeCategoryId = categoryId;
+        } else if (pending.type === CategoryType.Transfer) {
+            transaction.value.transferCategoryId = categoryId;
+        }
+
+        return;
+    }
+}
+
 function onPageAfterIn(): void {
     routeBackOnError(props.f7router, loadingError);
+    selectAddedCategory();
 
     if (settingsStore.appSettings.autoGetCurrentGeoLocation && mode.value === TransactionEditPageMode.Add
         && !geoLocationStatus.value && !transaction.value.geoLocation) {
@@ -1456,8 +1609,29 @@ function onPageAfterIn(): void {
     }
 }
 
-function onPageBeforeOut(): void {
-    if (submitted.value || pageTypeAndMode?.type !== TransactionEditPageType.Transaction || mode.value !== TransactionEditPageMode.Add || query['noTransactionDraft'] === 'true' || addByTemplateId.value || duplicateFromId.value) {
+function onEntryBookChanged(book: BookInfoResponse): void {
+    showEntryBookSheet.value = false;
+    showLoading();
+
+    changeEntryBook(book).then(() => {
+        resetTransactionBookRelatedFields();
+        hideLoading();
+    }).catch(error => {
+        hideLoading();
+
+        if (!error.processed) {
+            showToast(error.message || error);
+        }
+    });
+}
+
+function onPageBeforeOut(page: Router.Page): void {
+    if (page.direction === 'backward') {
+        // switch requests back to the selected book before the previous page reloads its data
+        restoreEntryBook();
+    }
+
+    if (pendingAddedCategory.value || submitted.value || pageTypeAndMode?.type !== TransactionEditPageType.Transaction || mode.value !== TransactionEditPageMode.Add || query['noTransactionDraft'] === 'true' || addByTemplateId.value || duplicateFromId.value) {
         return;
     }
 

@@ -25,7 +25,7 @@ var (
 
 // InsightsExplorerListHandler returns exploration list of current user
 func (a *InsightsExplorersApi) InsightsExplorerListHandler(c *core.WebContext) (any, *errs.Error) {
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	explorers, err := a.insightsExploreres.GetAllExplorationNamesByUid(c, uid)
 
 	if err != nil {
@@ -59,7 +59,7 @@ func (a *InsightsExplorersApi) InsightsExplorerGetHandler(c *core.WebContext) (a
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	explorer, err := a.insightsExploreres.GetExplorationByExplorationId(c, uid, explorerGetReq.Id)
 
 	if err != nil {
@@ -87,7 +87,7 @@ func (a *InsightsExplorersApi) InsightsExplorerCreateHandler(c *core.WebContext)
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	maxOrderId, err := a.insightsExploreres.GetMaxDisplayOrder(c, uid)
 
@@ -132,7 +132,7 @@ func (a *InsightsExplorersApi) InsightsExplorerModifyHandler(c *core.WebContext)
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	explorer, err := a.insightsExploreres.GetExplorationByExplorationId(c, uid, explorerModifyReq.Id)
 
 	if err != nil {
@@ -189,7 +189,7 @@ func (a *InsightsExplorersApi) InsightsExplorerHideHandler(c *core.WebContext) (
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	err = a.insightsExploreres.HideExploration(c, uid, []int64{explorerHideReq.Id}, explorerHideReq.Hidden)
 
 	if err != nil {
@@ -211,7 +211,7 @@ func (a *InsightsExplorersApi) InsightsExplorerMoveHandler(c *core.WebContext) (
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	explorers := make([]*models.InsightsExplorer, len(explorerMoveReq.NewDisplayOrders))
 
 	for i := 0; i < len(explorerMoveReq.NewDisplayOrders); i++ {
@@ -246,7 +246,7 @@ func (a *InsightsExplorersApi) InsightsExplorerDeleteHandler(c *core.WebContext)
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	err = a.insightsExploreres.DeleteExploration(c, uid, explorerDeleteReq.Id)
 
 	if err != nil {

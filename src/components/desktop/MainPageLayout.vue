@@ -66,6 +66,39 @@
                                     </v-btn>
                                 </router-link>
 
+                                <router-link to="/budgets"
+                                             :aria-current="isTopNavigationActive('/budgets') ? 'page' : undefined">
+                                    <v-btn class="top-navigation-button ms-1" density="comfortable" variant="text"
+                                           :aria-label="tt('Budgets')" :icon="true"
+                                           :active="isTopNavigationActive('/budgets')"
+                                           :color="isTopNavigationActive('/budgets') ? 'primary' : 'default'">
+                                        <v-icon :icon="isTopNavigationActive('/budgets') ? mdiPiggyBank : mdiPiggyBankOutline" size="24" />
+                                        <v-tooltip activator="parent">{{ tt('Budgets') }}</v-tooltip>
+                                    </v-btn>
+                                </router-link>
+
+                                <router-link to="/reports/household"
+                                             :aria-current="isTopNavigationActive('/reports/household') ? 'page' : undefined">
+                                    <v-btn class="top-navigation-button ms-1" density="comfortable" variant="text"
+                                           :aria-label="tt('Household Report')" :icon="true"
+                                           :active="isTopNavigationActive('/reports/household')"
+                                           :color="isTopNavigationActive('/reports/household') ? 'primary' : 'default'">
+                                        <v-icon :icon="mdiHomeGroup" size="24" />
+                                        <v-tooltip activator="parent">{{ tt('Household Report') }}</v-tooltip>
+                                    </v-btn>
+                                </router-link>
+
+                                <router-link to="/projects"
+                                             :aria-current="isProjectsNavigationActive() ? 'page' : undefined">
+                                    <v-btn class="top-navigation-button ms-1" density="comfortable" variant="text"
+                                           :aria-label="tt('Projects')" :icon="true"
+                                           :active="isProjectsNavigationActive()"
+                                           :color="isProjectsNavigationActive() ? 'primary' : 'default'">
+                                        <v-icon :icon="isProjectsNavigationActive() ? mdiBriefcase : mdiBriefcaseOutline" size="24" />
+                                        <v-tooltip activator="parent">{{ tt('Projects') }}</v-tooltip>
+                                    </v-btn>
+                                </router-link>
+
                                 <router-link to="/insights/explorer"
                                              :aria-current="isTopNavigationActive('/insights/explorer') ? 'page' : undefined">
                                     <v-btn class="top-navigation-button ms-1" density="comfortable" variant="text"
@@ -100,6 +133,30 @@
                             </slot>
                         </div>
                         <v-spacer />
+                        <v-btn class="ms-2 text-none" color="primary" density="comfortable"
+                               :variant="isInSharedBook ? 'tonal' : 'text'"
+                               :prepend-icon="mdiBookOpenPageVariantOutline"
+                               v-if="showBookSwitcher">
+                            <span class="text-truncate" style="max-width: 160px">{{ currentBookDisplayName }}</span>
+                            <v-menu activator="parent" location="bottom end" offset="14px">
+                                <v-list>
+                                    <v-list-subheader>{{ tt('Switch Book') }}</v-list-subheader>
+                                    <v-list-item :key="book.id"
+                                                 :title="getBookDisplayName(book)"
+                                                 :active="isCurrentBook(book)"
+                                                 v-for="book in allBooks"
+                                                 @click="switchBook(book)">
+                                        <template #append>
+                                            <v-icon :icon="mdiCheck" v-if="isCurrentBook(book)" />
+                                        </template>
+                                    </v-list-item>
+                                    <v-divider class="my-1"/>
+                                    <v-list-item :prepend-icon="mdiAccountMultipleOutline"
+                                                 :title="tt('Shared Books')"
+                                                 to="/settings/user/shared_books"></v-list-item>
+                                </v-list>
+                            </v-menu>
+                        </v-btn>
                         <v-btn class="ms-2" color="primary" variant="text" density="comfortable"
                                :aria-label="tt('Use on Mobile Device')" :icon="true"
                                @click="showMobileQrCode = true">
@@ -189,6 +246,7 @@ import { useDisplay, useTheme } from 'vuetify';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useI18n } from '@/locales/helpers.ts';
+import { useBookBase } from '@/views/base/books/BookBase.ts';
 
 import { useRootStore } from '@/stores/index.ts';
 import { useSettingsStore } from '@/stores/setting.ts';
@@ -212,6 +270,11 @@ import {
     mdiChartPieOutline,
     mdiCompass,
     mdiCompassOutline,
+    mdiPiggyBank,
+    mdiPiggyBankOutline,
+    mdiHomeGroup,
+    mdiBriefcase,
+    mdiBriefcaseOutline,
     mdiPlus,
     mdiCellphone,
     mdiThemeLightDark,
@@ -221,7 +284,10 @@ import {
     mdiCogOutline,
     mdiInformationOutline,
     mdiLockOutline,
-    mdiLogout
+    mdiLogout,
+    mdiBookOpenPageVariantOutline,
+    mdiAccountMultipleOutline,
+    mdiCheck
 } from '@mdi/js';
 
 defineProps<{
@@ -237,6 +303,15 @@ const route = useRoute();
 const router = useRouter();
 
 const { tt, initLocale } = useI18n();
+const {
+    allBooks,
+    isInSharedBook,
+    showBookSwitcher,
+    currentBookDisplayName,
+    getBookDisplayName,
+    isCurrentBook,
+    switchBook
+} = useBookBase();
 
 const rootStore = useRootStore();
 const settingsStore = useSettingsStore();
@@ -279,6 +354,10 @@ const isEnableApplicationLock = computed<boolean>(() => settingsStore.appSetting
 
 function isTopNavigationActive(path: string): boolean {
     return route.path === path;
+}
+
+function isProjectsNavigationActive(): boolean {
+    return route.path === '/projects' || route.path === '/projects/report';
 }
 
 function lock(): void {

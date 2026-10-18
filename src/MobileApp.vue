@@ -19,6 +19,7 @@ import { useEnvironmentsStore } from '@/stores/environment.ts';
 import { useUserStore } from '@/stores/user.ts';
 import { useTokensStore } from '@/stores/token.ts';
 import { useExchangeRatesStore } from '@/stores/exchangeRates.ts';
+import { useBooksStore } from '@/stores/book.ts';
 
 import { APPLICATION_LOGO_PATH } from '@/consts/asset.ts';
 import { ThemeType } from '@/core/theme.ts';
@@ -40,6 +41,7 @@ const environmentsStore = useEnvironmentsStore();
 const userStore = useUserStore();
 const tokensStore = useTokensStore();
 const exchangeRatesStore = useExchangeRatesStore();
+const booksStore = useBooksStore();
 
 const f7params = ref<Framework7Parameters>({
     name: 'ezBookkeeping',
@@ -240,6 +242,8 @@ if (isUserLogined()) {
             updateMapCacheExpiration(settingsStore.appSettings.mapCacheExpiration);
             exchangeRatesStore.removeExpiredExchangeRates(true);
             exchangeRatesStore.autoUpdateExchangeRatesData();
+
+            booksStore.initBooks();
         });
     }
 }

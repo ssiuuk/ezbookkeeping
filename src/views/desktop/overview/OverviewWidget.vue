@@ -22,6 +22,7 @@
                                      v-else-if="widget.type === OverviewWidgetType.CurrentMonthOverview" />
 
     <monthly-expense-progress-widget :loading="loading" :title="widgetTitle"
+                                     :budget-amount="widget.settings['budgetAmount'] as number"
                                      v-else-if="widget.type === OverviewWidgetType.CurrentMonthExpenseProgress" />
 
     <period-income-expense-widget :loading="loading" :editing="editing" :title="widgetTitle"

@@ -193,9 +193,16 @@ export const DESKTOP_OVERVIEW_WIDGET_DEFINITIONS: PartialRecord<OverviewWidgetTy
         type: OverviewWidgetType.CurrentMonthExpenseProgress,
         name: 'This Month\'s Expense Progress',
         supportsSettings: [
-            WIDGET_TITLE_SETTING
+            WIDGET_TITLE_SETTING,
+            {
+                settingType: 'amount',
+                settingName: 'budgetAmount',
+                displayName: 'Monthly Budget'
+            }
         ],
-        defaultSettings: {},
+        defaultSettings: {
+            budgetAmount: 0
+        },
         defaultWidth: 3,
         defaultHeight: 3,
         minWidth: 2,
@@ -950,10 +957,16 @@ export const MOBILE_OVERVIEW_WIDGET_DEFINITIONS: PartialRecord<OverviewWidgetTyp
         name: 'This Month\'s Expense Progress',
         supportsSettings: [
             WIDGET_TITLE_SETTING,
-            WIDGET_SHOW_TITLE_SETTING
+            WIDGET_SHOW_TITLE_SETTING,
+            {
+                settingType: 'amount',
+                settingName: 'budgetAmount',
+                displayName: 'Monthly Budget'
+            }
         ],
         defaultSettings: {
-            showTitle: false
+            showTitle: false,
+            budgetAmount: 0
         },
         dataRequirements: [
             OverviewWidgetDataRequirement.TransactionOverviewLast2Months

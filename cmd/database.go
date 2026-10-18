@@ -181,5 +181,45 @@ func updateAllDatabaseTablesStructure(c *core.CliContext) error {
 
 	log.BootInfof(c, "[database.updateAllDatabaseTablesStructure] insights explorer table maintained successfully")
 
+	err = datastore.Container.UserStore.SyncStructs(new(models.BookMember))
+
+	if err != nil {
+		return err
+	}
+
+	log.BootInfof(c, "[database.updateAllDatabaseTablesStructure] book member table maintained successfully")
+
+	err = datastore.Container.UserStore.SyncStructs(new(models.SharedBook))
+
+	if err != nil {
+		return err
+	}
+
+	log.BootInfof(c, "[database.updateAllDatabaseTablesStructure] shared book table maintained successfully")
+
+	err = datastore.Container.UserStore.SyncStructs(new(models.SharedBookAccount))
+
+	if err != nil {
+		return err
+	}
+
+	log.BootInfof(c, "[database.updateAllDatabaseTablesStructure] shared book account table maintained successfully")
+
+	err = datastore.Container.UserDataStore.SyncStructs(new(models.TransactionCategoryBudget))
+
+	if err != nil {
+		return err
+	}
+
+	log.BootInfof(c, "[database.updateAllDatabaseTablesStructure] transaction category budget table maintained successfully")
+
+	err = datastore.Container.UserDataStore.SyncStructs(new(models.Project))
+
+	if err != nil {
+		return err
+	}
+
+	log.BootInfof(c, "[database.updateAllDatabaseTablesStructure] project table maintained successfully")
+
 	return nil
 }

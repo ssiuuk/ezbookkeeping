@@ -5,6 +5,7 @@ import { TransactionCategory } from '@/models/transaction_category.ts';
 import { TransactionTag } from '@/models/transaction_tag.ts';
 import { TransactionPicture, type TransactionPictureInfoBasicResponse } from '@/models/transaction_picture_info.ts';
 import { Transaction } from '@/models/transaction.ts';
+import { NO_PROJECT_ID } from '@/models/project.ts';
 
 import {
     isDefined,
@@ -210,9 +211,11 @@ export function setTransactionModelByTransaction(transaction: Transaction, trans
         transaction.setPictures(TransactionPicture.ofMulti(transaction2.pictures || []));
 
         transaction.comment = transaction2.comment;
+        transaction.projectId = transaction2.projectId || NO_PROJECT_ID;
 
         if (setContextData) {
             transaction.setGeoLocation(transaction2.geoLocation);
+            transaction.createdByUid = transaction2.createdByUid;
         }
     }
 }

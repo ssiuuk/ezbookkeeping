@@ -30,7 +30,7 @@ var (
 
 // LatestExchangeRateHandler returns latest exchange rate data
 func (a *ExchangeRatesApi) LatestExchangeRateHandler(c *core.WebContext) (any, *errs.Error) {
-	exchangeRateResponse, err := exchangerates.Container.GetLatestExchangeRates(c, c.GetCurrentUid(), a.CurrentConfig())
+	exchangeRateResponse, err := exchangerates.Container.GetLatestExchangeRates(c, c.GetCurrentBookUid(), a.CurrentConfig())
 
 	if err != nil {
 		return nil, errs.Or(err, errs.ErrOperationFailed)
@@ -49,8 +49,8 @@ func (a *ExchangeRatesApi) UserCustomExchangeRateUpdateHandler(c *core.WebContex
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		log.Errorf(c, "[exchange_rates.UserCustomExchangeRateUpdateHandler] failed to get user \"uid:%d\", because %s", uid, err.Error())
@@ -82,8 +82,8 @@ func (a *ExchangeRatesApi) UserCustomExchangeRateDeleteHandler(c *core.WebContex
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		log.Errorf(c, "[exchange_rates.UserCustomExchangeRateDeleteHandler] failed to get user \"uid:%d\", because %s", uid, err.Error())

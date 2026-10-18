@@ -197,6 +197,7 @@ func startWebServer(c *core.CliContext) error {
 	if config.EnableTransactionPictures {
 		pictureRoute := router.Group("/pictures")
 		pictureRoute.Use(bindMiddleware(middlewares.JWTAuthorizationByQueryString(config), config))
+		pictureRoute.Use(bindMiddleware(middlewares.BookAccess(config), config))
 		{
 			pictureRoute.GET("/:fileName", bindImage(api.TransactionPictures.TransactionPictureGetHandler, config))
 		}
@@ -205,6 +206,7 @@ func startWebServer(c *core.CliContext) error {
 	if config.EnableUserCustomIcon {
 		customIconRoute := router.Group("/icons")
 		customIconRoute.Use(bindMiddleware(middlewares.JWTAuthorizationByQueryString(config), config))
+		customIconRoute.Use(bindMiddleware(middlewares.BookAccess(config), config))
 		{
 			customIconRoute.GET("/:fileName", bindImage(api.UserCustomIcons.CustomIconGetHandler, config))
 		}
@@ -336,6 +338,7 @@ func startWebServer(c *core.CliContext) error {
 		apiV1Route := apiRoute.Group("/v1")
 		apiV1Route.Use(bindMiddleware(middlewares.JWTAuthorizationByHeader(config), config))
 		apiV1Route.Use(bindMiddleware(middlewares.APITokenIpLimit(config), config))
+		apiV1Route.Use(bindMiddleware(middlewares.BookAccess(config), config))
 		{
 			// Tokens
 			apiV1Route.GET("/tokens/list.json", bindApi(api.Tokens.TokenListHandler, config))
@@ -357,6 +360,19 @@ func startWebServer(c *core.CliContext) error {
 			if config.EnableUserVerifyEmail {
 				apiV1Route.POST("/users/verify_email/resend.json", bindApi(api.Users.UserSendVerifyEmailByLoginedUserHandler, config))
 			}
+
+			// Shared Books
+			apiV1Route.GET("/books/list.json", bindApi(api.Books.BookListHandler, config))
+			apiV1Route.GET("/books/members/list.json", bindApi(api.Books.BookMemberListHandler, config))
+			apiV1Route.POST("/books/members/add.json", bindApi(api.Books.BookMemberAddHandler, config))
+			apiV1Route.POST("/books/members/remove.json", bindApi(api.Books.BookMemberRemoveHandler, config))
+			apiV1Route.POST("/books/leave.json", bindApi(api.Books.BookLeaveHandler, config))
+			apiV1Route.POST("/books/add.json", bindApi(api.Books.BookCreateHandler, config))
+			apiV1Route.POST("/books/modify.json", bindApi(api.Books.BookModifyHandler, config))
+			apiV1Route.POST("/books/delete.json", bindApi(api.Books.BookDeleteHandler, config))
+			apiV1Route.GET("/books/accounts/list.json", bindApi(api.Books.BookSharedAccountListHandler, config))
+			apiV1Route.POST("/books/accounts/share.json", bindApi(api.Books.BookShareAccountHandler, config))
+			apiV1Route.POST("/books/accounts/unshare.json", bindApi(api.Books.BookUnshareAccountHandler, config))
 
 			// External Authentications
 			if config.EnableOAuth2Login {
@@ -441,11 +457,22 @@ func startWebServer(c *core.CliContext) error {
 			apiV1Route.GET("/transaction/categories/list.json", bindApi(api.TransactionCategories.CategoryListHandler, config))
 			apiV1Route.GET("/transaction/categories/get.json", bindApi(api.TransactionCategories.CategoryGetHandler, config))
 			apiV1Route.POST("/transaction/categories/add.json", bindApi(api.TransactionCategories.CategoryCreateHandler, config))
+			apiV1Route.GET("/transaction/categories/budgets/list.json", bindApi(api.TransactionCategoryBudgets.BudgetListHandler, config))
+			apiV1Route.POST("/transaction/categories/budgets/save.json", bindApi(api.TransactionCategoryBudgets.BudgetSaveHandler, config))
 			apiV1Route.POST("/transaction/categories/add_batch.json", bindApi(api.TransactionCategories.CategoryCreateBatchHandler, config))
 			apiV1Route.POST("/transaction/categories/modify.json", bindApi(api.TransactionCategories.CategoryModifyHandler, config))
 			apiV1Route.POST("/transaction/categories/hide.json", bindApi(api.TransactionCategories.CategoryHideHandler, config))
 			apiV1Route.POST("/transaction/categories/move.json", bindApi(api.TransactionCategories.CategoryMoveHandler, config))
 			apiV1Route.POST("/transaction/categories/delete.json", bindApi(api.TransactionCategories.CategoryDeleteHandler, config))
+
+			// Projects
+			apiV1Route.GET("/projects/list.json", bindApi(api.Projects.ProjectListHandler, config))
+			apiV1Route.GET("/projects/get.json", bindApi(api.Projects.ProjectGetHandler, config))
+			apiV1Route.POST("/projects/add.json", bindApi(api.Projects.ProjectCreateHandler, config))
+			apiV1Route.POST("/projects/modify.json", bindApi(api.Projects.ProjectModifyHandler, config))
+			apiV1Route.POST("/projects/hide.json", bindApi(api.Projects.ProjectHideHandler, config))
+			apiV1Route.POST("/projects/move.json", bindApi(api.Projects.ProjectMoveHandler, config))
+			apiV1Route.POST("/projects/delete.json", bindApi(api.Projects.ProjectDeleteHandler, config))
 
 			// Transaction Tag Groups
 			apiV1Route.GET("/transaction/tags/groups/list.json", bindApi(api.TransactionTagGroups.TagGroupListHandler, config))

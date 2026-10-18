@@ -176,6 +176,30 @@ import type {
     UserExternalAuthInfoResponse
 } from '@/models/user_external_auth.ts';
 import type {
+    BookInfoResponse,
+    BookMemberInfoResponse,
+    BookMemberAddRequest,
+    BookMemberRemoveRequest,
+    BookLeaveRequest,
+    BookSharedAccountInfoResponse,
+    BookCreateRequest,
+    BookModifyRequest,
+    BookDeleteRequest,
+    BookAccountShareRequest
+} from '@/models/book.ts';
+import type {
+    ProjectCreateRequest,
+    ProjectModifyRequest,
+    ProjectHideRequest,
+    ProjectMoveRequest,
+    ProjectDeleteRequest,
+    ProjectInfoResponse
+} from '@/models/project.ts';
+import type {
+    TransactionCategoryBudgetSaveRequest,
+    TransactionCategoryBudgetInfoResponse
+} from '@/models/transaction_category_budget.ts';
+import type {
     OAuth2CallbackLoginRequest
 } from '@/models/oauth2.ts';
 import type {
@@ -194,6 +218,8 @@ import type {
 
 import {
     getCurrentToken,
+    getCurrentBookId,
+    setCurrentBookId,
     clearCurrentTokenAndUserInfo
 } from './userstate.ts';
 
@@ -227,9 +253,34 @@ interface ApiRequestConfig extends AxiosRequestConfig {
     readonly ignoreError?: boolean;
     readonly timeout?: number;
     readonly cancelableUuid?: string;
+    readonly bookId?: string | null; // send the request to this book instead of the selected one, null means the user's own book
+}
+
+export interface BookRequestOptions {
+    readonly bookId: string | null;
 }
 
 export type ApiResponsePromise<T> = Promise<AxiosResponse<ApiResponse<T>>>;
+
+// book used by requests instead of the selected book, e.g. while adding a transaction to another book
+let activeBookIdOverride: string | null | undefined = undefined;
+
+export function setActiveBookIdOverride(bookId: string | null | undefined): void {
+    activeBookIdOverride = bookId;
+}
+
+export function hasActiveBookIdOverride(): boolean {
+    return activeBookIdOverride !== undefined;
+}
+
+function getActiveBookId(): string | null {
+    return activeBookIdOverride !== undefined ? activeBookIdOverride : getCurrentBookId();
+}
+
+function getBookIdQueryString(): string {
+    const bookId = getActiveBookId();
+    return bookId ? `&book_id=${bookId}` : '';
+}
 
 let needBlockRequest = false;
 const blockedRequests: ((token: string | undefined) => void)[] = [];
@@ -253,6 +304,12 @@ axios.interceptors.request.use((config: ApiRequestConfig) => {
     }
 
     config.headers['X-Timezone-Name'] = timezoneName;
+
+    const bookId = config.bookId !== undefined ? config.bookId : getActiveBookId();
+
+    if (bookId && !config.noAuth) {
+        config.headers['X-Book-Id'] = bookId;
+    }
 
     if (needBlockRequest && !config.ignoreBlocked) {
         return new Promise(resolve => {
@@ -298,6 +355,14 @@ axios.interceptors.response.use(response => {
             || errorCode === 202012 // token is empty
         ) {
             clearCurrentTokenAndUserInfo(false);
+            location.reload();
+            return Promise.reject({ processed: true });
+        }
+
+        if (error.response.config.bookId === undefined && getActiveBookId() && (errorCode === 221000 // book id is invalid
+            || errorCode === 221001 // you are not a member of this book
+        )) {
+            setCurrentBookId(null);
             location.reload();
             return Promise.reject({ processed: true });
         }
@@ -394,6 +459,39 @@ export default {
                 blockedRequests.length = 0;
             });
         });
+    },
+    getBooks: (): ApiResponsePromise<BookInfoResponse[]> => {
+        return axios.get<ApiResponse<BookInfoResponse[]>>('v1/books/list.json');
+    },
+    addBook: (req: BookCreateRequest): ApiResponsePromise<BookInfoResponse> => {
+        return axios.post<ApiResponse<BookInfoResponse>>('v1/books/add.json', req);
+    },
+    modifyBook: (req: BookModifyRequest): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/books/modify.json', req);
+    },
+    deleteBook: (req: BookDeleteRequest): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/books/delete.json', req);
+    },
+    getBookMembers: (options?: BookRequestOptions): ApiResponsePromise<BookMemberInfoResponse[]> => {
+        return axios.get<ApiResponse<BookMemberInfoResponse[]>>('v1/books/members/list.json', options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    addBookMember: (req: BookMemberAddRequest, options?: BookRequestOptions): ApiResponsePromise<BookMemberInfoResponse> => {
+        return axios.post<ApiResponse<BookMemberInfoResponse>>('v1/books/members/add.json', req, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    removeBookMember: (req: BookMemberRemoveRequest, options?: BookRequestOptions): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/books/members/remove.json', req, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    leaveBook: (req: BookLeaveRequest): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/books/leave.json', req, { bookId: null } as ApiRequestConfig);
+    },
+    getBookSharedAccounts: (options?: BookRequestOptions): ApiResponsePromise<BookSharedAccountInfoResponse[]> => {
+        return axios.get<ApiResponse<BookSharedAccountInfoResponse[]>>('v1/books/accounts/list.json', options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    shareAccountToBook: (req: BookAccountShareRequest, options?: BookRequestOptions): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/books/accounts/share.json', req, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    unshareAccountFromBook: (req: BookAccountShareRequest, options?: BookRequestOptions): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/books/accounts/unshare.json', req, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },
     getExternalAuths: (): ApiResponsePromise<UserExternalAuthInfoResponse[]> => {
         return axios.get<ApiResponse<UserExternalAuthInfoResponse[]>>('v1/users/external_auth/list.json');
@@ -507,8 +605,8 @@ export default {
             timeout: DEFAULT_CLEAR_ALL_TRANSACTIONS_API_TIMEOUT
         } as ApiRequestConfig);
     },
-    getAllAccounts: ({ visibleOnly }: { visibleOnly: boolean }): ApiResponsePromise<AccountInfoResponse[]> => {
-        return axios.get<ApiResponse<AccountInfoResponse[]>>('v1/accounts/list.json?visible_only=' + visibleOnly);
+    getAllAccounts: ({ visibleOnly }: { visibleOnly: boolean }, options?: BookRequestOptions): ApiResponsePromise<AccountInfoResponse[]> => {
+        return axios.get<ApiResponse<AccountInfoResponse[]>>('v1/accounts/list.json?visible_only=' + visibleOnly, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },
     getAccount: ({ id }: { id: string }): ApiResponsePromise<AccountInfoResponse> => {
         return axios.get<ApiResponse<AccountInfoResponse>>('v1/accounts/get.json?id=' + id);
@@ -538,13 +636,13 @@ export default {
         const tagFilter = encodeURIComponent(req.tagFilter);
         const amountFilter = encodeURIComponent(req.amountFilter);
         const keyword = encodeURIComponent(req.keyword);
-        return axios.get<ApiResponse<TransactionInfoPageWrapperResponse>>(`v1/transactions/list.json?max_time=${req.maxTime}&min_time=${req.minTime}&type=${req.type}&category_ids=${req.categoryIds}&account_ids=${req.accountIds}&tag_filter=${tagFilter}&amount_filter=${amountFilter}&keyword=${keyword}&match_mode=${req.matchMode}&must_have_pictures=${!!req.mustHavePictures}&count=${req.count}&page=${req.page}&with_count=${req.withCount}&with_pictures=${!!req.withPictures}&trim_account=true&trim_category=true&trim_tag=true`);
+        return axios.get<ApiResponse<TransactionInfoPageWrapperResponse>>(`v1/transactions/list.json?max_time=${req.maxTime}&min_time=${req.minTime}&type=${req.type}&category_ids=${req.categoryIds}&account_ids=${req.accountIds}&tag_filter=${tagFilter}&amount_filter=${amountFilter}&keyword=${keyword}&match_mode=${req.matchMode}&must_have_pictures=${!!req.mustHavePictures}&count=${req.count}&page=${req.page}&with_count=${req.withCount}&with_pictures=${!!req.withPictures}&trim_account=true&trim_category=true&trim_tag=true` + (req.projectId ? `&project_id=${req.projectId}` : ''));
     },
     getAllTransactionsByMonth: (req: TransactionListInMonthByPageRequest): ApiResponsePromise<TransactionInfoPageWrapperResponse2> => {
         const tagFilter = encodeURIComponent(req.tagFilter);
         const amountFilter = encodeURIComponent(req.amountFilter);
         const keyword = encodeURIComponent(req.keyword);
-        return axios.get<ApiResponse<TransactionInfoPageWrapperResponse2>>(`v1/transactions/list/by_month.json?year=${req.year}&month=${req.month}&type=${req.type}&category_ids=${req.categoryIds}&account_ids=${req.accountIds}&tag_filter=${tagFilter}&amount_filter=${amountFilter}&keyword=${keyword}&match_mode=${req.matchMode}&must_have_pictures=${!!req.mustHavePictures}&with_pictures=${!!req.withPictures}&trim_account=true&trim_category=true&trim_tag=true`);
+        return axios.get<ApiResponse<TransactionInfoPageWrapperResponse2>>(`v1/transactions/list/by_month.json?year=${req.year}&month=${req.month}&type=${req.type}&category_ids=${req.categoryIds}&account_ids=${req.accountIds}&tag_filter=${tagFilter}&amount_filter=${amountFilter}&keyword=${keyword}&match_mode=${req.matchMode}&must_have_pictures=${!!req.mustHavePictures}&with_pictures=${!!req.withPictures}&trim_account=true&trim_category=true&trim_tag=true` + (req.projectId ? `&project_id=${req.projectId}` : ''));
     },
     getAllTransactions: (req: TransactionAllListRequest): ApiResponsePromise<TransactionInfoResponse[]> => {
         return axios.get<ApiResponse<TransactionInfoResponse[]>>(`v1/transactions/list/all.json?trim_account=true&with_pictures=${!!req.withPictures}&trim_category=true&trim_tag=true&start_time=${req.startTime}&end_time=${req.endTime}`);
@@ -555,7 +653,7 @@ export default {
     getUnreconciledTransactionCounts: (req: TransactionUnreconciledCountRequest): ApiResponsePromise<TransactionUnreconciledCountResponse> => {
         return axios.get<ApiResponse<TransactionUnreconciledCountResponse>>(`v1/transactions/unreconciled_transaction_counts.json?account_ids=${req.accountIds.join(',')}`);
     },
-    getTransactionStatistics: (req: TransactionStatisticRequest): ApiResponsePromise<TransactionStatisticResponse> => {
+    getTransactionStatistics: (req: TransactionStatisticRequest, options?: BookRequestOptions): ApiResponsePromise<TransactionStatisticResponse> => {
         const queryParams: string[] = [];
 
         if (req.startTime) {
@@ -578,7 +676,11 @@ export default {
             queryParams.push(`match_mode=${req.matchMode}`);
         }
 
-        return axios.get<ApiResponse<TransactionStatisticResponse>>(`v1/transactions/statistics.json?use_transaction_timezone=${req.useTransactionTimezone}` + (queryParams.length ? '&' + queryParams.join('&') : ''));
+        if (req.projectId) {
+            queryParams.push(`project_id=${req.projectId}`);
+        }
+
+        return axios.get<ApiResponse<TransactionStatisticResponse>>(`v1/transactions/statistics.json?use_transaction_timezone=${req.useTransactionTimezone}` + (queryParams.length ? '&' + queryParams.join('&') : ''), options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },
     getTransactionStatisticsTrends: (req: TransactionStatisticTrendsRequest): ApiResponsePromise<TransactionStatisticTrendsResponseItem[]> => {
         const queryParams: string[] = [];
@@ -601,6 +703,10 @@ export default {
 
         if (req.matchMode) {
             queryParams.push(`match_mode=${req.matchMode}`);
+        }
+
+        if (req.projectId) {
+            queryParams.push(`project_id=${req.projectId}`);
         }
 
         return axios.get<ApiResponse<TransactionStatisticTrendsResponseItem[]>>(`v1/transactions/statistics/trends.json?use_transaction_timezone=${req.useTransactionTimezone}` + (queryParams.length ? '&' + queryParams.join('&') : ''));
@@ -785,8 +891,35 @@ export default {
     removeUnusedTransactionPicture: (req: TransactionPictureUnusedDeleteRequest): ApiResponsePromise<boolean> => {
         return axios.post<ApiResponse<boolean>>('v1/transaction/pictures/remove_unused.json', req);
     },
-    getAllTransactionCategories: (): ApiResponsePromise<Record<number, TransactionCategoryInfoResponse[]>> => {
-        return axios.get<ApiResponse<Record<number, TransactionCategoryInfoResponse[]>>>('v1/transaction/categories/list.json');
+    getTransactionCategoryBudgets: (): ApiResponsePromise<TransactionCategoryBudgetInfoResponse[]> => {
+        return axios.get<ApiResponse<TransactionCategoryBudgetInfoResponse[]>>('v1/transaction/categories/budgets/list.json');
+    },
+    saveTransactionCategoryBudgets: (req: TransactionCategoryBudgetSaveRequest): ApiResponsePromise<TransactionCategoryBudgetInfoResponse[]> => {
+        return axios.post<ApiResponse<TransactionCategoryBudgetInfoResponse[]>>('v1/transaction/categories/budgets/save.json', req);
+    },
+    getAllProjects: (): ApiResponsePromise<ProjectInfoResponse[]> => {
+        return axios.get<ApiResponse<ProjectInfoResponse[]>>('v1/projects/list.json');
+    },
+    getProject: ({ id }: { id: string }): ApiResponsePromise<ProjectInfoResponse> => {
+        return axios.get<ApiResponse<ProjectInfoResponse>>('v1/projects/get.json?id=' + id);
+    },
+    addProject: (req: ProjectCreateRequest): ApiResponsePromise<ProjectInfoResponse> => {
+        return axios.post<ApiResponse<ProjectInfoResponse>>('v1/projects/add.json', req);
+    },
+    modifyProject: (req: ProjectModifyRequest): ApiResponsePromise<ProjectInfoResponse> => {
+        return axios.post<ApiResponse<ProjectInfoResponse>>('v1/projects/modify.json', req);
+    },
+    hideProject: (req: ProjectHideRequest): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/projects/hide.json', req);
+    },
+    moveProject: (req: ProjectMoveRequest): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/projects/move.json', req);
+    },
+    deleteProject: (req: ProjectDeleteRequest): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/projects/delete.json', req);
+    },
+    getAllTransactionCategories: (options?: BookRequestOptions): ApiResponsePromise<Record<number, TransactionCategoryInfoResponse[]>> => {
+        return axios.get<ApiResponse<Record<number, TransactionCategoryInfoResponse[]>>>('v1/transaction/categories/list.json', options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },
     getTransactionCategory: ({ id }: { id: string }): ApiResponsePromise<TransactionCategoryInfoResponse> => {
         return axios.get<ApiResponse<TransactionCategoryInfoResponse>>('v1/transaction/categories/get.json?id=' + id);
@@ -1025,7 +1158,7 @@ export default {
         }
     },
     getUserCustomIconUrlWithToken(iconId: string | number): string {
-        return `${getBasePath()}/icons/${iconId}.png?token=${getCurrentToken()}`;
+        return `${getBasePath()}/icons/${iconId}.png?token=${getCurrentToken()}${getBookIdQueryString()}`;
     },
     getTransactionPictureUrlWithToken(pictureUrl: string, disableBrowserCache?: boolean | string): string {
         if (!pictureUrl) {
@@ -1034,6 +1167,12 @@ export default {
 
         const params: string[] = [];
         params.push('token=' + getCurrentToken());
+
+        const bookId = getActiveBookId();
+
+        if (bookId) {
+            params.push('book_id=' + bookId);
+        }
 
         if (disableBrowserCache) {
             if (isBoolean(disableBrowserCache)) {

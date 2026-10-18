@@ -72,7 +72,7 @@ func (a *TransactionsApi) TransactionCountHandler(c *core.WebContext) (any, *err
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	allAccountIds, err := a.accounts.GetAccountOrSubAccountIds(c, transactionCountReq.AccountIds, uid)
 
@@ -100,7 +100,7 @@ func (a *TransactionsApi) TransactionCountHandler(c *core.WebContext) (any, *err
 		}
 	}
 
-	totalCount, err := a.transactions.GetTransactionCount(c, uid, transactionCountReq.MaxTime, transactionCountReq.MinTime, transactionCountReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionCountReq.AmountFilter, transactionCountReq.Keyword, transactionCountReq.MatchMode, transactionCountReq.MustHavePictures)
+	totalCount, err := a.transactions.GetTransactionCount(c, uid, transactionCountReq.MaxTime, transactionCountReq.MinTime, transactionCountReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionCountReq.AmountFilter, transactionCountReq.Keyword, transactionCountReq.MatchMode, transactionCountReq.MustHavePictures, transactionCountReq.ProjectId)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionCountHandler] failed to get transaction count for user \"uid:%d\", because %s", uid, err.Error())
@@ -131,8 +131,8 @@ func (a *TransactionsApi) TransactionListHandler(c *core.WebContext) (any, *errs
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -171,7 +171,7 @@ func (a *TransactionsApi) TransactionListHandler(c *core.WebContext) (any, *errs
 	var totalCount int64
 
 	if transactionListReq.WithCount {
-		totalCount, err = a.transactions.GetTransactionCount(c, uid, transactionListReq.MaxTime, transactionListReq.MinTime, transactionListReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionListReq.AmountFilter, transactionListReq.Keyword, transactionListReq.MatchMode, transactionListReq.MustHavePictures)
+		totalCount, err = a.transactions.GetTransactionCount(c, uid, transactionListReq.MaxTime, transactionListReq.MinTime, transactionListReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionListReq.AmountFilter, transactionListReq.Keyword, transactionListReq.MatchMode, transactionListReq.MustHavePictures, transactionListReq.ProjectId)
 
 		if err != nil {
 			log.Errorf(c, "[transactions.TransactionListHandler] failed to get transaction count for user \"uid:%d\", because %s", uid, err.Error())
@@ -179,7 +179,7 @@ func (a *TransactionsApi) TransactionListHandler(c *core.WebContext) (any, *errs
 		}
 	}
 
-	transactions, err := a.transactions.GetTransactionsByMaxTime(c, uid, transactionListReq.MaxTime, transactionListReq.MinTime, transactionListReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionListReq.AmountFilter, transactionListReq.Keyword, transactionListReq.MatchMode, transactionListReq.MustHavePictures, transactionListReq.Page, transactionListReq.Count, true, true)
+	transactions, err := a.transactions.GetTransactionsByMaxTime(c, uid, transactionListReq.MaxTime, transactionListReq.MinTime, transactionListReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionListReq.AmountFilter, transactionListReq.Keyword, transactionListReq.MatchMode, transactionListReq.MustHavePictures, transactionListReq.ProjectId, transactionListReq.Page, transactionListReq.Count, true, true)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionListHandler] failed to get transactions earlier than \"%d\" for user \"uid:%d\", because %s", transactionListReq.MaxTime, uid, err.Error())
@@ -242,8 +242,8 @@ func (a *TransactionsApi) TransactionMonthListHandler(c *core.WebContext) (any, 
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -279,7 +279,7 @@ func (a *TransactionsApi) TransactionMonthListHandler(c *core.WebContext) (any, 
 		}
 	}
 
-	transactions, err := a.transactions.GetTransactionsInMonthByPage(c, uid, transactionListReq.Year, transactionListReq.Month, transactionListReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionListReq.AmountFilter, transactionListReq.Keyword, transactionListReq.MatchMode, transactionListReq.MustHavePictures)
+	transactions, err := a.transactions.GetTransactionsInMonthByPage(c, uid, transactionListReq.Year, transactionListReq.Month, transactionListReq.Type, allCategoryIds, allAccountIds, tagFilters, noTags, transactionListReq.AmountFilter, transactionListReq.Keyword, transactionListReq.MatchMode, transactionListReq.MustHavePictures, transactionListReq.ProjectId)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionMonthListHandler] failed to get transactions in month \"%d-%d\" for user \"uid:%d\", because %s", transactionListReq.Year, transactionListReq.Month, uid, err.Error())
@@ -326,8 +326,8 @@ func (a *TransactionsApi) TransactionListAllHandler(c *core.WebContext) (any, *e
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -426,8 +426,8 @@ func (a *TransactionsApi) TransactionReconciliationStatementHandler(c *core.WebC
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -558,8 +558,8 @@ func (a *TransactionsApi) TransactionUnreconciledTransactionCountsHandler(c *cor
 		}
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -639,8 +639,8 @@ func (a *TransactionsApi) TransactionStatisticsHandler(c *core.WebContext) (any,
 		}
 	}
 
-	uid := c.GetCurrentUid()
-	totalAmounts, err := a.transactions.GetAccountsAndCategoriesTotalInflowAndOutflow(c, uid, statisticReq.StartTime, statisticReq.EndTime, tagFilters, noTags, statisticReq.Keyword, statisticReq.MatchMode, clientTimezone, statisticReq.UseTransactionTimezone)
+	uid := c.GetCurrentBookUid()
+	totalAmounts, err := a.transactions.GetAccountsAndCategoriesTotalInflowAndOutflow(c, uid, statisticReq.StartTime, statisticReq.EndTime, tagFilters, noTags, statisticReq.Keyword, statisticReq.MatchMode, statisticReq.ProjectId, clientTimezone, statisticReq.UseTransactionTimezone)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionStatisticsHandler] failed to get accounts and categories total income and expense for user \"uid:%d\", because %s", uid, err.Error())
@@ -707,8 +707,8 @@ func (a *TransactionsApi) TransactionStatisticsTrendsHandler(c *core.WebContext)
 		}
 	}
 
-	uid := c.GetCurrentUid()
-	allMonthlyTotalAmounts, err := a.transactions.GetAccountsAndCategoriesMonthlyInflowAndOutflow(c, uid, startYear, startMonth, endYear, endMonth, tagFilters, noTags, statisticTrendsReq.Keyword, statisticTrendsReq.MatchMode, clientTimezone, statisticTrendsReq.UseTransactionTimezone)
+	uid := c.GetCurrentBookUid()
+	allMonthlyTotalAmounts, err := a.transactions.GetAccountsAndCategoriesMonthlyInflowAndOutflow(c, uid, startYear, startMonth, endYear, endMonth, tagFilters, noTags, statisticTrendsReq.Keyword, statisticTrendsReq.MatchMode, statisticTrendsReq.ProjectId, clientTimezone, statisticTrendsReq.UseTransactionTimezone)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionStatisticsTrendsHandler] failed to get accounts and categories total income and expense for user \"uid:%d\", because %s", uid, err.Error())
@@ -763,7 +763,7 @@ func (a *TransactionsApi) TransactionStatisticsAssetTrendsHandler(c *core.WebCon
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	maxTransactionTime := int64(0)
 
@@ -871,7 +871,7 @@ func (a *TransactionsApi) TransactionAmountsHandler(c *core.WebContext) (any, *e
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	accounts, err := a.accounts.GetAllAccountsByUid(c, uid)
 	accountMap := a.accounts.GetAccountMapByList(accounts)
@@ -1008,7 +1008,7 @@ func (a *TransactionsApi) TransactionDailyAmountsHandler(c *core.WebContext) (an
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	accounts, err := a.accounts.GetAllAccountsByUid(c, uid)
 	accountMap := a.accounts.GetAccountMapByList(accounts)
 
@@ -1129,8 +1129,8 @@ func (a *TransactionsApi) TransactionGetHandler(c *core.WebContext) (any, *errs.
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -1304,8 +1304,8 @@ func (a *TransactionsApi) TransactionCreateHandler(c *core.WebContext) (any, *er
 		return nil, errs.ErrTransactionDestinationAmountCannotBeSet
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -1315,7 +1315,7 @@ func (a *TransactionsApi) TransactionCreateHandler(c *core.WebContext) (any, *er
 		return nil, errs.ErrUserNotFound
 	}
 
-	transaction := a.createNewTransactionModel(uid, &transactionCreateReq, c.ClientIP())
+	transaction := a.createNewTransactionModel(uid, c.GetCurrentUid(), &transactionCreateReq, c.ClientIP())
 
 	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, []*models.Transaction{transaction})
 
@@ -1426,8 +1426,8 @@ func (a *TransactionsApi) TransactionModifyHandler(c *core.WebContext) (any, *er
 		return nil, errs.ErrTransactionHasTooManyPictures
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -1504,6 +1504,7 @@ func (a *TransactionsApi) TransactionModifyHandler(c *core.WebContext) (any, *er
 		Amount:            transactionModifyReq.SourceAmount,
 		HideAmount:        transactionModifyReq.HideAmount,
 		Comment:           transactionModifyReq.Comment,
+		ProjectId:         transactionModifyReq.ProjectId,
 	}
 
 	if newTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT {
@@ -1526,6 +1527,7 @@ func (a *TransactionsApi) TransactionModifyHandler(c *core.WebContext) (any, *er
 		(newTransaction.Type != models.TRANSACTION_DB_TYPE_TRANSFER_OUT || newTransaction.RelatedAccountAmount == transaction.RelatedAccountAmount) &&
 		newTransaction.HideAmount == transaction.HideAmount &&
 		newTransaction.Comment == transaction.Comment &&
+		newTransaction.ProjectId == transaction.ProjectId &&
 		newTransaction.GeoLongitude == transaction.GeoLongitude &&
 		newTransaction.GeoLatitude == transaction.GeoLatitude &&
 		utils.Int64SliceEquals(tagIds, transactionTagIds) &&
@@ -1633,8 +1635,8 @@ func (a *TransactionsApi) TransactionBatchUpdateCategoriesHandler(c *core.WebCon
 		return nil, errs.ErrTransactionIdInvalid
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -1739,8 +1741,8 @@ func (a *TransactionsApi) TransactionBatchUpdateAccountsHandler(c *core.WebConte
 		return nil, errs.ErrTransactionIdInvalid
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -1909,8 +1911,8 @@ func (a *TransactionsApi) TransactionBatchAddTagsHandler(c *core.WebContext) (an
 
 	tagIds = utils.ToUniqueInt64Slice(tagIds)
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -2034,8 +2036,8 @@ func (a *TransactionsApi) TransactionBatchRemoveTagsHandler(c *core.WebContext) 
 
 	tagIds = utils.ToUniqueInt64Slice(tagIds)
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -2126,8 +2128,8 @@ func (a *TransactionsApi) TransactionBatchClearTagsHandler(c *core.WebContext) (
 		return nil, errs.ErrTransactionIdInvalid
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -2199,8 +2201,8 @@ func (a *TransactionsApi) TransactionMoveAllBetweenAccountsHandler(c *core.WebCo
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -2304,8 +2306,8 @@ func (a *TransactionsApi) TransactionDeleteHandler(c *core.WebContext) (any, *er
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -2375,8 +2377,8 @@ func (a *TransactionsApi) TransactionBatchDeleteHandler(c *core.WebContext) (any
 		return nil, errs.ErrTransactionIdInvalid
 	}
 
-	uid := c.GetCurrentUid()
-	user, err := a.users.GetUserById(c, uid)
+	uid := c.GetCurrentBookUid()
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
@@ -2434,7 +2436,7 @@ func (a *TransactionsApi) TransactionBatchDeleteHandler(c *core.WebContext) (any
 
 // TransactionParseImportCustomFileDataHandler returns the parsed file data by request parameters for current user
 func (a *TransactionsApi) TransactionParseImportCustomFileDataHandler(c *core.WebContext) (any, *errs.Error) {
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 	form, err := c.MultipartForm()
 
 	if err != nil {
@@ -2511,7 +2513,11 @@ func (a *TransactionsApi) TransactionParseImportCustomFileDataHandler(c *core.We
 
 // TransactionParseImportFileHandler returns the parsed transaction data by request parameters for current user
 func (a *TransactionsApi) TransactionParseImportFileHandler(c *core.WebContext) (any, *errs.Error) {
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
+
+	if uid != c.GetCurrentUid() {
+		return nil, errs.ErrOperationNotAvailableInSharedBook
+	}
 	form, err := c.MultipartForm()
 
 	if err != nil {
@@ -2800,7 +2806,11 @@ func (a *TransactionsApi) TransactionImportHandler(c *core.WebContext) (any, *er
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
+
+	if uid != c.GetCurrentUid() {
+		return nil, errs.ErrOperationNotAvailableInSharedBook
+	}
 
 	if a.CurrentConfig().EnableDuplicateSubmissionsCheck && transactionImportReq.ClientSessionId != "" {
 		found, remark := a.GetSubmissionRemark(duplicatechecker.DUPLICATE_CHECKER_TYPE_IMPORT_TRANSACTIONS, uid, transactionImportReq.ClientSessionId)
@@ -2875,7 +2885,7 @@ func (a *TransactionsApi) TransactionImportHandler(c *core.WebContext) (any, *er
 
 	for i := 0; i < len(transactionImportReq.Transactions); i++ {
 		transactionCreateReq := transactionImportReq.Transactions[i]
-		transaction := a.createNewTransactionModel(uid, transactionCreateReq, c.ClientIP())
+		transaction := a.createNewTransactionModel(uid, c.GetCurrentUid(), transactionCreateReq, c.ClientIP())
 		newTransactions[i] = transaction
 	}
 
@@ -2957,7 +2967,7 @@ func (a *TransactionsApi) TransactionImportProcessHandler(c *core.WebContext) (a
 		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
 	}
 
-	uid := c.GetCurrentUid()
+	uid := c.GetCurrentBookUid()
 
 	if !a.CurrentConfig().EnableDuplicateSubmissionsCheck {
 		return nil, nil
@@ -3025,7 +3035,7 @@ func (a *TransactionsApi) getTransactionTagInfoResponses(tagIds []int64, allTran
 }
 
 func (a *TransactionsApi) getTransactionAllEssentialData(c *core.WebContext, user *models.User, withPictures bool, trimCategory bool, trimTag bool) (accountMap map[int64]*models.Account, categoryMap map[int64]*models.TransactionCategory, tagMap map[int64]*models.TransactionTag, allTransactionTagIds map[int64][]int64, pictureInfoMap map[int64][]*models.TransactionPictureInfo, err error) {
-	uid := user.Uid
+	uid := c.GetCurrentBookUid()
 	allAccounts, err := a.accounts.GetAllAccountsByUid(c, uid)
 
 	if err != nil {
@@ -3079,7 +3089,7 @@ func (a *TransactionsApi) getTransactionAllEssentialData(c *core.WebContext, use
 }
 
 func (a *TransactionsApi) getTransactionEssentialDataByTransactionIds(c *core.WebContext, user *models.User, transactions []*models.Transaction, withPictures bool, trimCategory bool, trimTag bool) (accountMap map[int64]*models.Account, categoryMap map[int64]*models.TransactionCategory, tagMap map[int64]*models.TransactionTag, allTransactionTagIds map[int64][]int64, pictureInfoMap map[int64][]*models.TransactionPictureInfo, err error) {
-	uid := user.Uid
+	uid := c.GetCurrentBookUid()
 	transactionIds := make([]int64, len(transactions))
 	accountIds := make([]int64, 0, len(transactions)*2)
 	categoryIds := make([]int64, 0, len(transactions))
@@ -3251,7 +3261,7 @@ func (a *TransactionsApi) setTransactionImportResult(uid int64, clientSessionId 
 	}
 }
 
-func (a *TransactionsApi) createNewTransactionModel(uid int64, transactionCreateReq *models.TransactionCreateRequest, clientIp string) *models.Transaction {
+func (a *TransactionsApi) createNewTransactionModel(uid int64, creatorUid int64, transactionCreateReq *models.TransactionCreateRequest, clientIp string) *models.Transaction {
 	var transactionDbType models.TransactionDbType
 
 	if transactionCreateReq.Type == models.TRANSACTION_TYPE_MODIFY_BALANCE {
@@ -3274,7 +3284,9 @@ func (a *TransactionsApi) createNewTransactionModel(uid int64, transactionCreate
 		Amount:            transactionCreateReq.SourceAmount,
 		HideAmount:        transactionCreateReq.HideAmount,
 		Comment:           transactionCreateReq.Comment,
+		ProjectId:         transactionCreateReq.ProjectId,
 		CreatedIp:         clientIp,
+		CreatedByUid:      creatorUid,
 	}
 
 	if transactionCreateReq.Type == models.TRANSACTION_TYPE_TRANSFER {

@@ -198,6 +198,7 @@ type AccountInfoResponse struct {
 	IsAsset                 bool                     `json:"isAsset,omitempty"`
 	IsLiability             bool                     `json:"isLiability,omitempty"`
 	Hidden                  bool                     `json:"hidden"`
+	SharedBy                string                   `json:"sharedBy,omitempty"`
 	SubAccounts             AccountInfoResponseSlice `json:"subAccounts,omitempty"`
 }
 

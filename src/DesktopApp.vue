@@ -28,6 +28,7 @@ import { useSettingsStore } from '@/stores/setting.ts';
 import { useUserStore } from '@/stores/user.ts';
 import { useTokensStore } from '@/stores/token.ts';
 import { useExchangeRatesStore } from '@/stores/exchangeRates.ts';
+import { useBooksStore } from '@/stores/book.ts';
 
 import { APPLICATION_LOGO_PATH } from '@/consts/asset.ts';
 import { ThemeType } from '@/core/theme.ts';
@@ -46,6 +47,7 @@ const settingsStore = useSettingsStore();
 const userStore = useUserStore();
 const tokensStore = useTokensStore();
 const exchangeRatesStore = useExchangeRatesStore();
+const booksStore = useBooksStore();
 
 const initialRoutePath: string = (() => {
     if (!window.location.hash) {
@@ -125,6 +127,8 @@ if (isUserLogined() && initialRoutePath !== '/verify_email' && initialRoutePath 
             updateMapCacheExpiration(settingsStore.appSettings.mapCacheExpiration);
             exchangeRatesStore.removeExpiredExchangeRates(true);
             exchangeRatesStore.autoUpdateExchangeRatesData();
+
+            booksStore.initBooks();
         });
     }
 }
