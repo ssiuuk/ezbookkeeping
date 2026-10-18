@@ -145,7 +145,7 @@ func (a *TransactionTemplatesApi) TemplateCreateHandler(c *core.WebContext) (any
 			return nil, errs.ErrScheduledTransactionFrequencyInvalid
 		}
 
-		if *templateCreateReq.ScheduledFrequencyType == models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS {
+		if templateCreateReq.ScheduledFrequencyType.IsEveryNInterval() {
 			frequencyValue, err := utils.StringToInt(*templateCreateReq.ScheduledFrequency)
 
 			if err != nil || frequencyValue <= 0 {
@@ -153,7 +153,7 @@ func (a *TransactionTemplatesApi) TemplateCreateHandler(c *core.WebContext) (any
 			}
 		}
 
-		if *templateCreateReq.ScheduledFrequencyType == models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS && templateCreateReq.ScheduledStartDate == nil {
+		if templateCreateReq.ScheduledFrequencyType.IsEveryNInterval() && templateCreateReq.ScheduledStartDate == nil {
 			return nil, errs.ErrScheduledTransactionStartDateRequired
 		}
 
@@ -279,7 +279,7 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 			return nil, errs.ErrScheduledTransactionFrequencyInvalid
 		}
 
-		if *templateModifyReq.ScheduledFrequencyType == models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS {
+		if templateModifyReq.ScheduledFrequencyType.IsEveryNInterval() {
 			frequencyValue, err := utils.StringToInt(*templateModifyReq.ScheduledFrequency)
 
 			if err != nil || frequencyValue <= 0 {
@@ -287,7 +287,7 @@ func (a *TransactionTemplatesApi) TemplateModifyHandler(c *core.WebContext) (any
 			}
 		}
 
-		if *templateModifyReq.ScheduledFrequencyType == models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_EVERY_N_DAYS && templateModifyReq.ScheduledStartDate == nil {
+		if templateModifyReq.ScheduledFrequencyType.IsEveryNInterval() && templateModifyReq.ScheduledStartDate == nil {
 			return nil, errs.ErrScheduledTransactionStartDateRequired
 		}
 

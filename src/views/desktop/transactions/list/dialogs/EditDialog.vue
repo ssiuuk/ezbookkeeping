@@ -319,6 +319,14 @@
                                         @update:model-value="updateTransactionTimezone"
                                     />
                                 </v-col>
+                                <v-col cols="12" md="6" v-if="showRepeatField">
+                                    <schedule-frequency-select
+                                        :disabled="loading || submitting || recognizing"
+                                        :label="tt('Repeat')"
+                                        :disabled-text="tt('Does not repeat')"
+                                        v-model:type="repeatFrequencyType"
+                                        v-model="repeatFrequency" />
+                                </v-col>
                                 <v-col cols="12" md="6" v-if="type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate && transaction.templateType === TemplateType.Schedule.type">
                                     <date-select
                                         :readonly="mode === TransactionEditPageMode.View"
@@ -584,6 +592,7 @@ import {
     AfterSaveAction,
     useTransactionEditPageBase
 } from '@/views/base/transactions/TransactionEditPageBase.ts';
+import { REPEAT_NOT_SET_UP_MESSAGE, useTransactionRepeatBase } from '@/views/base/transactions/TransactionRepeatBase.ts';
 
 import { useSettingsStore } from '@/stores/setting.ts';
 import { useUserStore } from '@/stores/user.ts';
@@ -739,6 +748,15 @@ const {
     getTransactionPictureUrl
 } = useTransactionEditPageBase(props.type);
 
+const {
+    repeatFrequencyType,
+    repeatFrequency,
+    showRepeatField,
+    resetRepeat,
+    buildRepeatTemplate,
+    saveRepeatTemplate
+} = useTransactionRepeatBase(props.type, mode, transaction);
+
 const settingsStore = useSettingsStore();
 const userStore = useUserStore();
 const accountsStore = useAccountsStore();
@@ -834,6 +852,7 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
 
     initOptions.value = options;
     initEntryBook();
+    resetRepeat();
 
     const newTransaction = createNewTransactionModel(options.type);
     setTransactionModel(newTransaction, options, true);
@@ -1036,12 +1055,16 @@ function save(afterAction: AfterSaveAction): void {
         const doSubmit = function () {
             submitting.value = true;
 
+            const repeatTemplate = buildRepeatTemplate();
+
             transactionsStore.saveTransaction({
                 transaction: transaction.value as Transaction,
                 defaultCurrency: defaultCurrency.value,
                 isEdit: mode.value === TransactionEditPageMode.Edit,
                 clientSessionId: clientSessionId.value
-            }).then(() => {
+            }).then(() => saveRepeatTemplate(repeatTemplate)).then(repeatSaved => {
+                const addedMessage = repeatSaved ? 'You have added a new transaction' : REPEAT_NOT_SET_UP_MESSAGE;
+
                 submitting.value = false;
                 submitted.value = true;
 
@@ -1050,14 +1073,15 @@ function save(afterAction: AfterSaveAction): void {
                 }
 
                 if (mode.value === TransactionEditPageMode.Add && (afterAction === AfterSaveAction.StayWithNewTransaction || afterAction === AfterSaveAction.StayWithCurrentTransaction)) {
-                    snackbar.value?.showMessage('You have added a new transaction');
+                    snackbar.value?.showMessage(addedMessage);
                     updateTransactionModelByAfterSaveAction(afterAction, initOptions.value);
+                    resetRepeat();
                     clientSessionId.value = generateRandomUUID();
                 } else {
                     if (resolveFunc) {
                         if (mode.value === TransactionEditPageMode.Add) {
                             resolveFunc({
-                                message: 'You have added a new transaction'
+                                message: addedMessage
                             });
                         } else if (mode.value === TransactionEditPageMode.Edit) {
                             resolveFunc({

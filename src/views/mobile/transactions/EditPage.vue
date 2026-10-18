@@ -357,6 +357,21 @@
             </f7-list-item>
 
             <f7-list-item
+                class="list-item-with-header-and-title"
+                link="#" no-chevron
+                :header="tt('Repeat')"
+                :title="getFrequencyDisplayText(repeatFrequencyType, repeatFrequency, tt('Does not repeat'))"
+                @click="showRepeatFrequencySheet = true"
+                v-if="showRepeatField"
+            >
+                <schedule-frequency-sheet :disabled-text="tt('Does not repeat')"
+                                          v-model:show="showRepeatFrequencySheet"
+                                          v-model:type="repeatFrequencyType"
+                                          v-model="repeatFrequency">
+                </schedule-frequency-sheet>
+            </f7-list-item>
+
+            <f7-list-item
                 link="#" no-chevron
                 class="list-item-with-header-and-title list-item-title-hide-overflow"
                 :class="{ 'readonly': mode === TransactionEditPageMode.View && !transaction.geoLocation }"
@@ -614,6 +629,7 @@ import type { PhotoBrowser, Router } from 'framework7/types';
 import type { TwoLevelItemAddEvent } from '@/components/base/TwoLevelItemSelectionBase.ts';
 import { useI18n } from '@/locales/helpers.ts';
 import { useI18nUIComponents, isiOS, showLoading, hideLoading, closeAllDialog } from '@/lib/ui/mobile.ts';
+import { useScheduleFrequencySelectionBase } from '@/components/base/ScheduleFrequencySelectionBase.ts';
 import {
     TransactionEditPageMode,
     TransactionEditPageType,
@@ -632,6 +648,7 @@ import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
 import { useBooksStore } from '@/stores/book.ts';
 import { useProjectsStore } from '@/stores/project.ts';
 import { useEntryBookSelectionBase } from '@/views/base/books/EntryBookSelectionBase.ts';
+import { REPEAT_NOT_SET_UP_MESSAGE, useTransactionRepeatBase } from '@/views/base/transactions/TransactionRepeatBase.ts';
 import type { BookInfoResponse } from '@/models/book.ts';
 
 import { entries, keys } from '@/core/base.ts';
@@ -756,6 +773,16 @@ const {
     getTransactionPictureUrl
 } = useTransactionEditPageBase(pageTypeAndMode?.type || TransactionEditPageType.Transaction, pageTypeAndMode?.mode, query['type'] ? parseInt(query['type']) : undefined);
 
+const {
+    repeatFrequencyType,
+    repeatFrequency,
+    showRepeatField,
+    resetRepeat,
+    buildRepeatTemplate,
+    saveRepeatTemplate
+} = useTransactionRepeatBase(pageTypeAndMode?.type || TransactionEditPageType.Transaction, mode, transaction);
+const { getFrequencyDisplayText } = useScheduleFrequencySelectionBase();
+
 const isSupportClipboard = !!navigator.clipboard;
 
 const settingsStore = useSettingsStore();
@@ -806,6 +833,7 @@ const showTransactionDateTimeSheet = ref<boolean>(false);
 const showTransactionScheduledFrequencySheet = ref<boolean>(false);
 const showScheduledStartDateSheet = ref<boolean>(false);
 const showScheduledEndDateSheet = ref<boolean>(false);
+const showRepeatFrequencySheet = ref<boolean>(false);
 const showGeoLocationMapSheet = ref<boolean>(false);
 const showTransactionTagSheet = ref<boolean>(false);
 const showProjectPopup = ref<boolean>(false);
@@ -967,6 +995,8 @@ const transactionDisplayScheduledFrequency = computed<string>(() => {
         } else {
             return tt('Yearly');
         }
+    } else if (isDefined(template.scheduledFrequencyType) && ScheduledTemplateFrequencyType.isEveryNInterval(template.scheduledFrequencyType)) {
+        return getFrequencyDisplayText(template.scheduledFrequencyType, template.scheduledFrequency || '');
     } else {
         return '';
     }
@@ -1237,12 +1267,16 @@ function save(afterAction: AfterSaveAction): void {
             submitting.value = true;
             showLoading(() => submitting.value);
 
+            const repeatTemplate = buildRepeatTemplate();
+
             transactionsStore.saveTransaction({
                 transaction: transaction.value as Transaction,
                 defaultCurrency: defaultCurrency.value,
                 isEdit: mode.value === TransactionEditPageMode.Edit,
                 clientSessionId: clientSessionId.value
-            }).then(() => {
+            }).then(() => saveRepeatTemplate(repeatTemplate)).then(repeatSaved => {
+                const addedMessage = repeatSaved ? 'You have added a new transaction' : REPEAT_NOT_SET_UP_MESSAGE;
+
                 submitting.value = false;
                 submitted.value = true;
                 hideLoading();
@@ -1252,12 +1286,13 @@ function save(afterAction: AfterSaveAction): void {
                 }
 
                 if (mode.value === TransactionEditPageMode.Add && (afterAction === AfterSaveAction.StayWithNewTransaction || afterAction === AfterSaveAction.StayWithCurrentTransaction)) {
-                    showToast('You have added a new transaction');
+                    showToast(addedMessage, repeatSaved ? undefined : 3000);
                     updateTransactionModelByAfterSaveAction(afterAction, getQueryTransactionOptions());
+                    resetRepeat();
                     clientSessionId.value = generateRandomUUID();
                 } else {
                     if (mode.value === TransactionEditPageMode.Add) {
-                        showToast('You have added a new transaction');
+                        showToast(addedMessage, repeatSaved ? undefined : 3000);
                     } else if (mode.value === TransactionEditPageMode.Edit) {
                         showToast('You have saved this transaction');
                     }
