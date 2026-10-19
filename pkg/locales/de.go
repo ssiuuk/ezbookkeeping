@@ -30,4 +30,12 @@ var de = &LocaleTextItems{
 		ResetPassword:             "Passwort zurücksetzen",
 		DescriptionBelowBtnFormat: "Wenn Sie nicht angefordert haben, Ihr Passwort zurückzusetzen, ignorieren Sie bitte diese E-Mail. Wenn Sie den obigen Link nicht anklicken können, kopieren Sie bitte die obige URL und fügen Sie sie in Ihren Browser ein. Der Link zum Zurücksetzen des Passworts wird nach %v Minuten ablaufen.",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "Budget Alert",
+		SalutationFormat:          "Hi %s,",
+		WarningDescriptionFormat:  "The spending of \"%s\" in %s has reached %d%% of its budget, %s of %s has been spent.",
+		ExceededDescriptionFormat: "The spending of \"%s\" in %s has exceeded its budget, %s of %s has been spent.",
+		ViewBudgets:               "View Budgets",
+		DisableEmailDescription:   "You can turn off budget alert emails in user settings.",
+	},
 }

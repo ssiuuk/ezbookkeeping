@@ -1,7 +1,12 @@
 package cmd
 
 import (
+	"bufio"
+	"errors"
+	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/urfave/cli/v3"
 
@@ -9,6 +14,7 @@ import (
 	"github.com/mayswind/ezbookkeeping/pkg/datastore"
 	"github.com/mayswind/ezbookkeeping/pkg/log"
 	"github.com/mayswind/ezbookkeeping/pkg/models"
+	"github.com/mayswind/ezbookkeeping/pkg/settings"
 )
 
 // Database represents the database command
@@ -33,9 +39,51 @@ var Database = &cli.Command{
 					Usage:    "Backup directory path (default is the database_backup_path in the [cron] section of the config file)",
 				},
 			},
+			Commands: []*cli.Command{
+				{
+					Name:   "list",
+					Usage:  "List the sqlite database backup files",
+					Action: bindAction(listDatabaseBackups),
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:     "path",
+							Aliases:  []string{"p"},
+							Required: false,
+							Usage:    "Backup directory path (default is the database_backup_path in the [cron] section of the config file)",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:   "restore",
+			Usage:  "Restore the sqlite database from a backup file, the server must be stopped first",
+			Action: bindAction(restoreDatabase),
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "file",
+					Aliases:  []string{"f"},
+					Required: true,
+					Usage:    "Backup file path to restore from",
+				},
+				&cli.StringFlag{
+					Name:     "path",
+					Aliases:  []string{"p"},
+					Required: false,
+					Usage:    "Directory path to save the backup of the current database before restoring (default is the database_backup_path in the [cron] section of the config file)",
+				},
+				&cli.BoolFlag{
+					Name:     "yes",
+					Aliases:  []string{"y"},
+					Required: false,
+					Usage:    "Restore without asking for confirmation",
+				},
+			},
 		},
 	},
 }
+
+var errDatabaseRestoreCancelled = errors.New("database restore is cancelled")
 
 func updateDatabaseStructure(c *core.CliContext) error {
 	_, err := initializeSystem(c)
@@ -64,15 +112,11 @@ func backupDatabase(c *core.CliContext) error {
 		return err
 	}
 
-	backupDir := config.DatabaseBackupPath
+	backupDir, err := getDatabaseBackupDir(c, config.DatabaseBackupPath)
 
-	if c.String("path") != "" {
-		backupDir, err = filepath.Abs(c.String("path"))
-
-		if err != nil {
-			log.CliErrorf(c, "[database.backupDatabase] cannot resolve backup path, because %s", err.Error())
-			return err
-		}
+	if err != nil {
+		log.CliErrorf(c, "[database.backupDatabase] cannot resolve backup path, because %s", err.Error())
+		return err
 	}
 
 	backupFilePath, err := datastore.BackupDatabase(c, config, backupDir)
@@ -84,6 +128,125 @@ func backupDatabase(c *core.CliContext) error {
 
 	log.CliInfof(c, "[database.backupDatabase] database has been backed up to \"%s\"", backupFilePath)
 	return nil
+}
+
+func listDatabaseBackups(c *core.CliContext) error {
+	config, err := initializeSystem(c)
+
+	if err != nil {
+		return err
+	}
+
+	backupDir, err := getDatabaseBackupDir(c, config.DatabaseBackupPath)
+
+	if err != nil {
+		log.CliErrorf(c, "[database.listDatabaseBackups] cannot resolve backup path, because %s", err.Error())
+		return err
+	}
+
+	backupFiles, err := datastore.ListDatabaseBackupFiles(backupDir)
+
+	if err != nil {
+		log.CliErrorf(c, "[database.listDatabaseBackups] cannot list backup files in \"%s\", because %s", backupDir, err.Error())
+		return err
+	}
+
+	if len(backupFiles) < 1 {
+		log.CliInfof(c, "[database.listDatabaseBackups] there are no backup files in \"%s\"", backupDir)
+		return nil
+	}
+
+	for i := 0; i < len(backupFiles); i++ {
+		if i > 0 {
+			fmt.Printf("---\n")
+		}
+
+		fmt.Printf("[File] %s\n", backupFiles[i].FilePath)
+		fmt.Printf("[Time] %s\n", backupFiles[i].BackupTime.Format("2006-01-02 15:04:05"))
+		fmt.Printf("[Size] %d bytes\n", backupFiles[i].Size)
+
+		if backupFiles[i].IsBeforeRestore {
+			fmt.Printf("[Type] Before restore\n")
+		} else {
+			fmt.Printf("[Type] Backup\n")
+		}
+	}
+
+	return nil
+}
+
+func restoreDatabase(c *core.CliContext) error {
+	config, err := initializeSystem(c)
+
+	if err != nil {
+		return err
+	}
+
+	backupDir, err := getDatabaseBackupDir(c, config.DatabaseBackupPath)
+
+	if err != nil {
+		log.CliErrorf(c, "[database.restoreDatabase] cannot resolve backup path, because %s", err.Error())
+		return err
+	}
+
+	restoreFromFilePath, err := filepath.Abs(c.String("file"))
+
+	if err != nil {
+		log.CliErrorf(c, "[database.restoreDatabase] cannot resolve backup file path, because %s", err.Error())
+		return err
+	}
+
+	if config.DatabaseConfig == nil || config.DatabaseConfig.DatabaseType != settings.Sqlite3DbType {
+		log.CliErrorf(c, "[database.restoreDatabase] %s, please use the tools of your database server to restore", datastore.ErrDatabaseRestoreNotSupported.Error())
+		return datastore.ErrDatabaseRestoreNotSupported
+	}
+
+	// check the file before asking, so an invalid file is refused without any confirmation
+	if err = datastore.VerifySqliteDatabaseFile(restoreFromFilePath); err != nil {
+		log.CliErrorf(c, "[database.restoreDatabase] the backup file is refused and the database is untouched, because %s", err.Error())
+		return err
+	}
+
+	if !c.Bool("yes") {
+		fmt.Printf("The database \"%s\" will be replaced with \"%s\".\n", config.DatabaseConfig.DatabasePath, restoreFromFilePath)
+		fmt.Printf("The current database will be backed up into \"%s\" first.\n", backupDir)
+		fmt.Printf("Make sure the ezBookkeeping server is stopped, otherwise it will keep using the old database.\n")
+		fmt.Printf("Type \"yes\" to continue: ")
+
+		answer, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+
+		if answer = strings.ToLower(strings.TrimSpace(answer)); answer != "yes" && answer != "y" {
+			log.CliErrorf(c, "[database.restoreDatabase] %s", errDatabaseRestoreCancelled.Error())
+			return errDatabaseRestoreCancelled
+		}
+	}
+
+	result, err := datastore.RestoreDatabase(c, config, restoreFromFilePath, backupDir)
+
+	if result != nil && result.BeforeRestoreBackupFilePath != "" {
+		log.CliInfof(c, "[database.restoreDatabase] the database before restoring has been backed up to \"%s\"", result.BeforeRestoreBackupFilePath)
+	}
+
+	if err != nil {
+		log.CliErrorf(c, "[database.restoreDatabase] restore database failed, because %s", err.Error())
+		return err
+	}
+
+	for i := 0; i < len(result.RemovedSideFilePaths); i++ {
+		log.CliInfof(c, "[database.restoreDatabase] sqlite side file \"%s\" of the old database has been removed", result.RemovedSideFilePaths[i])
+	}
+
+	log.CliInfof(c, "[database.restoreDatabase] database \"%s\" has been restored from \"%s\"", result.DatabaseFilePath, result.RestoredFromFilePath)
+	log.CliInfof(c, "[database.restoreDatabase] to undo it, run \"database restore --file %s\"", result.BeforeRestoreBackupFilePath)
+	return nil
+}
+
+func getDatabaseBackupDir(c *core.CliContext, defaultBackupDir string) (string, error) {
+	if c.String("path") != "" {
+		return filepath.Abs(c.String("path"))
+	}
+
+	return defaultBackupDir, nil
 }
 
 func updateAllDatabaseTablesStructure(c *core.CliContext) error {
@@ -249,6 +412,14 @@ func updateAllDatabaseTablesStructure(c *core.CliContext) error {
 
 	log.BootInfof(c, "[database.updateAllDatabaseTablesStructure] shared book account table maintained successfully")
 
+	err = datastore.Container.UserDataStore.SyncStructs(new(models.BookSettlement))
+
+	if err != nil {
+		return err
+	}
+
+	log.BootInfof(c, "[database.updateAllDatabaseTablesStructure] book settlement table maintained successfully")
+
 	err = datastore.Container.UserDataStore.SyncStructs(new(models.TransactionCategoryBudget))
 
 	if err != nil {
@@ -256,6 +427,14 @@ func updateAllDatabaseTablesStructure(c *core.CliContext) error {
 	}
 
 	log.BootInfof(c, "[database.updateAllDatabaseTablesStructure] transaction category budget table maintained successfully")
+
+	err = datastore.Container.UserDataStore.SyncStructs(new(models.BudgetAlert))
+
+	if err != nil {
+		return err
+	}
+
+	log.BootInfof(c, "[database.updateAllDatabaseTablesStructure] budget alert table maintained successfully")
 
 	err = datastore.Container.UserDataStore.SyncStructs(new(models.Project))
 

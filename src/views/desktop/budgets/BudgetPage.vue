@@ -2,6 +2,9 @@
     <main-page-layout no-navbar>
         <template #content>
             <v-row align-content="start">
+                <v-col cols="12" class="pb-0">
+                    <budget-alert-notice @error="onBudgetAlertError" />
+                </v-col>
                 <v-col cols="12">
                     <v-card>
                         <template #title>
@@ -110,11 +113,14 @@
 
 <script setup lang="ts">
 import SnackBar from '@/components/desktop/SnackBar.vue';
+import BudgetAlertNotice from '@/components/desktop/BudgetAlertNotice.vue';
 
 import { useTemplateRef } from 'vue';
 
 import { useI18n } from '@/locales/helpers.ts';
 import { useCategoryBudgetPageBase } from '@/views/base/budgets/CategoryBudgetPageBase.ts';
+
+import type { ErrorResponse } from '@/core/api.ts';
 
 import { getCategoryIconType } from '@/lib/icon.ts';
 
@@ -153,6 +159,10 @@ function changeMonth(offset: number): void {
             snackbar.value?.showError(error);
         }
     });
+}
+
+function onBudgetAlertError(error: string | { message: string } | { error: ErrorResponse }): void {
+    snackbar.value?.showError(error);
 }
 
 function save(): void {

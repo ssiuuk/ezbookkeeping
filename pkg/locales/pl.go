@@ -30,4 +30,12 @@ var pl = &LocaleTextItems{
 		ResetPassword:             "Zresetuj hasło",
 		DescriptionBelowBtnFormat: "Jeżeli nie prosiłeś o zresetowanie hasła, zignoruj tę wiadomość. Jeżeli nie możesz kliknąć powyższego odnośnika, skopiuj jego adres i wklej go do przeglądarki. Odnośnik do resetowania hasła wygaśnie po %v minutach.",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "Budget Alert",
+		SalutationFormat:          "Hi %s,",
+		WarningDescriptionFormat:  "The spending of \"%s\" in %s has reached %d%% of its budget, %s of %s has been spent.",
+		ExceededDescriptionFormat: "The spending of \"%s\" in %s has exceeded its budget, %s of %s has been spent.",
+		ViewBudgets:               "View Budgets",
+		DisableEmailDescription:   "You can turn off budget alert emails in user settings.",
+	},
 }

@@ -60,6 +60,10 @@
                 </template>
                 <template #append>
                     <v-btn density="comfortable" variant="tonal" class="me-2"
+                           :to="`/books/settle_up?bookId=${book.id}`">
+                        {{ tt('Settle Up') }}
+                    </v-btn>
+                    <v-btn density="comfortable" variant="tonal" class="me-2"
                            :disabled="isCurrentBook(book)"
                            @click="switchBook(book)">
                         {{ tt('Switch to This Book') }}

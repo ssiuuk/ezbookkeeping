@@ -15,6 +15,7 @@ import type { BigDecimal, NumeralSystem } from '@/core/numeral.ts';
 import type { WeekDayValue } from '@/core/datetime.ts';
 import type { LocalizedTimezoneInfo } from '@/core/timezone.ts';
 import { ImageUploadQualityType } from '@/core/image.ts';
+import { CategoryType } from '@/core/category.ts';
 import { TransactionType, TransactionQuickAddButtonActionType } from '@/core/transaction.ts';
 import { TemplateType } from '@/core/template.ts';
 import { DISPLAY_HIDDEN_AMOUNT } from '@/consts/numeral.ts';
@@ -50,9 +51,11 @@ import {
 
 import {
     type SetTransactionOptions,
-    setTransactionModelByTransaction
+    setTransactionModelByTransaction,
+    getSetTransactionOptionsFromRecognizedResponse
 } from '@/lib/transaction.ts';
 
+import { type BookItemReference, findSameBookItemId, findSameBookItemIds } from '@/lib/book_item.ts';
 import { handleApiResponse } from '@/lib/api.ts';
 import services from '@/lib/services.ts';
 
@@ -82,6 +85,17 @@ export enum AfterSaveAction {
 export interface TransactionProjectSelectItem {
     readonly id: string;
     readonly name: string;
+}
+
+// the items selected in a transaction, to select the same ones after moving it to another book
+export interface TransactionBookRelatedItems {
+    readonly expenseCategory?: BookItemReference;
+    readonly incomeCategory?: BookItemReference;
+    readonly transferCategory?: BookItemReference;
+    readonly sourceAccount?: BookItemReference;
+    readonly destinationAccount?: BookItemReference;
+    readonly tags: BookItemReference[];
+    readonly project?: BookItemReference;
 }
 
 export function useTransactionEditPageBase(type: TransactionEditPageType, initMode?: TransactionEditPageMode, transactionDefaultType?: number) {
@@ -123,6 +137,9 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
 
     const transaction = ref<Transaction | TransactionTemplate>(createNewTransactionModel(transactionDefaultType));
     const allMerchantNames = ref<string[]>([]);
+
+    // pictures saved with the edited transaction stay in its book until it is saved in another book
+    const savedPictureIds = ref<Record<string, boolean>>({});
 
     const numeralSystem = computed<NumeralSystem>(() => getCurrentNumeralSystemType());
     const currentTimezoneOffsetMinutes = computed<number>(() => getTimezoneOffsetMinutes(transaction.value.time));
@@ -515,21 +532,99 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         setTransactionModel(null, { type: currentTransaction.type }, false);
     }
 
-    function updateTransactionModelFromRecognizedResponse(response: RecognizedTransactionResponse): void {
-        const options: SetTransactionOptions = {
-            type: response.type,
-            time: response.time,
-            categoryId: response.categoryId,
-            accountId: response.sourceAccountId,
-            destinationAccountId: response.destinationAccountId,
-            amount: response.sourceAmount,
-            destinationAmount: response.destinationAmount,
-            tagIds: response.tagIds ? response.tagIds.join(',') : undefined,
-            comment: response.comment,
-            merchant: response.merchant
+    function setSavedTransactionPictures(savedTransaction: Transaction | null): void {
+        const pictureIds: Record<string, boolean> = {};
+
+        for (const picture of savedTransaction?.pictures ?? []) {
+            pictureIds[picture.pictureId] = true;
+        }
+
+        savedPictureIds.value = pictureIds;
+    }
+
+    function getCategoryReference(categoryId: string): BookItemReference | undefined {
+        const category = allCategoriesMap.value[categoryId];
+
+        if (!category) {
+            return undefined;
+        }
+
+        const parentCategory = allCategoriesMap.value[category.parentId];
+        return { id: category.id, name: category.name, parentName: parentCategory?.name };
+    }
+
+    function getAccountReference(accountId: string): BookItemReference | undefined {
+        const account = allAccountsMap.value[accountId];
+
+        if (!account) {
+            return undefined;
+        }
+
+        const parentAccount = allAccountsMap.value[account.parentId];
+        return { id: account.id, name: account.name, parentName: parentAccount?.name };
+    }
+
+    function getTransactionBookRelatedItems(): TransactionBookRelatedItems {
+        const currentTransaction = transaction.value;
+        const tags: BookItemReference[] = [];
+
+        for (const tagId of currentTransaction.tagIds) {
+            const tag = allTagsMap.value[tagId];
+
+            if (tag) {
+                tags.push({ id: tag.id, name: tag.name });
+            }
+        }
+
+        const project = isProjectIdSet(currentTransaction.projectId) ? projectsStore.allProjectsMap[currentTransaction.projectId] : undefined;
+
+        return {
+            expenseCategory: getCategoryReference(currentTransaction.expenseCategoryId),
+            incomeCategory: getCategoryReference(currentTransaction.incomeCategoryId),
+            transferCategory: getCategoryReference(currentTransaction.transferCategoryId),
+            sourceAccount: getAccountReference(currentTransaction.sourceAccountId),
+            destinationAccount: getAccountReference(currentTransaction.destinationAccountId),
+            tags: tags,
+            project: project ? { id: project.id, name: project.name } : undefined
+        };
+    }
+
+    // selects the items of the newly loaded book that are the same as the given ones, the others are left empty for the user to choose
+    function setTransactionBookRelatedItems(items: TransactionBookRelatedItems): void {
+        const currentTransaction = transaction.value;
+
+        const findCategoryId = (categoryType: CategoryType, reference?: BookItemReference): string => {
+            const secondaryCategories: TransactionCategory[] = [];
+
+            for (const primaryCategory of allCategories.value[categoryType] ?? []) {
+                secondaryCategories.push(...(primaryCategory.subCategories ?? []));
+            }
+
+            return findSameBookItemId(secondaryCategories, reference, category => category.visible, category => allCategoriesMap.value[category.parentId]?.name);
         };
 
-        setTransactionModel(null, options, true);
+        const findAccountId = (reference?: BookItemReference): string => {
+            return findSameBookItemId(allAccounts.value, reference, account => account.visible, account => allAccountsMap.value[account.parentId]?.name);
+        };
+
+        currentTransaction.expenseCategoryId = findCategoryId(CategoryType.Expense, items.expenseCategory);
+        currentTransaction.incomeCategoryId = findCategoryId(CategoryType.Income, items.incomeCategory);
+        currentTransaction.transferCategoryId = findCategoryId(CategoryType.Transfer, items.transferCategory);
+        currentTransaction.sourceAccountId = findAccountId(items.sourceAccount);
+        currentTransaction.destinationAccountId = findAccountId(items.destinationAccount);
+        currentTransaction.tagIds = findSameBookItemIds(Object.values(allTagsMap.value), items.tags, tag => !tag.hidden);
+        currentTransaction.projectId = findSameBookItemId(projectsStore.allProjects, items.project, project => !project.hidden) || NO_PROJECT_ID;
+
+        // pictures uploaded while editing belong to the book they were uploaded to, saved ones are copied to the other book
+        for (const picture of [...(currentTransaction.pictures ?? [])]) {
+            if (!savedPictureIds.value[picture.pictureId]) {
+                currentTransaction.removePicture(picture);
+            }
+        }
+    }
+
+    function updateTransactionModelFromRecognizedResponse(response: RecognizedTransactionResponse): void {
+        setTransactionModel(null, getSetTransactionOptionsFromRecognizedResponse(response), true);
     }
 
     function updateTransactionModelByAfterSaveAction(afterSaveAction: AfterSaveAction, initOptions?: SetTransactionOptions): void {
@@ -593,7 +688,7 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
     }
 
     function getTransactionPictureUrl(pictureInfo?: TransactionPictureInfoBasicResponse | null): string | undefined {
-        return transactionsStore.getTransactionPictureUrl(pictureInfo);
+        return transactionsStore.getTransactionPictureUrl(pictureInfo, undefined, !!pictureInfo && !!savedPictureIds.value[pictureInfo.pictureId]);
     }
 
     watch(() => transaction.value.sourceAmount, (newValue, oldValue) => {
@@ -700,6 +795,9 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         setTransactionModel,
         loadMerchantNames,
         resetTransactionBookRelatedFields,
+        setSavedTransactionPictures,
+        getTransactionBookRelatedItems,
+        setTransactionBookRelatedItems,
         updateTransactionModelFromRecognizedResponse,
         updateTransactionModelByAfterSaveAction,
         updateTransactionTime,

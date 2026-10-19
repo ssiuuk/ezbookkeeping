@@ -30,4 +30,12 @@ var el = &LocaleTextItems{
 		ResetPassword:             "Επαναφορά κωδικού πρόσβασης",
 		DescriptionBelowBtnFormat: "Αν δεν ζητήσατε εσείς επαναφορά του κωδικού πρόσβασής σας, απλώς αγνοήστε αυτό το email. Αν δεν μπορείτε να κάνετε κλικ στον παραπάνω σύνδεσμο, αντιγράψτε τη διεύθυνση και επικολλήστε την στο πρόγραμμα περιήγησής σας. Ο σύνδεσμος επαναφοράς κωδικού πρόσβασης θα λήξει μετά από %v λεπτά.",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "Budget Alert",
+		SalutationFormat:          "Hi %s,",
+		WarningDescriptionFormat:  "The spending of \"%s\" in %s has reached %d%% of its budget, %s of %s has been spent.",
+		ExceededDescriptionFormat: "The spending of \"%s\" in %s has exceeded its budget, %s of %s has been spent.",
+		ViewBudgets:               "View Budgets",
+		DisableEmailDescription:   "You can turn off budget alert emails in user settings.",
+	},
 }

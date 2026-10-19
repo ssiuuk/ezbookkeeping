@@ -106,7 +106,7 @@
                     <v-window-item value="basicInfo">
                         <v-form class="my-4">
                             <v-row>
-                                <v-col cols="12" v-if="((type === TransactionEditPageType.Transaction && mode === TransactionEditPageMode.Add) || (type === TransactionEditPageType.Template && mode !== TransactionEditPageMode.View)) && showEntryBookSelection">
+                                <v-col cols="12" v-if="showEntryBookField">
                                     <v-select
                                         item-value="id"
                                         persistent-placeholder
@@ -632,7 +632,7 @@ import {
     getTransactionSecondaryCategoryName,
     getParentCategoryIdForNewSubCategory
 } from '@/lib/category.ts';
-import { type SetTransactionOptions } from '@/lib/transaction.ts';
+import { type SetTransactionOptions, isPictureAttached } from '@/lib/transaction.ts';
 import {
     isTransactionFromAITextRecognitionEnabled,
     isTransactionPicturesEnabled,
@@ -741,6 +741,9 @@ const {
     setTransactionModel,
     loadMerchantNames,
     resetTransactionBookRelatedFields,
+    setSavedTransactionPictures,
+    getTransactionBookRelatedItems,
+    setTransactionBookRelatedItems,
     updateTransactionModelFromRecognizedResponse,
     updateTransactionModelByAfterSaveAction,
     updateTransactionTime,
@@ -804,6 +807,25 @@ const pastedText = ref<string>('');
 
 const initOptions = ref<TransactionEditOptions | undefined>(undefined);
 
+// a saved transaction can be moved to another book, except a balance modification
+const showEntryBookField = computed<boolean>(() => {
+    if (!showEntryBookSelection.value) {
+        return false;
+    }
+
+    if (props.type === TransactionEditPageType.Transaction) {
+        return mode.value === TransactionEditPageMode.Add || (mode.value === TransactionEditPageMode.Edit && transaction.value.type !== TransactionType.ModifyBalance);
+    } else if (props.type === TransactionEditPageType.Template) {
+        return mode.value !== TransactionEditPageMode.View;
+    }
+
+    return false;
+});
+
+// the recognized receipt image attached to the new transaction and the picture uploaded from it
+let recognizedPictureFile: File | null = null;
+let recognizedPictureId: string | null = null;
+
 const sourceAmountColor = computed<string | undefined>(() => {
     if (transaction.value.type === TransactionType.Expense) {
         return 'expense';
@@ -841,6 +863,8 @@ const isTransactionModified = computed<boolean>(() => {
 });
 
 function open(options: TransactionEditOptions): Promise<TransactionEditResponse | undefined> {
+    recognizedPictureFile = null;
+    recognizedPictureId = null;
     addByTemplateId.value = null;
     duplicateFromId.value = null;
     showState.value = true;
@@ -856,6 +880,7 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
     initOptions.value = options;
     initEntryBook();
     resetRepeat();
+    setSavedTransactionPictures(null);
 
     const newTransaction = createNewTransactionModel(options.type);
     setTransactionModel(newTransaction, options, true);
@@ -961,6 +986,7 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
             setTransactionModel(transaction, options, true);
             initTransaction.value = Transaction.of(transaction);
             originalTransactionEditable.value = transaction.editable;
+            setSavedTransactionPictures(transaction);
         } else if (props.type === TransactionEditPageType.Template && options && options.id && responses[3] && responses[3] instanceof TransactionTemplate) {
             const template: TransactionTemplate = responses[3];
             setTransactionModel(template, options, false);
@@ -982,7 +1008,8 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
         }
 
         if (options.autoUploadPicture) {
-            uploadPicture(options.autoUploadPicture);
+            recognizedPictureFile = options.autoUploadPicture;
+            uploadPicture(options.autoUploadPicture, true);
         }
 
         loading.value = false;
@@ -1031,12 +1058,27 @@ function onEntryBookChanged(bookId: string): void {
         return;
     }
 
+    // pictures belong to a book, so the recognized receipt image is uploaded again to the newly selected book
+    const reattachRecognizedPicture = !!recognizedPictureFile && isPictureAttached(transaction.value, recognizedPictureId);
+
     loading.value = true;
 
+    // a saved transaction keeps the items with the same names in the other book
+    const movingItems = props.type === TransactionEditPageType.Transaction && mode.value === TransactionEditPageMode.Edit ? getTransactionBookRelatedItems() : undefined;
+
     changeEntryBook(book).then(() => {
-        resetTransactionBookRelatedFields();
+        if (movingItems) {
+            setTransactionBookRelatedItems(movingItems);
+        } else {
+            resetTransactionBookRelatedFields();
+        }
+
         loadMerchantNames().catch(error => logger.warn('failed to load merchants', error));
         loading.value = false;
+
+        if (reattachRecognizedPicture && recognizedPictureFile) {
+            uploadPicture(recognizedPictureFile, true);
+        }
     }).catch(error => {
         loading.value = false;
 
@@ -1060,14 +1102,29 @@ function save(afterAction: AfterSaveAction): void {
 
             const repeatTemplate = buildRepeatTemplate();
             const sourceTemplateId = initTransaction.value?.sourceTemplateId;
+            const sourceBookId = mode.value === TransactionEditPageMode.Edit ? getMovingFromBookId() : undefined;
             let savedMessage = 'You have saved this transaction';
+            let savePromise: Promise<Transaction>;
 
-            transactionsStore.saveTransaction({
-                transaction: transaction.value as Transaction,
-                defaultCurrency: defaultCurrency.value,
-                isEdit: mode.value === TransactionEditPageMode.Edit,
-                clientSessionId: clientSessionId.value
-            }).then(() => {
+            if (sourceBookId && initTransaction.value) {
+                savedMessage = 'You have moved this transaction to the selected book';
+                savePromise = transactionsStore.moveTransactionToBook({
+                    transaction: transaction.value as Transaction,
+                    originalTransaction: initTransaction.value,
+                    sourceBookId: sourceBookId,
+                    defaultCurrency: defaultCurrency.value,
+                    clientSessionId: generateRandomUUID()
+                });
+            } else {
+                savePromise = transactionsStore.saveTransaction({
+                    transaction: transaction.value as Transaction,
+                    defaultCurrency: defaultCurrency.value,
+                    isEdit: mode.value === TransactionEditPageMode.Edit,
+                    clientSessionId: clientSessionId.value
+                });
+            }
+
+            savePromise.then(() => {
                 if (!applyToLaterScheduled || !sourceTemplateId) {
                     return;
                 }
@@ -1136,7 +1193,8 @@ function save(afterAction: AfterSaveAction): void {
         };
 
         const confirmScheduledChangeAndSubmit = function () {
-            if (mode.value === TransactionEditPageMode.Edit && initTransaction.value && hasScheduledFieldChanges(initTransaction.value, transaction.value as Transaction)) {
+            // a transaction moved to another book leaves its schedule in the old book
+            if (mode.value === TransactionEditPageMode.Edit && initTransaction.value && !getMovingFromBookId() && hasScheduledFieldChanges(initTransaction.value, transaction.value as Transaction)) {
                 confirmDialog.value?.open(SCHEDULED_CHANGE_CONFIRM_MESSAGE).then(() => {
                     doSubmit(true);
                 }).catch(() => {
@@ -1395,7 +1453,7 @@ function showOpenPictureDialog(): void {
     pictureInput.value?.click();
 }
 
-function uploadPicture(file: File): void {
+function uploadPicture(file: File, isRecognizedPicture?: boolean): void {
     if (!file) {
         return;
     }
@@ -1409,6 +1467,11 @@ function uploadPicture(file: File): void {
         });
     }).then(response => {
         transaction.value.addPicture(response);
+
+        if (isRecognizedPicture) {
+            recognizedPictureId = response.pictureId;
+        }
+
         uploadingPicture.value = false;
         submitting.value = false;
     }).catch(error => {

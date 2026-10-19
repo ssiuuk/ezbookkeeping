@@ -9,12 +9,14 @@ import (
 const avatarPathPrefix = "avatar"
 const userCustomIconPathPrefix = "icon"
 const transactionPicturePathPrefix = "transaction"
+const databaseBackupPathPrefix = "database_backups"
 
 // StorageContainer contains the current object storage
 type StorageContainer struct {
 	avatarCurrentStorage             ObjectStorage
 	userCustomIconCurrentStorage     ObjectStorage
 	transactionPictureCurrentStorage ObjectStorage
+	databaseBackupCurrentStorage     ObjectStorage
 }
 
 // Initialize a object storage container singleton instance
@@ -54,7 +56,40 @@ func InitializeStorageContainer(config *settings.Config) error {
 		Container.transactionPictureCurrentStorage = transactionPictureStorage
 	}
 
+	if config.DatabaseBackupCopyToStorage {
+		databaseBackupStorage, err := newDatabaseBackupObjectStorage(config)
+
+		if err != nil {
+			return err
+		}
+
+		Container.databaseBackupCurrentStorage = databaseBackupStorage
+	}
+
 	return nil
+}
+
+// IsDatabaseBackupStorageEnabled returns whether database backup files are copied to the object storage
+func (s *StorageContainer) IsDatabaseBackupStorageEnabled() bool {
+	return s.databaseBackupCurrentStorage != nil
+}
+
+// SaveDatabaseBackup returns whether save the database backup file into the current database backup object storage successfully
+func (s *StorageContainer) SaveDatabaseBackup(ctx core.Context, path string, object ObjectInStorage) error {
+	if s.databaseBackupCurrentStorage == nil {
+		return errs.ErrSystemError
+	}
+
+	return s.databaseBackupCurrentStorage.Save(ctx, path, object)
+}
+
+// DeleteDatabaseBackup returns whether delete the database backup file from the current database backup object storage successfully
+func (s *StorageContainer) DeleteDatabaseBackup(ctx core.Context, path string) error {
+	if s.databaseBackupCurrentStorage == nil {
+		return errs.ErrSystemError
+	}
+
+	return s.databaseBackupCurrentStorage.Delete(ctx, path)
 }
 
 // ExistsAvatar returns whether the avatar file exists from the current avatar object storage
@@ -177,4 +212,13 @@ func newObjectStorage(config *settings.Config, pathPrefix string) (ObjectStorage
 	}
 
 	return nil, errs.ErrInvalidStorageType
+}
+
+func newDatabaseBackupObjectStorage(config *settings.Config) (ObjectStorage, error) {
+	// database backups hold every user's data, so they are only accessible to the server user in local file system
+	if config.StorageType == settings.LocalFileSystemObjectStorageType {
+		return NewPrivateLocalFileSystemObjectStorage(config, databaseBackupPathPrefix)
+	}
+
+	return newObjectStorage(config, databaseBackupPathPrefix)
 }

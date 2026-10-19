@@ -264,6 +264,14 @@ export class Transaction implements TransactionInfoResponse {
         };
     }
 
+    public toMoveToBookRequest(sourceBookId: string, clientSessionId: string): TransactionMoveToBookRequest {
+        return {
+            ...this.toCreateRequest(clientSessionId),
+            id: this.id,
+            sourceBookId: sourceBookId
+        };
+    }
+
     public toModifyRequest(): TransactionModifyRequest {
         let categoryId = this.getCategoryId();
 
@@ -576,6 +584,12 @@ export interface TransactionCreateRequest {
     readonly comment: string;
     readonly geoLocation?: TransactionGeoLocationRequest;
     readonly clientSessionId: string;
+}
+
+// moves the transaction from the source book to the book of the request, where it is saved as a new transaction
+export interface TransactionMoveToBookRequest extends TransactionCreateRequest {
+    readonly id: string;
+    readonly sourceBookId: string;
 }
 
 export interface TransactionModifyRequest {

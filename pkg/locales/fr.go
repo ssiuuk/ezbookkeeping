@@ -30,4 +30,12 @@ var fr = &LocaleTextItems{
 		ResetPassword:             "Réinitialiser le mot de passe",
 		DescriptionBelowBtnFormat: "Si vous n'avez pas demandé la réinitialisation de votre mot de passe, vous pouvez ignorer cet e-mail. Si vous ne pouvez pas cliquer sur le lien ci-dessus, copiez l'URL ci-dessus et collez-la dans votre navigateur. Le lien de réinitialisation du mot de passe expire après %v minutes.",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "Budget Alert",
+		SalutationFormat:          "Hi %s,",
+		WarningDescriptionFormat:  "The spending of \"%s\" in %s has reached %d%% of its budget, %s of %s has been spent.",
+		ExceededDescriptionFormat: "The spending of \"%s\" in %s has exceeded its budget, %s of %s has been spent.",
+		ViewBudgets:               "View Budgets",
+		DisableEmailDescription:   "You can turn off budget alert emails in user settings.",
+	},
 }

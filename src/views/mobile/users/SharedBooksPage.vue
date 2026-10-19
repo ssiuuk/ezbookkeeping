@@ -71,6 +71,7 @@
             </f7-list>
 
             <f7-list strong inset dividers>
+                <f7-list-button :href="`/books/settle_up?bookId=${book.id}`">{{ tt('Settle Up') }}</f7-list-button>
                 <f7-list-button v-if="book.isOwner" @click="rename(book)">{{ tt('Rename') }}</f7-list-button>
                 <f7-list-button color="red" v-if="book.isOwner" @click="remove(book)">{{ tt('Delete') }}</f7-list-button>
                 <f7-list-button color="red" v-if="!book.isOwner" @click="leave(book)">{{ tt('Leave This Book') }}</f7-list-button>

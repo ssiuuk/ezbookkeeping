@@ -16,6 +16,8 @@
             <f7-link icon-f7="chevron_right" :class="{ 'disabled': loading || saving }" :aria-label="tt('Next')" @click="changeMonth(1)"></f7-link>
         </f7-toolbar>
 
+        <budget-alert-notice />
+
         <f7-card :class="{ 'skeleton-text': loading }">
             <f7-card-content>
                 <div class="budget-summary-row">
@@ -72,6 +74,8 @@
 </template>
 
 <script setup lang="ts">
+import BudgetAlertNotice from '@/components/mobile/BudgetAlertNotice.vue';
+
 import { ref } from 'vue';
 import type { Router } from 'framework7/types';
 

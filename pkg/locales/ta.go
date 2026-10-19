@@ -30,4 +30,12 @@ var ta = &LocaleTextItems{
 		ResetPassword:             "கடவுச்சொல்லை மீட்டமை",
 		DescriptionBelowBtnFormat: "உங்கள் கடவுச்சொல்லை மீட்டமைக்க நீங்கள் கோரவில்லை என்றால், இந்த மின்னஞ்சலை புறக்கணிக்கவும். மேலே உள்ள இணைப்பைக் கிளிக் செய்ய முடியவில்லை என்றால், மேலே உள்ள URL ஐ நகலெடுத்து உங்கள் உலாவியில் ஒட்டவும். கடவுச்சொல் மீட்டமைப்பு இணைப்பு %v நிமிடங்களுக்குப் பிறகு காலாவதியாகும்.",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "Budget Alert",
+		SalutationFormat:          "Hi %s,",
+		WarningDescriptionFormat:  "The spending of \"%s\" in %s has reached %d%% of its budget, %s of %s has been spent.",
+		ExceededDescriptionFormat: "The spending of \"%s\" in %s has exceeded its budget, %s of %s has been spent.",
+		ViewBudgets:               "View Budgets",
+		DisableEmailDescription:   "You can turn off budget alert emails in user settings.",
+	},
 }

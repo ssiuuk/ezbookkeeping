@@ -413,6 +413,8 @@ type Config struct {
 	EnableDatabaseBackup             bool
 	DatabaseBackupPath               string
 	DatabaseBackupKeepCount          uint32
+	DatabaseBackupCopyPath           string
+	DatabaseBackupCopyToStorage      bool
 
 	// Secret
 	SecretKeyNoSet                        bool
@@ -481,6 +483,7 @@ type Config struct {
 	AfterRegisterNotification MultiLanguageContentConfig
 	AfterLoginNotification    MultiLanguageContentConfig
 	AfterOpenNotification     MultiLanguageContentConfig
+	EnableBudgetAlert         bool
 
 	// Map
 	MapProvider                           string
@@ -1090,6 +1093,14 @@ func loadCronConfiguration(config *Config, configFile *ini.File, sectionName str
 		} else {
 			config.DatabaseBackupPath, _ = getFinalPath(config.WorkingPath, databaseBackupPath)
 		}
+
+		databaseBackupCopyPath := getConfigItemStringValue(configFile, sectionName, "database_backup_copy_path")
+
+		if databaseBackupCopyPath != "" {
+			config.DatabaseBackupCopyPath, _ = getFinalPath(config.WorkingPath, databaseBackupCopyPath)
+		}
+
+		config.DatabaseBackupCopyToStorage = getConfigItemBoolValue(configFile, sectionName, "database_backup_copy_to_storage", false)
 	}
 
 	return nil
@@ -1260,6 +1271,7 @@ func loadNotificationConfiguration(config *Config, configFile *ini.File, section
 	config.AfterRegisterNotification = getMultiLanguageContentConfig(configFile, sectionName, "enable_notification_after_register", "after_register_notification_content")
 	config.AfterLoginNotification = getMultiLanguageContentConfig(configFile, sectionName, "enable_notification_after_login", "after_login_notification_content")
 	config.AfterOpenNotification = getMultiLanguageContentConfig(configFile, sectionName, "enable_notification_after_open", "after_open_notification_content")
+	config.EnableBudgetAlert = getConfigItemBoolValue(configFile, sectionName, "enable_budget_alert", true)
 
 	return nil
 }

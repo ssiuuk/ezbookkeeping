@@ -13,6 +13,8 @@ import (
 	"github.com/mayswind/ezbookkeeping/pkg/llm"
 	"github.com/mayswind/ezbookkeeping/pkg/log"
 	"github.com/mayswind/ezbookkeeping/pkg/mail"
+	"github.com/mayswind/ezbookkeeping/pkg/models"
+	"github.com/mayswind/ezbookkeeping/pkg/services"
 	"github.com/mayswind/ezbookkeeping/pkg/settings"
 	"github.com/mayswind/ezbookkeeping/pkg/storage"
 	"github.com/mayswind/ezbookkeeping/pkg/utils"
@@ -145,6 +147,10 @@ func initializeSystem(c *core.CliContext) (*settings.Config, error) {
 		}
 		return nil, err
 	}
+
+	services.BudgetAlerts.SetLatestExchangeRatesGetter(func(c core.Context, uid int64) (*models.LatestExchangeRateResponse, error) {
+		return exchangerates.Container.GetLatestExchangeRates(c, uid, settings.Container.GetCurrentConfig())
+	})
 
 	cfgJson, err := json.Marshal(getConfigWithoutSensitiveData(config), jsonv1.FormatDurationAsNano(true))
 

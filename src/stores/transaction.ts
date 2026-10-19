@@ -1290,6 +1290,53 @@ export const useTransactionsStore = defineStore('transactions', () => {
         });
     }
 
+    // moves an edited transaction from the source book to the book of the request, where it is saved as a new transaction
+    function moveTransactionToBook({ transaction, originalTransaction, sourceBookId, defaultCurrency, clientSessionId }: { transaction: Transaction, originalTransaction: Transaction, sourceBookId: string, defaultCurrency: string, clientSessionId: string }): Promise<Transaction> {
+        return new Promise((resolve, reject) => {
+            if (transaction.type !== TransactionType.Expense &&
+                transaction.type !== TransactionType.Income &&
+                transaction.type !== TransactionType.Transfer) {
+                reject({ message: 'An error occurred' });
+                return;
+            }
+
+            services.moveTransactionToBook(transaction.toMoveToBookRequest(sourceBookId, clientSessionId)).then(response => {
+                const data = response.data;
+
+                if (!data || !data.success || !data.result) {
+                    reject({ message: 'Unable to save transaction' });
+                    return;
+                }
+
+                // the transaction has left the book whose list is cached
+                removeTransactionFromTransactionList({
+                    currentTransaction: originalTransaction,
+                    defaultCurrency: defaultCurrency
+                });
+
+                updateStoreInvalidState({
+                    reconciliationStatement: true,
+                    accountList: true,
+                    overview: true,
+                    statistics: true,
+                    explorer: true
+                });
+
+                resolve(Transaction.of(data.result));
+            }).catch(error => {
+                logger.error('failed to move transaction to another book', error);
+
+                if (error.response && error.response.data && error.response.data.errorMessage) {
+                    reject({ error: error.response.data });
+                } else if (!error.processed) {
+                    reject({ message: 'Unable to save transaction' });
+                } else {
+                    reject(error);
+                }
+            });
+        });
+    }
+
     function batchUpdateTransactionCategories({ transactionIds, categoryId }: { transactionIds: string[], categoryId: string }): Promise<boolean> {
         return new Promise((resolve, reject) => {
             services.batchUpdateTransactionCategories({ transactionIds, categoryId }).then(response => {
@@ -1799,12 +1846,12 @@ export const useTransactionsStore = defineStore('transactions', () => {
         });
     }
 
-    function getTransactionPictureUrl(pictureInfo?: TransactionPictureInfoBasicResponse | null, disableBrowserCache?: boolean | string): string | undefined {
+    function getTransactionPictureUrl(pictureInfo?: TransactionPictureInfoBasicResponse | null, disableBrowserCache?: boolean | string, inSelectedBook?: boolean): string | undefined {
         if (!pictureInfo || !pictureInfo.originalUrl) {
             return undefined;
         }
 
-        return services.getTransactionPictureUrlWithToken(pictureInfo.originalUrl, disableBrowserCache);
+        return services.getTransactionPictureUrlWithToken(pictureInfo.originalUrl, disableBrowserCache, inSelectedBook);
     }
 
     function collapseMonthInTransactionList({ monthList, collapse }: { monthList: TransactionMonthList, collapse: boolean }): void {
@@ -1850,6 +1897,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
         getReconciliationStatements,
         getTransaction,
         saveTransaction,
+        moveTransactionToBook,
         batchUpdateTransactionCategories,
         batchUpdateTransactionAccounts,
         batchAddTagsToTransaction,

@@ -516,6 +516,16 @@ func (a *UsersApi) UserUpdateProfileHandler(c *core.WebContext) (any, *errs.Erro
 		userNew.IncomeAmountColor = models.AMOUNT_COLOR_TYPE_INVALID
 	}
 
+	modifyBudgetAlertEmail := false
+
+	if userUpdateReq.BudgetAlertEmail != nil && *userUpdateReq.BudgetAlertEmail == user.NoBudgetAlertEmail {
+		user.NoBudgetAlertEmail = !*userUpdateReq.BudgetAlertEmail
+		userNew.NoBudgetAlertEmail = !*userUpdateReq.BudgetAlertEmail
+		modifyProfileBasicInfo = true
+		modifyBudgetAlertEmail = true
+		anythingUpdate = true
+	}
+
 	if modifyProfileBasicInfo && user.FeatureRestriction.Contains(core.USER_FEATURE_RESTRICTION_TYPE_UPDATE_PROFILE_BASIC_INFO) {
 		return nil, errs.ErrNotPermittedToPerformThisAction
 	}
@@ -551,7 +561,7 @@ func (a *UsersApi) UserUpdateProfileHandler(c *core.WebContext) (any, *errs.Erro
 		return nil, errs.ErrNothingWillBeUpdated
 	}
 
-	keyProfileUpdated, emailSetToUnverified, err := a.users.UpdateUser(c, userNew, modifyUserLanguage, modifyUseLastReconciledTime)
+	keyProfileUpdated, emailSetToUnverified, err := a.users.UpdateUser(c, userNew, modifyUserLanguage, modifyUseLastReconciledTime, modifyBudgetAlertEmail)
 
 	if err != nil {
 		log.Errorf(c, "[users.UserUpdateProfileHandler] failed to update user \"uid:%d\", because %s", user.Uid, err.Error())

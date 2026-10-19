@@ -30,4 +30,12 @@ var ko = &LocaleTextItems{
 		ResetPassword:             "비밀번호 재설정",
 		DescriptionBelowBtnFormat: "비밀번호 재설정을 요청하지 않으셨다면 이 이메일을 무시해주세요. 위 링크를 클릭할 수 없는 경우, 위 URL을 복사하여 브라우저에 붙여넣어 주세요. 비밀번호 재설정 링크는 %v분 후에 만료됩니다.",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "Budget Alert",
+		SalutationFormat:          "Hi %s,",
+		WarningDescriptionFormat:  "The spending of \"%s\" in %s has reached %d%% of its budget, %s of %s has been spent.",
+		ExceededDescriptionFormat: "The spending of \"%s\" in %s has exceeded its budget, %s of %s has been spent.",
+		ViewBudgets:               "View Budgets",
+		DisableEmailDescription:   "You can turn off budget alert emails in user settings.",
+	},
 }

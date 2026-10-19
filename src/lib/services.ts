@@ -66,6 +66,7 @@ import type {
 import type {
     TransactionCreateRequest,
     TransactionModifyRequest,
+    TransactionMoveToBookRequest,
     TransactionBatchUpdateCategoryRequest,
     TransactionBatchUpdateAccountRequest,
     TransactionBatchAddTagsRequest,
@@ -187,7 +188,12 @@ import type {
     BookCreateRequest,
     BookModifyRequest,
     BookDeleteRequest,
-    BookAccountShareRequest
+    BookAccountShareRequest,
+    BookSettleUpRequest,
+    BookSettleUpResponse,
+    BookSettlementCreateRequest,
+    BookSettlementDeleteRequest,
+    BookSettlementInfoResponse
 } from '@/models/book.ts';
 import type {
     ProjectCreateRequest,
@@ -201,6 +207,10 @@ import type {
     TransactionCategoryBudgetSaveRequest,
     TransactionCategoryBudgetInfoResponse
 } from '@/models/transaction_category_budget.ts';
+import type {
+    BudgetAlertDismissRequest,
+    BudgetAlertInfoResponse
+} from '@/models/budget_alert.ts';
 import type {
     OAuth2CallbackLoginRequest
 } from '@/models/oauth2.ts';
@@ -495,6 +505,18 @@ export default {
     unshareAccountFromBook: (req: BookAccountShareRequest, options?: BookRequestOptions): ApiResponsePromise<boolean> => {
         return axios.post<ApiResponse<boolean>>('v1/books/accounts/unshare.json', req, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },
+    getBookSettleUp: (req: BookSettleUpRequest, options?: BookRequestOptions): ApiResponsePromise<BookSettleUpResponse> => {
+        return axios.get<ApiResponse<BookSettleUpResponse>>(`v1/books/settle_up.json?start_time=${req.startTime || 0}&end_time=${req.endTime || 0}`, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    getBookSettlements: (req: BookSettleUpRequest, options?: BookRequestOptions): ApiResponsePromise<BookSettlementInfoResponse[]> => {
+        return axios.get<ApiResponse<BookSettlementInfoResponse[]>>(`v1/books/settlements/list.json?start_time=${req.startTime || 0}&end_time=${req.endTime || 0}`, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    addBookSettlement: (req: BookSettlementCreateRequest, options?: BookRequestOptions): ApiResponsePromise<BookSettlementInfoResponse> => {
+        return axios.post<ApiResponse<BookSettlementInfoResponse>>('v1/books/settlements/add.json', req, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    deleteBookSettlement: (req: BookSettlementDeleteRequest, options?: BookRequestOptions): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/books/settlements/delete.json', req, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
     getExternalAuths: (): ApiResponsePromise<UserExternalAuthInfoResponse[]> => {
         return axios.get<ApiResponse<UserExternalAuthInfoResponse[]>>('v1/users/external_auth/list.json');
     },
@@ -787,6 +809,9 @@ export default {
     modifyTransaction: (req: TransactionModifyRequest): ApiResponsePromise<TransactionInfoResponse> => {
         return axios.post<ApiResponse<TransactionInfoResponse>>('v1/transactions/modify.json', req);
     },
+    moveTransactionToBook: (req: TransactionMoveToBookRequest): ApiResponsePromise<TransactionInfoResponse> => {
+        return axios.post<ApiResponse<TransactionInfoResponse>>('v1/transactions/move/book.json', req);
+    },
     batchUpdateTransactionCategories: (req: TransactionBatchUpdateCategoryRequest): ApiResponsePromise<boolean> => {
         return axios.post<ApiResponse<boolean>>('v1/transactions/batch_update/category.json', req, {
             timeout: DEFAULT_BATCH_UPDATE_TRANSACTIONS_API_TIMEOUT
@@ -907,6 +932,12 @@ export default {
     },
     saveTransactionCategoryBudgets: (req: TransactionCategoryBudgetSaveRequest): ApiResponsePromise<TransactionCategoryBudgetInfoResponse[]> => {
         return axios.post<ApiResponse<TransactionCategoryBudgetInfoResponse[]>>('v1/transaction/categories/budgets/save.json', req);
+    },
+    getBudgetAlerts: ({ count, includeDismissed }: { count?: number, includeDismissed?: boolean }): ApiResponsePromise<BudgetAlertInfoResponse[]> => {
+        return axios.get<ApiResponse<BudgetAlertInfoResponse[]>>(`v1/budgets/alerts/list.json?count=${count || 10}&include_dismissed=${includeDismissed ? 'true' : 'false'}`);
+    },
+    dismissBudgetAlerts: (req: BudgetAlertDismissRequest): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/budgets/alerts/dismiss.json', req);
     },
     getAllProjects: (): ApiResponsePromise<ProjectInfoResponse[]> => {
         return axios.get<ApiResponse<ProjectInfoResponse[]>>('v1/projects/list.json');
@@ -1171,7 +1202,8 @@ export default {
     getUserCustomIconUrlWithToken(iconId: string | number): string {
         return `${getBasePath()}/icons/${iconId}.png?token=${getCurrentToken()}${getBookIdQueryString()}`;
     },
-    getTransactionPictureUrlWithToken(pictureUrl: string, disableBrowserCache?: boolean | string): string {
+    // inSelectedBook gets a picture of the selected book while requests are sent to another book
+    getTransactionPictureUrlWithToken(pictureUrl: string, disableBrowserCache?: boolean | string, inSelectedBook?: boolean): string {
         if (!pictureUrl) {
             return pictureUrl;
         }
@@ -1179,7 +1211,7 @@ export default {
         const params: string[] = [];
         params.push('token=' + getCurrentToken());
 
-        const bookId = getActiveBookId();
+        const bookId = inSelectedBook ? getCurrentBookId() : getActiveBookId();
 
         if (bookId) {
             params.push('book_id=' + bookId);

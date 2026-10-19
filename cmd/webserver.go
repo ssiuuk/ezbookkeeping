@@ -373,6 +373,10 @@ func startWebServer(c *core.CliContext) error {
 			apiV1Route.GET("/books/accounts/list.json", bindApi(api.Books.BookSharedAccountListHandler, config))
 			apiV1Route.POST("/books/accounts/share.json", bindApi(api.Books.BookShareAccountHandler, config))
 			apiV1Route.POST("/books/accounts/unshare.json", bindApi(api.Books.BookUnshareAccountHandler, config))
+			apiV1Route.GET("/books/settle_up.json", bindApi(api.Books.BookSettleUpHandler, config))
+			apiV1Route.GET("/books/settlements/list.json", bindApi(api.Books.BookSettlementListHandler, config))
+			apiV1Route.POST("/books/settlements/add.json", bindApi(api.Books.BookSettlementCreateHandler, config))
+			apiV1Route.POST("/books/settlements/delete.json", bindApi(api.Books.BookSettlementDeleteHandler, config))
 
 			// External Authentications
 			if config.EnableOAuth2Login {
@@ -468,6 +472,10 @@ func startWebServer(c *core.CliContext) error {
 			apiV1Route.POST("/transaction/categories/hide.json", bindApi(api.TransactionCategories.CategoryHideHandler, config))
 			apiV1Route.POST("/transaction/categories/move.json", bindApi(api.TransactionCategories.CategoryMoveHandler, config))
 			apiV1Route.POST("/transaction/categories/delete.json", bindApi(api.TransactionCategories.CategoryDeleteHandler, config))
+
+			// Budget Alerts
+			apiV1Route.GET("/budgets/alerts/list.json", bindApi(api.BudgetAlerts.BudgetAlertListHandler, config))
+			apiV1Route.POST("/budgets/alerts/dismiss.json", bindApi(api.BudgetAlerts.BudgetAlertDismissHandler, config))
 
 			// Projects
 			apiV1Route.GET("/projects/list.json", bindApi(api.Projects.ProjectListHandler, config))

@@ -30,4 +30,12 @@ var zhHans = &LocaleTextItems{
 		ResetPassword:             "重置密码",
 		DescriptionBelowBtnFormat: "如果您没有请求重置密码，请直接忽略本邮件。如果您无法点击上述链接，请复制下方的地址然后在您的浏览器中粘贴。重置密码链接将在 %v 分钟后过期。",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "预算提醒",
+		SalutationFormat:          "%s 您好，",
+		WarningDescriptionFormat:  "“%s”在 %s 的支出已达到预算的 %d%%，已支出 %s，预算为 %s。",
+		ExceededDescriptionFormat: "“%s”在 %s 的支出已超出预算，已支出 %s，预算为 %s。",
+		ViewBudgets:               "查看预算",
+		DisableEmailDescription:   "您可以在用户设置中关闭预算提醒邮件。",
+	},
 }

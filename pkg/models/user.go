@@ -114,6 +114,7 @@ type User struct {
 	CoordinateDisplayType core.CoordinateDisplayType `xorm:"TINYINT"`
 	ExpenseAmountColor    AmountColorType            `xorm:"TINYINT"`
 	IncomeAmountColor     AmountColorType            `xorm:"TINYINT"`
+	NoBudgetAlertEmail    bool                       // stored inverted, so that budget alert emails are enabled for existing users
 	FeatureRestriction    core.UserFeatureRestrictions
 	Disabled              bool
 	Deleted               bool `xorm:"NOT NULL"`
@@ -153,6 +154,7 @@ type UserBasicInfo struct {
 	CoordinateDisplayType core.CoordinateDisplayType `json:"coordinateDisplayType"`
 	ExpenseAmountColor    AmountColorType            `json:"expenseAmountColor"`
 	IncomeAmountColor     AmountColorType            `json:"incomeAmountColor"`
+	BudgetAlertEmail      bool                       `json:"budgetAlertEmail"`
 	EmailVerified         bool                       `json:"emailVerified"`
 }
 
@@ -220,6 +222,7 @@ type UserProfileUpdateRequest struct {
 	CoordinateDisplayType *core.CoordinateDisplayType `json:"coordinateDisplayType" binding:"omitempty,min=0,max=6"`
 	ExpenseAmountColor    *AmountColorType            `json:"expenseAmountColor" binding:"omitempty,min=0,max=4"`
 	IncomeAmountColor     *AmountColorType            `json:"incomeAmountColor" binding:"omitempty,min=0,max=4"`
+	BudgetAlertEmail      *bool                       `json:"budgetAlertEmail" binding:"omitempty"`
 }
 
 // UserProfileUpdateResponse represents the data returns to frontend after updating profile
@@ -328,6 +331,7 @@ func (u *User) ToUserBasicInfo(avatarProvider core.UserAvatarProviderType, avata
 		CoordinateDisplayType: u.CoordinateDisplayType,
 		ExpenseAmountColor:    u.ExpenseAmountColor,
 		IncomeAmountColor:     u.IncomeAmountColor,
+		BudgetAlertEmail:      !u.NoBudgetAlertEmail,
 		EmailVerified:         u.EmailVerified,
 	}
 }
