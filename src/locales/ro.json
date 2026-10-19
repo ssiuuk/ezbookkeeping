@@ -1989,6 +1989,7 @@
     "The transaction has been saved, but the changes could not be applied to its scheduled transaction": "The transaction has been saved, but the changes could not be applied to its scheduled transaction",
     "You have saved this transaction and its scheduled transaction": "You have saved this transaction and its scheduled transaction",
     "You have moved this template to the selected book": "You have moved this template to the selected book",
+    "You have moved this transaction to the selected book": "You have moved this transaction to the selected book",
     "My Book": "My Book",
     "Switch Book": "Switch Book",
     "Shared Books": "Shared Books",

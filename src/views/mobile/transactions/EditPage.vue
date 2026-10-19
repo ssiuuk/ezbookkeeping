@@ -73,7 +73,7 @@
                 :header="tt('Book')"
                 :title="entryBookDisplayName"
                 @click="showEntryBookSheet = true"
-                v-if="((pageTypeAndMode?.type === TransactionEditPageType.Transaction && mode === TransactionEditPageMode.Add) || (pageTypeAndMode?.type === TransactionEditPageType.Template && mode !== TransactionEditPageMode.View)) && showEntryBookSelection"
+                v-if="showEntryBookField"
             >
             </f7-list-item>
 
@@ -765,6 +765,9 @@ const {
     setTransactionModel,
     loadMerchantNames,
     resetTransactionBookRelatedFields,
+    setSavedTransactionPictures,
+    getTransactionBookRelatedItems,
+    setTransactionBookRelatedItems,
     updateTransactionModelFromRecognizedResponse,
     updateTransactionModelByAfterSaveAction,
     updateTransactionTime,
@@ -813,6 +816,21 @@ const { hasScheduledFieldChanges, applyToScheduleAndLaterTransactions } = useSch
 const originalTransaction = ref<Transaction | null>(null);
 
 const showEntryBookSheet = ref<boolean>(false);
+
+// a saved transaction can be moved to another book, except a balance modification
+const showEntryBookField = computed<boolean>(() => {
+    if (!showEntryBookSelection.value) {
+        return false;
+    }
+
+    if (pageTypeAndMode?.type === TransactionEditPageType.Transaction) {
+        return mode.value === TransactionEditPageMode.Add || (mode.value === TransactionEditPageMode.Edit && transaction.value.type !== TransactionType.ModifyBalance);
+    } else if (pageTypeAndMode?.type === TransactionEditPageType.Template) {
+        return mode.value !== TransactionEditPageMode.View;
+    }
+
+    return false;
+});
 
 const allMerchantSelectItems = computed<{ name: string }[]>(() => allMerchantNames.value.map(name => ({ name })));
 const transactionCreatorName = computed<string>(() => booksStore.currentBookMembers.length > 1 ? booksStore.getMemberDisplayName(transaction.value.createdByUid) : '');
@@ -1209,6 +1227,10 @@ function init(): void {
             originalTransaction.value = Transaction.of(transaction.value as Transaction);
             originalTransaction.value.sourceTemplateId = responses[4].sourceTemplateId;
 
+            if (mode.value === TransactionEditPageMode.Edit) {
+                setSavedTransactionPictures(responses[4]);
+            }
+
             if (fromTransaction && query['withTime'] && query['withTime'] === 'true') {
                 transaction.value.time = fromTransaction.time;
                 transaction.value.timeZone = fromTransaction.timeZone;
@@ -1278,14 +1300,29 @@ function save(afterAction: AfterSaveAction): void {
 
             const repeatTemplate = buildRepeatTemplate();
             const sourceTemplateId = originalTransaction.value?.sourceTemplateId;
+            const sourceBookId = mode.value === TransactionEditPageMode.Edit ? getMovingFromBookId() : undefined;
             let savedMessage = 'You have saved this transaction';
+            let savePromise: Promise<Transaction>;
 
-            transactionsStore.saveTransaction({
-                transaction: transaction.value as Transaction,
-                defaultCurrency: defaultCurrency.value,
-                isEdit: mode.value === TransactionEditPageMode.Edit,
-                clientSessionId: clientSessionId.value
-            }).then(() => {
+            if (sourceBookId && originalTransaction.value) {
+                savedMessage = 'You have moved this transaction to the selected book';
+                savePromise = transactionsStore.moveTransactionToBook({
+                    transaction: transaction.value as Transaction,
+                    originalTransaction: originalTransaction.value,
+                    sourceBookId: sourceBookId,
+                    defaultCurrency: defaultCurrency.value,
+                    clientSessionId: generateRandomUUID()
+                });
+            } else {
+                savePromise = transactionsStore.saveTransaction({
+                    transaction: transaction.value as Transaction,
+                    defaultCurrency: defaultCurrency.value,
+                    isEdit: mode.value === TransactionEditPageMode.Edit,
+                    clientSessionId: clientSessionId.value
+                });
+            }
+
+            savePromise.then(() => {
                 if (!applyToLaterScheduled || !sourceTemplateId) {
                     return;
                 }
@@ -1353,7 +1390,8 @@ function save(afterAction: AfterSaveAction): void {
         };
 
         const confirmScheduledChangeAndSubmit = function () {
-            if (mode.value === TransactionEditPageMode.Edit && originalTransaction.value && hasScheduledFieldChanges(originalTransaction.value, transaction.value as Transaction)) {
+            // a transaction moved to another book leaves its schedule in the old book
+            if (mode.value === TransactionEditPageMode.Edit && originalTransaction.value && !getMovingFromBookId() && hasScheduledFieldChanges(originalTransaction.value, transaction.value as Transaction)) {
                 showConfirm(SCHEDULED_CHANGE_CONFIRM_MESSAGE, () => {
                     doSubmit(true);
                 }, () => {
@@ -1723,8 +1761,16 @@ function onEntryBookChanged(book: BookInfoResponse): void {
     showEntryBookSheet.value = false;
     showLoading();
 
+    // a saved transaction keeps the items with the same names in the other book
+    const movingItems = pageTypeAndMode?.type === TransactionEditPageType.Transaction && mode.value === TransactionEditPageMode.Edit ? getTransactionBookRelatedItems() : undefined;
+
     changeEntryBook(book).then(() => {
-        resetTransactionBookRelatedFields();
+        if (movingItems) {
+            setTransactionBookRelatedItems(movingItems);
+        } else {
+            resetTransactionBookRelatedFields();
+        }
+
         loadMerchantNames().catch(error => logger.warn('failed to load merchants', error));
         hideLoading();
     }).catch(error => {

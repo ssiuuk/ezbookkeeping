@@ -1989,6 +1989,7 @@
     "The transaction has been saved, but the changes could not be applied to its scheduled transaction": "交易已儲存，但修改未能套用到其定期交易",
     "You have saved this transaction and its scheduled transaction": "您已儲存此交易及其定期交易",
     "You have moved this template to the selected book": "您已將此範本移動到所選帳本",
+    "You have moved this transaction to the selected book": "您已將此交易移動到所選帳本",
     "My Book": "我的帳本",
     "Switch Book": "切換帳本",
     "Shared Books": "共享帳本",

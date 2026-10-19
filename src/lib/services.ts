@@ -66,6 +66,7 @@ import type {
 import type {
     TransactionCreateRequest,
     TransactionModifyRequest,
+    TransactionMoveToBookRequest,
     TransactionBatchUpdateCategoryRequest,
     TransactionBatchUpdateAccountRequest,
     TransactionBatchAddTagsRequest,
@@ -787,6 +788,9 @@ export default {
     modifyTransaction: (req: TransactionModifyRequest): ApiResponsePromise<TransactionInfoResponse> => {
         return axios.post<ApiResponse<TransactionInfoResponse>>('v1/transactions/modify.json', req);
     },
+    moveTransactionToBook: (req: TransactionMoveToBookRequest): ApiResponsePromise<TransactionInfoResponse> => {
+        return axios.post<ApiResponse<TransactionInfoResponse>>('v1/transactions/move/book.json', req);
+    },
     batchUpdateTransactionCategories: (req: TransactionBatchUpdateCategoryRequest): ApiResponsePromise<boolean> => {
         return axios.post<ApiResponse<boolean>>('v1/transactions/batch_update/category.json', req, {
             timeout: DEFAULT_BATCH_UPDATE_TRANSACTIONS_API_TIMEOUT
@@ -1171,7 +1175,8 @@ export default {
     getUserCustomIconUrlWithToken(iconId: string | number): string {
         return `${getBasePath()}/icons/${iconId}.png?token=${getCurrentToken()}${getBookIdQueryString()}`;
     },
-    getTransactionPictureUrlWithToken(pictureUrl: string, disableBrowserCache?: boolean | string): string {
+    // inSelectedBook gets a picture of the selected book while requests are sent to another book
+    getTransactionPictureUrlWithToken(pictureUrl: string, disableBrowserCache?: boolean | string, inSelectedBook?: boolean): string {
         if (!pictureUrl) {
             return pictureUrl;
         }
@@ -1179,7 +1184,7 @@ export default {
         const params: string[] = [];
         params.push('token=' + getCurrentToken());
 
-        const bookId = getActiveBookId();
+        const bookId = inSelectedBook ? getCurrentBookId() : getActiveBookId();
 
         if (bookId) {
             params.push('book_id=' + bookId);
