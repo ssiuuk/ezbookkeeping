@@ -18,4 +18,5 @@ const (
 	UUID_TYPE_TAG_GROUP   UuidType = 10
 	UUID_TYPE_CUSTOM_ICON UuidType = 11
 	UUID_TYPE_PROJECT     UuidType = 12
+	UUID_TYPE_SETTLEMENT  UuidType = 13
 )

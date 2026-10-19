@@ -10,15 +10,17 @@ import (
 
 // BooksApi represents shared book api
 type BooksApi struct {
-	users *services.UserService
-	books *services.BookService
+	users       *services.UserService
+	books       *services.BookService
+	settlements *services.BookSettlementService
 }
 
 // Initialize a shared book api singleton instance
 var (
 	Books = &BooksApi{
-		users: services.Users,
-		books: services.Books,
+		users:       services.Users,
+		books:       services.Books,
+		settlements: services.BookSettlements,
 	}
 )
 
@@ -134,6 +136,12 @@ func (a *BooksApi) BookDeleteHandler(c *core.WebContext) (any, *errs.Error) {
 	if err != nil {
 		log.Errorf(c, "[books.BookDeleteHandler] failed to delete shared book \"id:%d\" for user \"uid:%d\", because %s", bookDeleteReq.Id, uid, err.Error())
 		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	err = a.settlements.DeleteAllSettlementsOfBook(c, bookDeleteReq.Id)
+
+	if err != nil {
+		log.Warnf(c, "[books.BookDeleteHandler] failed to delete settlements of shared book \"id:%d\", because %s", bookDeleteReq.Id, err.Error())
 	}
 
 	log.Infof(c, "[books.BookDeleteHandler] user \"uid:%d\" has deleted shared book \"id:%d\"", uid, bookDeleteReq.Id)

@@ -42,6 +42,7 @@ import TwoFactorAuthPage from '@/views/mobile/users/TwoFactorAuthPage.vue';
 import SharedBooksPage from '@/views/mobile/users/SharedBooksPage.vue';
 import BudgetPage from '@/views/mobile/budgets/BudgetPage.vue';
 import HouseholdReportPage from '@/views/mobile/reports/HouseholdReportPage.vue';
+import SettleUpPage from '@/views/mobile/books/SettleUpPage.vue';
 import ProjectListPage from '@/views/mobile/projects/ListPage.vue';
 import ProjectReportPage from '@/views/mobile/projects/ReportPage.vue';
 import MerchantReportPage from '@/views/mobile/merchants/ReportPage.vue';
@@ -327,6 +328,11 @@ const routes: Router.RouteParameters[] = [
     {
         path: '/reports/household',
         async: asyncResolve(HouseholdReportPage),
+        beforeEnter: [checkLogin]
+    },
+    {
+        path: '/books/settle_up',
+        async: asyncResolve(SettleUpPage),
         beforeEnter: [checkLogin]
     },
     {

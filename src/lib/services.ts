@@ -187,7 +187,12 @@ import type {
     BookCreateRequest,
     BookModifyRequest,
     BookDeleteRequest,
-    BookAccountShareRequest
+    BookAccountShareRequest,
+    BookSettleUpRequest,
+    BookSettleUpResponse,
+    BookSettlementCreateRequest,
+    BookSettlementDeleteRequest,
+    BookSettlementInfoResponse
 } from '@/models/book.ts';
 import type {
     ProjectCreateRequest,
@@ -494,6 +499,18 @@ export default {
     },
     unshareAccountFromBook: (req: BookAccountShareRequest, options?: BookRequestOptions): ApiResponsePromise<boolean> => {
         return axios.post<ApiResponse<boolean>>('v1/books/accounts/unshare.json', req, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    getBookSettleUp: (req: BookSettleUpRequest, options?: BookRequestOptions): ApiResponsePromise<BookSettleUpResponse> => {
+        return axios.get<ApiResponse<BookSettleUpResponse>>(`v1/books/settle_up.json?start_time=${req.startTime || 0}&end_time=${req.endTime || 0}`, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    getBookSettlements: (req: BookSettleUpRequest, options?: BookRequestOptions): ApiResponsePromise<BookSettlementInfoResponse[]> => {
+        return axios.get<ApiResponse<BookSettlementInfoResponse[]>>(`v1/books/settlements/list.json?start_time=${req.startTime || 0}&end_time=${req.endTime || 0}`, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    addBookSettlement: (req: BookSettlementCreateRequest, options?: BookRequestOptions): ApiResponsePromise<BookSettlementInfoResponse> => {
+        return axios.post<ApiResponse<BookSettlementInfoResponse>>('v1/books/settlements/add.json', req, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    deleteBookSettlement: (req: BookSettlementDeleteRequest, options?: BookRequestOptions): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/books/settlements/delete.json', req, options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
     },
     getExternalAuths: (): ApiResponsePromise<UserExternalAuthInfoResponse[]> => {
         return axios.get<ApiResponse<UserExternalAuthInfoResponse[]>>('v1/users/external_auth/list.json');
