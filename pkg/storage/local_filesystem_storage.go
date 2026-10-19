@@ -13,15 +13,28 @@ import (
 // LocalFileSystemObjectStorage represents local file system object storage
 type LocalFileSystemObjectStorage struct {
 	rootPath string
+	dirMode  os.FileMode
+	fileMode os.FileMode
 }
 
 // NewLocalFileSystemObjectStorage returns a local file system object storage
 func NewLocalFileSystemObjectStorage(config *settings.Config, pathPrefix string) (*LocalFileSystemObjectStorage, error) {
+	return newLocalFileSystemObjectStorage(config, pathPrefix, os.ModePerm, 0666)
+}
+
+// NewPrivateLocalFileSystemObjectStorage returns a local file system object storage which new directories and files are only accessible to the server user
+func NewPrivateLocalFileSystemObjectStorage(config *settings.Config, pathPrefix string) (*LocalFileSystemObjectStorage, error) {
+	return newLocalFileSystemObjectStorage(config, pathPrefix, 0700, 0600)
+}
+
+func newLocalFileSystemObjectStorage(config *settings.Config, pathPrefix string, dirMode os.FileMode, fileMode os.FileMode) (*LocalFileSystemObjectStorage, error) {
 	storage := &LocalFileSystemObjectStorage{
 		rootPath: filepath.Join(config.LocalFileSystemPath, pathPrefix),
+		dirMode:  dirMode,
+		fileMode: fileMode,
 	}
 
-	if err := os.MkdirAll(storage.rootPath, os.ModePerm); err != nil {
+	if err := os.MkdirAll(storage.rootPath, storage.dirMode); err != nil {
 		return nil, err
 	}
 
@@ -52,11 +65,11 @@ func (s *LocalFileSystemObjectStorage) Read(ctx core.Context, path string) (Obje
 func (s *LocalFileSystemObjectStorage) Save(ctx core.Context, path string, object ObjectInStorage) error {
 	finalPath := s.getFinalPath(path)
 
-	if err := os.MkdirAll(filepath.Dir(finalPath), os.ModePerm); err != nil {
+	if err := os.MkdirAll(filepath.Dir(finalPath), s.dirMode); err != nil {
 		return err
 	}
 
-	targetFile, err := os.Create(finalPath)
+	targetFile, err := os.OpenFile(finalPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, s.fileMode)
 
 	if err != nil {
 		return err

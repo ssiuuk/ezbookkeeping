@@ -413,6 +413,8 @@ type Config struct {
 	EnableDatabaseBackup             bool
 	DatabaseBackupPath               string
 	DatabaseBackupKeepCount          uint32
+	DatabaseBackupCopyPath           string
+	DatabaseBackupCopyToStorage      bool
 
 	// Secret
 	SecretKeyNoSet                        bool
@@ -1090,6 +1092,14 @@ func loadCronConfiguration(config *Config, configFile *ini.File, sectionName str
 		} else {
 			config.DatabaseBackupPath, _ = getFinalPath(config.WorkingPath, databaseBackupPath)
 		}
+
+		databaseBackupCopyPath := getConfigItemStringValue(configFile, sectionName, "database_backup_copy_path")
+
+		if databaseBackupCopyPath != "" {
+			config.DatabaseBackupCopyPath, _ = getFinalPath(config.WorkingPath, databaseBackupCopyPath)
+		}
+
+		config.DatabaseBackupCopyToStorage = getConfigItemBoolValue(configFile, sectionName, "database_backup_copy_to_storage", false)
 	}
 
 	return nil
