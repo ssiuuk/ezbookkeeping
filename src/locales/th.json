@@ -1248,6 +1248,7 @@
         "transaction time zone is invalid": "โซนเวลาธุรกรรมไม่ถูกต้อง",
         "transaction amount is invalid": "จำนวนธุรกรรมไม่ถูกต้อง",
         "geographic location is invalid": "ตำแหน่งทางภูมิศาสตร์ไม่ถูกต้อง",
+        "cannot move transaction to the same book": "Cannot move transaction to the same book",
         "transaction category id is invalid": "รหัสหมวดหมู่ธุรกรรมไม่ถูกต้อง",
         "transaction category not found": "ไม่พบหมวดหมู่ธุรกรรม",
         "transaction category type is invalid": "ประเภทหมวดหมู่ธุรกรรมไม่ถูกต้อง",

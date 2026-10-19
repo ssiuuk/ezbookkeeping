@@ -1248,6 +1248,7 @@
         "transaction time zone is invalid": "Fuso orario della transazione non valido",
         "transaction amount is invalid": "Importo della transazione non valido",
         "geographic location is invalid": "Posizione geografica non valida",
+        "cannot move transaction to the same book": "Cannot move transaction to the same book",
         "transaction category id is invalid": "ID categoria transazione non valido",
         "transaction category not found": "Categoria transazione non trovata",
         "transaction category type is invalid": "Tipo di categoria transazione non valido",

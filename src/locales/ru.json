@@ -1248,6 +1248,7 @@
         "transaction time zone is invalid": "Часовой пояс транзакции недействителен",
         "transaction amount is invalid": "Сумма транзакции недействительна",
         "geographic location is invalid": "Географическое местоположение недействительно",
+        "cannot move transaction to the same book": "Cannot move transaction to the same book",
         "transaction category id is invalid": "ID категории транзакции недействителен",
         "transaction category not found": "Категория транзакции не найдена",
         "transaction category type is invalid": "Тип категории транзакции недействителен",

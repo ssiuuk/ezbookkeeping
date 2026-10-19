@@ -1248,6 +1248,7 @@
         "transaction time zone is invalid": "Časovni pas transakcije ni veljaven",
         "transaction amount is invalid": "Znesek transakcije ni veljaven",
         "geographic location is invalid": "Geografska lokacija ni veljavna",
+        "cannot move transaction to the same book": "Cannot move transaction to the same book",
         "transaction category id is invalid": "ID kategorije transakcije ni veljaven",
         "transaction category not found": "Kategorije transakcije ni mogoče najti",
         "transaction category type is invalid": "Vrsta kategorije transakcije ni veljavna",

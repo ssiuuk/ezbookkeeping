@@ -1248,6 +1248,7 @@
         "transaction time zone is invalid": "거래 시간대가 유효하지 않습니다.",
         "transaction amount is invalid": "거래 금액이 유효하지 않습니다.",
         "geographic location is invalid": "지리적 위치가 유효하지 않습니다.",
+        "cannot move transaction to the same book": "Cannot move transaction to the same book",
         "transaction category id is invalid": "거래 카테고리 ID가 유효하지 않습니다.",
         "transaction category not found": "거래 카테고리를 찾을 수 없습니다.",
         "transaction category type is invalid": "거래 카테고리 유형이 유효하지 않습니다.",

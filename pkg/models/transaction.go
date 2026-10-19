@@ -188,6 +188,13 @@ type TransactionCreateRequest struct {
 	ClientSessionId      string                         `json:"clientSessionId"`
 }
 
+// TransactionMoveToBookRequest represents all parameters of moving a transaction from another book to the current book, with the transaction as it is saved in the current book
+type TransactionMoveToBookRequest struct {
+	TransactionCreateRequest
+	Id           int64 `json:"id,string" binding:"required,min=1"`
+	SourceBookId int64 `json:"sourceBookId,string" binding:"required,min=1"`
+}
+
 // TransactionModifyRequest represents all parameters of transaction modification request
 type TransactionModifyRequest struct {
 	Id                   int64                          `json:"id,string" binding:"required,min=1"`

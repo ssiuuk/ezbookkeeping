@@ -1248,6 +1248,7 @@
         "transaction time zone is invalid": "பரிவர்த்தனையின் நேரம் வலயம் தவறானது உள்ளது",
         "transaction amount is invalid": "பரிவர்த்தனையின் தொகை தவறானது உள்ளது",
         "geographic location is invalid": "புவியியல் இருப்பிடம் தவறானது உள்ளது",
+        "cannot move transaction to the same book": "Cannot move transaction to the same book",
         "transaction category id is invalid": "பரிவர்த்தனை வகை ID தவறானது உள்ளது",
         "transaction category not found": "பரிவர்த்தனை வகை கிடைக்கவில்லை",
         "transaction category type is invalid": "பரிவர்த்தனை வகையின் வகை தவறானது உள்ளது",

@@ -1248,6 +1248,7 @@
         "transaction time zone is invalid": "交易时区无效",
         "transaction amount is invalid": "交易金额无效",
         "geographic location is invalid": "地理位置无效",
+        "cannot move transaction to the same book": "不能将交易移动到同一个账本",
         "transaction category id is invalid": "交易分类ID无效",
         "transaction category not found": "交易分类不存在",
         "transaction category type is invalid": "交易分类类型无效",

@@ -1248,6 +1248,7 @@
         "transaction time zone is invalid": "取引タイムゾーンは無効です",
         "transaction amount is invalid": "取引金額が無効です",
         "geographic location is invalid": "地理座標が無効です",
+        "cannot move transaction to the same book": "Cannot move transaction to the same book",
         "transaction category id is invalid": "取引カテゴリIDは無効です",
         "transaction category not found": "取引カテゴリは見つかりません",
         "transaction category type is invalid": "取引カテゴリタイプは無効です",

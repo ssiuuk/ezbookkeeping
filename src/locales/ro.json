@@ -1248,6 +1248,7 @@
         "transaction time zone is invalid": "Fusul orar al tranzacției este nevalid",
         "transaction amount is invalid": "Suma tranzacției este nevalidă",
         "geographic location is invalid": "Locația geografică este nevalidă",
+        "cannot move transaction to the same book": "Cannot move transaction to the same book",
         "transaction category id is invalid": "ID-ul categoriei tranzacției este nevalid",
         "transaction category not found": "Categoria tranzacției nu a fost găsită",
         "transaction category type is invalid": "Tipul categoriei tranzacției este nevalid",

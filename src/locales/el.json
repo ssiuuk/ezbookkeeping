@@ -1248,6 +1248,7 @@
         "transaction time zone is invalid": "Η ζώνη ώρας συναλλαγής δεν είναι έγκυρη",
         "transaction amount is invalid": "Το ποσό συναλλαγής δεν είναι έγκυρο",
         "geographic location is invalid": "Η γεωγραφική θέση δεν είναι έγκυρη",
+        "cannot move transaction to the same book": "Cannot move transaction to the same book",
         "transaction category id is invalid": "Το ID κατηγορίας συναλλαγών δεν είναι έγκυρο",
         "transaction category not found": "Η κατηγορία συναλλαγών δεν βρέθηκε",
         "transaction category type is invalid": "Ο τύπος κατηγορίας συναλλαγών δεν είναι έγκυρος",
