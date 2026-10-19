@@ -1397,7 +1397,8 @@
         "project name is empty": "项目名称不能为空",
         "project name already exists": "项目名称已经存在",
         "cannot use hidden project": "不能使用隐藏的项目",
-        "balance modification transaction cannot set project": "余额修改交易不能设置项目"
+        "balance modification transaction cannot set project": "余额修改交易不能设置项目",
+        "budget alert id is invalid": "预算提醒ID无效"
     },
     "parameter": {
         "id": "ID",
@@ -2018,6 +2019,13 @@
     "Unable to record settlement": "无法记录结算",
     "Unable to delete settlement": "无法删除结算",
     "You have moved this transaction to the selected book": "您已将此交易移动到所选账本",
+    "Budget Alert Emails": "预算提醒邮件",
+    "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})": "{category}：{period} 已花费预算的 {percent}%（{spent} / {budget}）",
+    "{category}: the budget for {period} has been exceeded ({spent} of {budget})": "{category}：{period} 的预算已超支（{spent} / {budget}）",
+    "Dismiss": "忽略",
+    "Dismiss All": "全部忽略",
+    "Unable to retrieve budget alerts": "无法获取预算提醒",
+    "Unable to dismiss budget alerts": "无法忽略预算提醒",
     "My Book": "我的账本",
     "Switch Book": "切换账本",
     "Shared Books": "共享账本",

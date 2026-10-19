@@ -1,6 +1,7 @@
 <template>
     <main-page-layout no-navbar>
         <template #content>
+            <budget-alert-notice ref="budgetAlertNotice" @error="onBudgetAlertError" v-if="isUserLogined() && isUserUnlocked()" />
             <overview-dashboard :layout="layout" :loading="loadingOverview" @refresh="reload" />
         </template>
     </main-page-layout>
@@ -10,6 +11,7 @@
 
 <script setup lang="ts">
 import SnackBar from '@/components/desktop/SnackBar.vue';
+import BudgetAlertNotice from '@/components/desktop/BudgetAlertNotice.vue';
 import OverviewDashboard from './overview/OverviewDashboard.vue';
 
 import { ref, computed, useTemplateRef } from 'vue';
@@ -19,6 +21,7 @@ import { useAccountsStore } from '@/stores/account.ts';
 import { useTransactionCategoriesStore } from '@/stores/transactionCategory.ts';
 import { useOverviewStore } from '@/stores/overview.ts';
 
+import type { ErrorResponse } from '@/core/api.ts';
 import type { PartialRecord } from '@/core/base.ts';
 import { type DesktopOverviewLayout, OverviewWidgetDataRequirement } from '@/core/overview_layout.ts';
 import { DESKTOP_OVERVIEW_WIDGET_DEFINITIONS, DEFAULT_DESKTOP_OVERVIEW_LAYOUT } from '@/consts/overview_layout.ts';
@@ -38,6 +41,7 @@ import {
 import logger from '@/lib/logger.ts';
 
 type SnackBarType = InstanceType<typeof SnackBar>;
+type BudgetAlertNoticeType = InstanceType<typeof BudgetAlertNotice>;
 
 const settingsStore = useSettingsStore();
 const accountsStore = useAccountsStore();
@@ -45,6 +49,7 @@ const transactionCategoriesStore = useTransactionCategoriesStore();
 const overviewStore = useOverviewStore();
 
 const snackbar = useTemplateRef<SnackBarType>('snackbar');
+const budgetAlertNotice = useTemplateRef<BudgetAlertNoticeType>('budgetAlertNotice');
 
 const loadingOverview = ref<boolean>(true);
 
@@ -124,6 +129,10 @@ function reload(force: boolean): void {
         }));
     }
 
+    if (force) {
+        budgetAlertNotice.value?.reload();
+    }
+
     Promise.all(promises).then(() => {
         loadingOverview.value = false;
 
@@ -137,6 +146,10 @@ function reload(force: boolean): void {
             snackbar.value?.showError(error);
         }
     });
+}
+
+function onBudgetAlertError(error: string | { message: string } | { error: ErrorResponse }): void {
+    snackbar.value?.showError(error);
 }
 
 clearShareImageCache();

@@ -30,4 +30,12 @@ var vi = &LocaleTextItems{
 		ResetPassword:             "Đặt lại Mật khẩu",
 		DescriptionBelowBtnFormat: "Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này. Nếu bạn không thể nhấp vào liên kết trên, hãy sao chép và dán liên kết vào trình duyệt của bạn. Liên kết đặt lại mật khẩu sẽ hết hạn sau %v phút.",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "Budget Alert",
+		SalutationFormat:          "Hi %s,",
+		WarningDescriptionFormat:  "The spending of \"%s\" in %s has reached %d%% of its budget, %s of %s has been spent.",
+		ExceededDescriptionFormat: "The spending of \"%s\" in %s has exceeded its budget, %s of %s has been spent.",
+		ViewBudgets:               "View Budgets",
+		DisableEmailDescription:   "You can turn off budget alert emails in user settings.",
+	},
 }

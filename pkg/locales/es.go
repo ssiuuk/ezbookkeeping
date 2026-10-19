@@ -30,4 +30,12 @@ var es = &LocaleTextItems{
 		ResetPassword:             "Restablecer Contraseña",
 		DescriptionBelowBtnFormat: "Si no solicitó un restablecimiento de contraseña, simplemente descarte este correo. Si no puede hacer click en el link anterior, copie la url arriba mostrada y péguela en su navegadror. El enlace de restablecimiento de contraseña expira pasados %v minutos.",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "Budget Alert",
+		SalutationFormat:          "Hi %s,",
+		WarningDescriptionFormat:  "The spending of \"%s\" in %s has reached %d%% of its budget, %s of %s has been spent.",
+		ExceededDescriptionFormat: "The spending of \"%s\" in %s has exceeded its budget, %s of %s has been spent.",
+		ViewBudgets:               "View Budgets",
+		DisableEmailDescription:   "You can turn off budget alert emails in user settings.",
+	},
 }

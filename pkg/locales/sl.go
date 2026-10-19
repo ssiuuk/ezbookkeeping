@@ -30,4 +30,12 @@ var sl = &LocaleTextItems{
 		ResetPassword:             "Ponastavi geslo",
 		DescriptionBelowBtnFormat: "Če niste zahtevali ponastavitve gesla, prosimo, da to e-poštno sporočilo preprosto prezrete. Če ne morete klikniti zgornje povezave, kopirajte zgornji URL in ga prilepite v brskalnik. Povezava za ponastavitev gesla bo potekla po %v minutah.",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "Budget Alert",
+		SalutationFormat:          "Hi %s,",
+		WarningDescriptionFormat:  "The spending of \"%s\" in %s has reached %d%% of its budget, %s of %s has been spent.",
+		ExceededDescriptionFormat: "The spending of \"%s\" in %s has exceeded its budget, %s of %s has been spent.",
+		ViewBudgets:               "View Budgets",
+		DisableEmailDescription:   "You can turn off budget alert emails in user settings.",
+	},
 }

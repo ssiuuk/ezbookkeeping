@@ -208,6 +208,10 @@ import type {
     TransactionCategoryBudgetInfoResponse
 } from '@/models/transaction_category_budget.ts';
 import type {
+    BudgetAlertDismissRequest,
+    BudgetAlertInfoResponse
+} from '@/models/budget_alert.ts';
+import type {
     OAuth2CallbackLoginRequest
 } from '@/models/oauth2.ts';
 import type {
@@ -928,6 +932,12 @@ export default {
     },
     saveTransactionCategoryBudgets: (req: TransactionCategoryBudgetSaveRequest): ApiResponsePromise<TransactionCategoryBudgetInfoResponse[]> => {
         return axios.post<ApiResponse<TransactionCategoryBudgetInfoResponse[]>>('v1/transaction/categories/budgets/save.json', req);
+    },
+    getBudgetAlerts: ({ count, includeDismissed }: { count?: number, includeDismissed?: boolean }): ApiResponsePromise<BudgetAlertInfoResponse[]> => {
+        return axios.get<ApiResponse<BudgetAlertInfoResponse[]>>(`v1/budgets/alerts/list.json?count=${count || 10}&include_dismissed=${includeDismissed ? 'true' : 'false'}`);
+    },
+    dismissBudgetAlerts: (req: BudgetAlertDismissRequest): ApiResponsePromise<boolean> => {
+        return axios.post<ApiResponse<boolean>>('v1/budgets/alerts/dismiss.json', req);
     },
     getAllProjects: (): ApiResponsePromise<ProjectInfoResponse[]> => {
         return axios.get<ApiResponse<ProjectInfoResponse[]>>('v1/projects/list.json');

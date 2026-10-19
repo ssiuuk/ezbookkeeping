@@ -30,4 +30,12 @@ var zhHant = &LocaleTextItems{
 		ResetPassword:             "重設密碼",
 		DescriptionBelowBtnFormat: "如果您沒有請求重設密碼，請直接忽略本郵件。如果您無法點擊上述連結，請複製下方的地址然後在您的瀏覽器中貼上。重設密碼連結將在 %v 分鐘後過期。",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "預算提醒",
+		SalutationFormat:          "%s 您好，",
+		WarningDescriptionFormat:  "「%s」在 %s 的支出已達到預算的 %d%%，已支出 %s，預算為 %s。",
+		ExceededDescriptionFormat: "「%s」在 %s 的支出已超出預算，已支出 %s，預算為 %s。",
+		ViewBudgets:               "查看預算",
+		DisableEmailDescription:   "您可以在使用者設定中關閉預算提醒郵件。",
+	},
 }

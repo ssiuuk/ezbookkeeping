@@ -483,6 +483,7 @@ type Config struct {
 	AfterRegisterNotification MultiLanguageContentConfig
 	AfterLoginNotification    MultiLanguageContentConfig
 	AfterOpenNotification     MultiLanguageContentConfig
+	EnableBudgetAlert         bool
 
 	// Map
 	MapProvider                           string
@@ -1270,6 +1271,7 @@ func loadNotificationConfiguration(config *Config, configFile *ini.File, section
 	config.AfterRegisterNotification = getMultiLanguageContentConfig(configFile, sectionName, "enable_notification_after_register", "after_register_notification_content")
 	config.AfterLoginNotification = getMultiLanguageContentConfig(configFile, sectionName, "enable_notification_after_login", "after_login_notification_content")
 	config.AfterOpenNotification = getMultiLanguageContentConfig(configFile, sectionName, "enable_notification_after_open", "after_open_notification_content")
+	config.EnableBudgetAlert = getConfigItemBoolValue(configFile, sectionName, "enable_budget_alert", true)
 
 	return nil
 }

@@ -36,6 +36,7 @@ type DataManagementsApi struct {
 	userCustomExchangeRates *services.UserCustomExchangeRatesService
 	insightsExploreres      *services.InsightsExplorerService
 	categoryBudgets         *services.TransactionCategoryBudgetService
+	budgetAlerts            *services.BudgetAlertService
 	projects                *services.ProjectService
 	books                   *services.BookService
 }
@@ -59,6 +60,7 @@ var (
 		userCustomExchangeRates: services.UserCustomExchangeRates,
 		insightsExploreres:      services.InsightsExplorers,
 		categoryBudgets:         services.TransactionCategoryBudgets,
+		budgetAlerts:            services.BudgetAlerts,
 		projects:                services.Projects,
 		books:                   services.Books,
 	}
@@ -228,6 +230,13 @@ func (a *DataManagementsApi) ClearAllDataHandler(c *core.WebContext) (any, *errs
 
 	if err != nil {
 		log.Errorf(c, "[data_managements.ClearAllDataHandler] failed to delete all transaction category budgets, because %s", err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	err = a.budgetAlerts.DeleteAllBudgetAlerts(c, uid)
+
+	if err != nil {
+		log.Errorf(c, "[data_managements.ClearAllDataHandler] failed to delete all budget alerts, because %s", err.Error())
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 

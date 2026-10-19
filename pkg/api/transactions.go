@@ -42,6 +42,7 @@ type TransactionsApi struct {
 	accounts              *services.AccountService
 	users                 *services.UserService
 	books                 *services.BookService
+	budgetAlerts          *services.BudgetAlertService
 }
 
 // Initialize a transaction api singleton instance
@@ -63,6 +64,7 @@ var (
 		accounts:              services.Accounts,
 		users:                 services.Users,
 		books:                 services.Books,
+		budgetAlerts:          services.BudgetAlerts,
 	}
 )
 
@@ -1451,6 +1453,10 @@ func (a *TransactionsApi) TransactionCreateHandler(c *core.WebContext) (any, *er
 
 	log.Infof(c, "[transactions.TransactionCreateHandler] user \"uid:%d\" has created a new transaction \"id:%d\" successfully", uid, transaction.TransactionId)
 
+	if transaction.Type == models.TRANSACTION_DB_TYPE_EXPENSE {
+		a.budgetAlerts.CheckBudgetAlertsInBackground(c, uid, []int64{transaction.CategoryId}, clientTimezone)
+	}
+
 	a.SetSubmissionRemarkIfEnable(duplicatechecker.DUPLICATE_CHECKER_TYPE_NEW_TRANSACTION, uid, transactionCreateReq.ClientSessionId, utils.Int64ToString(transaction.TransactionId))
 	transactionResp := transaction.ToTransactionInfoResponse(tagIds, transactionEditable)
 	transactionResp.Pictures = a.GetTransactionPictureInfoResponseList(pictureInfos)
@@ -1619,6 +1625,10 @@ func (a *TransactionsApi) TransactionMoveToBookHandler(c *core.WebContext) (any,
 	}
 
 	log.Infof(c, "[transactions.TransactionMoveToBookHandler] user \"uid:%d\" has moved transaction \"id:%d\" from book \"uid:%d\" to book \"uid:%d\" as transaction \"id:%d\"", c.GetCurrentUid(), oldTransaction.TransactionId, sourceUid, uid, transaction.TransactionId)
+
+	if transaction.Type == models.TRANSACTION_DB_TYPE_EXPENSE {
+		a.budgetAlerts.CheckBudgetAlertsInBackground(c, uid, []int64{transaction.CategoryId}, clientTimezone)
+	}
 
 	transactionResp := transaction.ToTransactionInfoResponse(tagIds, transactionEditable)
 	transactionResp.Pictures = a.GetTransactionPictureInfoResponseList(allPictureInfos)
@@ -1846,6 +1856,10 @@ func (a *TransactionsApi) TransactionModifyHandler(c *core.WebContext) (any, *er
 
 	log.Infof(c, "[transactions.TransactionModifyHandler] user \"uid:%d\" has updated transaction \"id:%d\" successfully", uid, transactionModifyReq.Id)
 
+	if newTransaction.Type == models.TRANSACTION_DB_TYPE_EXPENSE {
+		a.budgetAlerts.CheckBudgetAlertsInBackground(c, uid, []int64{newTransaction.CategoryId}, clientTimezone)
+	}
+
 	newTransactionResp := newTransaction.ToTransactionInfoResponse(tagIds, transactionEditable)
 	newTransactionResp.Pictures = a.GetTransactionPictureInfoResponseList(newPictureInfos)
 
@@ -1955,6 +1969,11 @@ func (a *TransactionsApi) TransactionBatchUpdateCategoriesHandler(c *core.WebCon
 	}
 
 	log.Infof(c, "[transactions.TransactionBatchUpdateCategoriesHandler] user \"uid:%d\" has batch updated category of %d transactions successfully", uid, len(transactionBatchUpdateReq.TransactionIds))
+
+	if category.Type == models.CATEGORY_TYPE_EXPENSE {
+		a.budgetAlerts.CheckBudgetAlertsInBackground(c, uid, []int64{category.CategoryId}, clientTimezone)
+	}
+
 	return true, nil
 }
 

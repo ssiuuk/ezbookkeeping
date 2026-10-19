@@ -233,7 +233,7 @@ func (s *UserService) CreateUser(c core.Context, user *models.User, noPassword b
 }
 
 // UpdateUser saves an existed user model to database
-func (s *UserService) UpdateUser(c core.Context, user *models.User, modifyUserLanguage bool, modifyUseLastReconciledTime bool) (keyProfileUpdated bool, emailSetToUnverified bool, err error) {
+func (s *UserService) UpdateUser(c core.Context, user *models.User, modifyUserLanguage bool, modifyUseLastReconciledTime bool, modifyBudgetAlertEmail bool) (keyProfileUpdated bool, emailSetToUnverified bool, err error) {
 	if user.Uid <= 0 {
 		return false, false, errs.ErrUserIdInvalid
 	}
@@ -358,6 +358,10 @@ func (s *UserService) UpdateUser(c core.Context, user *models.User, modifyUserLa
 
 	if models.AMOUNT_COLOR_TYPE_DEFAULT <= user.IncomeAmountColor && user.IncomeAmountColor <= models.AMOUNT_COLOR_TYPE_BLACK_OR_WHITE {
 		updateCols = append(updateCols, "income_amount_color")
+	}
+
+	if modifyBudgetAlertEmail {
+		updateCols = append(updateCols, "no_budget_alert_email")
 	}
 
 	user.UpdatedUnixTime = now

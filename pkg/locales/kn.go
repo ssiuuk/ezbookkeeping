@@ -30,4 +30,12 @@ var kn = &LocaleTextItems{
 		ResetPassword:             "Reset Password",
 		DescriptionBelowBtnFormat: "If you did not request to reset your password, please simply disregard this email. If you cannot click the link above, please copy the above url and paste it into your browser. The password reset link will be expired after %v minutes.",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "Budget Alert",
+		SalutationFormat:          "Hi %s,",
+		WarningDescriptionFormat:  "The spending of \"%s\" in %s has reached %d%% of its budget, %s of %s has been spent.",
+		ExceededDescriptionFormat: "The spending of \"%s\" in %s has exceeded its budget, %s of %s has been spent.",
+		ViewBudgets:               "View Budgets",
+		DisableEmailDescription:   "You can turn off budget alert emails in user settings.",
+	},
 }

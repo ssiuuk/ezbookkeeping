@@ -880,6 +880,7 @@ func (s *TransactionService) CreateScheduledTransactions(c core.Context, current
 	successCount := 0
 	skipCount := 0
 	failedCount := 0
+	createdExpenseTransactions := make([]*models.Transaction, 0, len(allTemplates))
 
 	for i := 0; i < len(allTemplates); i++ {
 		template := allTemplates[i]
@@ -895,6 +896,10 @@ func (s *TransactionService) CreateScheduledTransactions(c core.Context, current
 		if err == nil {
 			successCount++
 			log.Infof(c, "[transactions.CreateScheduledTransactions] transaction template \"id:%d\" has created a new trasaction \"id:%d\"", template.TemplateId, transaction.TransactionId)
+
+			if transaction.Type == models.TRANSACTION_DB_TYPE_EXPENSE {
+				createdExpenseTransactions = append(createdExpenseTransactions, transaction)
+			}
 		} else {
 			failedCount++
 			log.Errorf(c, "[transactions.CreateScheduledTransactions] transaction template \"id:%d\" failed to create new trasaction, because %s", template.TemplateId, err.Error())
@@ -902,6 +907,15 @@ func (s *TransactionService) CreateScheduledTransactions(c core.Context, current
 	}
 
 	log.Infof(c, "[transactions.CreateScheduledTransactions] %d transactions has been created successfully, %d templates does not need to create transactions and %d transactions failed to create", successCount, skipCount, failedCount)
+
+	// the budget alerts are checked after all scheduled transactions are created, in the timezone of each transaction, and failures do not fail the job
+	for _, transaction := range createdExpenseTransactions {
+		_, err := BudgetAlerts.CheckBudgetAlerts(c, transaction.Uid, []int64{transaction.CategoryId}, time.Now(), time.FixedZone("Transaction Timezone", int(transaction.TimezoneUtcOffset)*60))
+
+		if err != nil {
+			log.Warnf(c, "[transactions.CreateScheduledTransactions] failed to check budget alerts of transaction \"id:%d\", because %s", transaction.TransactionId, err.Error())
+		}
+	}
 
 	return nil
 }

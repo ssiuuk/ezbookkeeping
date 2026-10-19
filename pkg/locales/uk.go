@@ -30,4 +30,12 @@ var uk = &LocaleTextItems{
 		ResetPassword:             "Скинути пароль",
 		DescriptionBelowBtnFormat: "Якщо ви не надсилали запит на скидання пароля, просто проігноруйте цей лист. Якщо ви не можете натиснути на посилання вище, скопіюйте вказану URL-адресу та вставте її у свій браузер. Посилання для скидання пароля буде дійсне протягом %v хвилин.",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "Budget Alert",
+		SalutationFormat:          "Hi %s,",
+		WarningDescriptionFormat:  "The spending of \"%s\" in %s has reached %d%% of its budget, %s of %s has been spent.",
+		ExceededDescriptionFormat: "The spending of \"%s\" in %s has exceeded its budget, %s of %s has been spent.",
+		ViewBudgets:               "View Budgets",
+		DisableEmailDescription:   "You can turn off budget alert emails in user settings.",
+	},
 }

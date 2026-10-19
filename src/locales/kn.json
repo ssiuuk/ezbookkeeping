@@ -1397,7 +1397,8 @@
         "project name is empty": "Project name is empty",
         "project name already exists": "Project name already exists",
         "cannot use hidden project": "Cannot use hidden project",
-        "balance modification transaction cannot set project": "Balance modification transaction cannot set project"
+        "balance modification transaction cannot set project": "Balance modification transaction cannot set project",
+        "budget alert id is invalid": "Budget alert ID is invalid"
     },
     "parameter": {
         "id": "ಐಡಿ",
@@ -2018,6 +2019,13 @@
     "Unable to record settlement": "Unable to record settlement",
     "Unable to delete settlement": "Unable to delete settlement",
     "You have moved this transaction to the selected book": "You have moved this transaction to the selected book",
+    "Budget Alert Emails": "Budget Alert Emails",
+    "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})": "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})",
+    "{category}: the budget for {period} has been exceeded ({spent} of {budget})": "{category}: the budget for {period} has been exceeded ({spent} of {budget})",
+    "Dismiss": "Dismiss",
+    "Dismiss All": "Dismiss All",
+    "Unable to retrieve budget alerts": "Unable to retrieve budget alerts",
+    "Unable to dismiss budget alerts": "Unable to dismiss budget alerts",
     "My Book": "My Book",
     "Switch Book": "Switch Book",
     "Shared Books": "Shared Books",

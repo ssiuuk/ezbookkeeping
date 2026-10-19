@@ -11,6 +11,7 @@ type LocaleTextItems struct {
 	DataConverterTextItems      *DataConverterTextItems
 	VerifyEmailTextItems        *VerifyEmailTextItems
 	ForgetPasswordMailTextItems *ForgetPasswordMailTextItems
+	BudgetAlertMailTextItems    *BudgetAlertMailTextItems
 }
 
 // GlobalTextItems represents global text items need to be translated
@@ -46,4 +47,14 @@ type ForgetPasswordMailTextItems struct {
 	DescriptionAboveBtn       string
 	ResetPassword             string
 	DescriptionBelowBtnFormat string
+}
+
+// BudgetAlertMailTextItems represents text items need to be translated in budget alert mail
+type BudgetAlertMailTextItems struct {
+	Title                     string
+	SalutationFormat          string
+	WarningDescriptionFormat  string
+	ExceededDescriptionFormat string
+	ViewBudgets               string
+	DisableEmailDescription   string
 }

@@ -146,6 +146,23 @@
                                 v-model="newProfile.transactionEditScope"
                             />
                         </div>
+
+                        <div class="setting-item" v-if="isBudgetAlertEmailEnabled()">
+                            <span>{{ tt('Budget Alert Emails') }}</span>
+                            <v-spacer/>
+                            <v-select
+                                class="ms-4"
+                                density="compact"
+                                item-title="displayName"
+                                item-value="value"
+                                persistent-placeholder
+                                max-width="400px"
+                                :disabled="loading || saving"
+                                :placeholder="tt('Budget Alert Emails')"
+                                :items="enableDisableOptions"
+                                v-model="newProfile.budgetAlertEmail"
+                            />
+                        </div>
                     </v-card-text>
 
                     <v-divider />
@@ -515,7 +532,7 @@ import type { UserProfileResponse } from '@/models/user.ts';
 import { Account } from '@/models/account.ts';
 
 import { generateRandomUUID } from '@/lib/misc.ts';
-import { isUserVerifyEmailEnabled } from '@/lib/server_settings.ts';
+import { isUserVerifyEmailEnabled, isBudgetAlertEmailEnabled } from '@/lib/server_settings.ts';
 
 import {
     mdiAccount,

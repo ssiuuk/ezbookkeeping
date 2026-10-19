@@ -30,4 +30,12 @@ var ja = &LocaleTextItems{
 		ResetPassword:             "パスワードをリセット",
 		DescriptionBelowBtnFormat: "パスワードのリセットをリクエストしていない場合はこのメールを無視してください。上記のリンクをクリックできない場合は、上記のURLをコピーしてブラウザに貼り付けてください。パスワードリセットのリンクは%v分後に期限切れになります。",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "Budget Alert",
+		SalutationFormat:          "Hi %s,",
+		WarningDescriptionFormat:  "The spending of \"%s\" in %s has reached %d%% of its budget, %s of %s has been spent.",
+		ExceededDescriptionFormat: "The spending of \"%s\" in %s has exceeded its budget, %s of %s has been spent.",
+		ViewBudgets:               "View Budgets",
+		DisableEmailDescription:   "You can turn off budget alert emails in user settings.",
+	},
 }
