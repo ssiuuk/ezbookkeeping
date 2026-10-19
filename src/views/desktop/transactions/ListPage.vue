@@ -788,10 +788,15 @@ import {
     categoryTypeToTransactionType,
     transactionTypeToCategoryType
 } from '@/lib/category.ts';
-import { allTransactionPictures } from '@/lib/transaction.ts';
+import {
+    allTransactionPictures,
+    getSetTransactionOptionsFromRecognizedResponse,
+    shouldAttachRecognizedImageAsPicture
+} from '@/lib/transaction.ts';
 import {
     isDataExportingEnabled,
     isDataImportingEnabled,
+    isTransactionPicturesEnabled,
     isTransactionFromAITextRecognitionEnabled,
     isTransactionFromAIImageRecognitionEnabled
 } from '@/lib/server_settings.ts';
@@ -1662,19 +1667,10 @@ function addByRecognizingClipboardText(): void {
 
 function addByRecognizingImage(): void {
     aiImageRecognitionDialog.value?.open().then(result => {
-        const recognizedResponse = result.response;
-        const autoUploadRecognizedImage = settingsStore.appSettings.autoUploadTransactionPictureForAIRecognition;
+        const autoUploadRecognizedImage = shouldAttachRecognizedImageAsPicture(isTransactionPicturesEnabled(), settingsStore.appSettings.autoUploadTransactionPictureForAIRecognition);
 
         editDialog.value?.open({
-            time: recognizedResponse.time,
-            type: recognizedResponse.type,
-            categoryId: recognizedResponse.categoryId,
-            accountId: recognizedResponse.sourceAccountId,
-            destinationAccountId: recognizedResponse.destinationAccountId,
-            amount: recognizedResponse.sourceAmount,
-            destinationAmount: recognizedResponse.destinationAmount,
-            tagIds: recognizedResponse.tagIds ? recognizedResponse.tagIds.join(',') : undefined,
-            comment: recognizedResponse.comment,
+            ...getSetTransactionOptionsFromRecognizedResponse(result.response),
             autoUploadPicture: autoUploadRecognizedImage ? result.imageFile : undefined,
             noTransactionDraft: true
         }).then(result => {

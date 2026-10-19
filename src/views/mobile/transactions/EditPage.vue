@@ -680,7 +680,7 @@ import {
 } from '@/lib/datetime.ts';
 import { generateRandomUUID } from '@/lib/misc.ts';
 import { getTransactionPrimaryCategoryName, getTransactionSecondaryCategoryName, getParentCategoryIdForNewSubCategory } from '@/lib/category.ts';
-import { type SetTransactionOptions } from '@/lib/transaction.ts';
+import { type SetTransactionOptions, isPictureAttached } from '@/lib/transaction.ts';
 import {
     isTransactionFromAITextRecognitionEnabled,
     isTransactionPicturesEnabled,
@@ -813,6 +813,9 @@ const { hasScheduledFieldChanges, applyToScheduleAndLaterTransactions } = useSch
 const originalTransaction = ref<Transaction | null>(null);
 
 const showEntryBookSheet = ref<boolean>(false);
+
+// the picture uploaded from the recognized receipt image
+let recognizedPictureId: string | null = null;
 
 const allMerchantSelectItems = computed<{ name: string }[]>(() => allMerchantNames.value.map(name => ({ name })));
 const transactionCreatorName = computed<string>(() => booksStore.currentBookMembers.length > 1 ? booksStore.getMemberDisplayName(transaction.value.createdByUid) : '');
@@ -1089,7 +1092,8 @@ function getQueryTransactionOptions(): SetTransactionOptions {
         amount: query['amount'] ? parseInt(query['amount']) : undefined,
         destinationAmount: query['destinationAmount'] ? parseInt(query['destinationAmount']) : undefined,
         tagIds: query['tagIds'],
-        comment: query['comment']
+        comment: query['comment'],
+        merchant: query['merchant']
     };
 }
 
@@ -1231,7 +1235,7 @@ function init(): void {
 
         if (props.autoUploadPicture) {
             showTransactionPictures.value = true;
-            uploadPicture(props.autoUploadPicture);
+            uploadPicture(props.autoUploadPicture, true);
         }
 
         loading.value = false;
@@ -1571,7 +1575,7 @@ function showOpenPictureDialog(): void {
     pictureInput.value?.click();
 }
 
-function uploadPicture(file: File): void {
+function uploadPicture(file: File, isRecognizedPicture?: boolean): void {
     if (!file) {
         return;
     }
@@ -1585,6 +1589,11 @@ function uploadPicture(file: File): void {
         });
     }).then(response => {
         transaction.value.addPicture(response);
+
+        if (isRecognizedPicture) {
+            recognizedPictureId = response.pictureId;
+        }
+
         uploadingPicture.value = false;
         submitting.value = false;
     }).catch(error => {
@@ -1720,6 +1729,9 @@ function onPageAfterIn(): void {
 }
 
 function onEntryBookChanged(book: BookInfoResponse): void {
+    // pictures belong to a book, so the recognized receipt image is uploaded again to the newly selected book
+    const reattachRecognizedPicture = !!props.autoUploadPicture && isPictureAttached(transaction.value, recognizedPictureId);
+
     showEntryBookSheet.value = false;
     showLoading();
 
@@ -1727,6 +1739,10 @@ function onEntryBookChanged(book: BookInfoResponse): void {
         resetTransactionBookRelatedFields();
         loadMerchantNames().catch(error => logger.warn('failed to load merchants', error));
         hideLoading();
+
+        if (reattachRecognizedPicture && props.autoUploadPicture) {
+            uploadPicture(props.autoUploadPicture, true);
+        }
     }).catch(error => {
         hideLoading();
 

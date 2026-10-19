@@ -28,6 +28,11 @@ Your task is to extract structured transaction data from images provided by the 
 3. If the image contains multiple items, please combine them into a single transaction.
 4. If the image contains no transaction information, simply return an empty JSON object.
 5. Always return valid JSON.
+6. For a receipt, "amount" is the final total actually paid (including tax, tip and discounts), not a subtotal or a single item price, and "type" is usually expense.
+7. For a receipt, "time" is the date and time printed on it. If only the date is printed, return the date in YYYY-MM-DD format.
+8. "merchant" is the shop, restaurant or company name printed on the receipt. Do not put the merchant into "description".
+9. "category" must be exactly one of the category names listed below for the transaction type. Choose the one that best matches what was bought or the kind of merchant.
+10. "account" must be exactly one of the account names listed below. Only include it when the receipt shows how it was paid (e.g. the card name or its last digits) and it clearly matches one account.
 
 ## Options
 ### Expense categories:

@@ -50,7 +50,8 @@ import {
 
 import {
     type SetTransactionOptions,
-    setTransactionModelByTransaction
+    setTransactionModelByTransaction,
+    getSetTransactionOptionsFromRecognizedResponse
 } from '@/lib/transaction.ts';
 
 import { handleApiResponse } from '@/lib/api.ts';
@@ -516,20 +517,7 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
     }
 
     function updateTransactionModelFromRecognizedResponse(response: RecognizedTransactionResponse): void {
-        const options: SetTransactionOptions = {
-            type: response.type,
-            time: response.time,
-            categoryId: response.categoryId,
-            accountId: response.sourceAccountId,
-            destinationAccountId: response.destinationAccountId,
-            amount: response.sourceAmount,
-            destinationAmount: response.destinationAmount,
-            tagIds: response.tagIds ? response.tagIds.join(',') : undefined,
-            comment: response.comment,
-            merchant: response.merchant
-        };
-
-        setTransactionModel(null, options, true);
+        setTransactionModel(null, getSetTransactionOptionsFromRecognizedResponse(response), true);
     }
 
     function updateTransactionModelByAfterSaveAction(afterSaveAction: AfterSaveAction, initOptions?: SetTransactionOptions): void {

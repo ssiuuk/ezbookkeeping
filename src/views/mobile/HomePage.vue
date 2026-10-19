@@ -114,6 +114,11 @@ import {
 import { isUserLogined, isUserUnlocked } from '@/lib/userstate.ts';
 import { getShareCacheImageBlob } from '@/lib/cache.ts';
 import {
+    getRecognizedTransactionQueryParams,
+    shouldAttachRecognizedImageAsPicture
+} from '@/lib/transaction.ts';
+import {
+    isTransactionPicturesEnabled,
     isTransactionFromAITextRecognitionEnabled,
     isTransactionFromAIImageRecognitionEnabled
 } from '@/lib/server_settings.ts';
@@ -299,45 +304,8 @@ function addByRecognizingClipboardText(): void {
 }
 
 function onReceiptRecognitionChanged(result: AIImageRecognitionResult): void {
-    const recognizedResponse = result.response;
-    const autoUploadRecognizedImage = settingsStore.appSettings.autoUploadTransactionPictureForAIRecognition;
-    const params: string[] = [];
-
-    if (recognizedResponse.type) {
-        params.push(`type=${recognizedResponse.type}`);
-    }
-
-    if (recognizedResponse.time) {
-        params.push(`time=${recognizedResponse.time}`);
-    }
-
-    if (recognizedResponse.categoryId) {
-        params.push(`categoryId=${recognizedResponse.categoryId}`);
-    }
-
-    if (recognizedResponse.sourceAccountId) {
-        params.push(`accountId=${recognizedResponse.sourceAccountId}`);
-    }
-
-    if (recognizedResponse.destinationAccountId) {
-        params.push(`destinationAccountId=${recognizedResponse.destinationAccountId}`);
-    }
-
-    if (recognizedResponse.sourceAmount) {
-        params.push(`amount=${recognizedResponse.sourceAmount}`);
-    }
-
-    if (recognizedResponse.destinationAmount) {
-        params.push(`destinationAmount=${recognizedResponse.destinationAmount}`);
-    }
-
-    if (recognizedResponse.tagIds) {
-        params.push(`tagIds=${recognizedResponse.tagIds.join(',')}`);
-    }
-
-    if (recognizedResponse.comment) {
-        params.push(`comment=${encodeURIComponent(recognizedResponse.comment)}`);
-    }
+    const autoUploadRecognizedImage = shouldAttachRecognizedImageAsPicture(isTransactionPicturesEnabled(), settingsStore.appSettings.autoUploadTransactionPictureForAIRecognition);
+    const params: string[] = getRecognizedTransactionQueryParams(result.response);
 
     params.push(`noTransactionDraft=true`);
 

@@ -274,11 +274,21 @@ func (a *LargeLanguageModelsApi) RecognizeReceiptImageHandler(c *core.WebContext
 		return nil, errs.ErrNoTransactionInformation
 	}
 
+	return a.parseRecognizedReceiptImageContent(c, uid, clientTimezone, llmResponse.Content, accountMap, expenseCategoryMap, incomeCategoryMap, transferCategoryMap, tagMap)
+}
+
+// parseRecognizedReceiptImageContent turns the json content returned by the receipt image recognition model into a recognized transaction response
+func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageContent(c *core.WebContext, uid int64, clientTimezone *time.Location, content string, accountMap map[string]*models.Account, expenseCategoryMap map[string]*models.TransactionCategory, incomeCategoryMap map[string]*models.TransactionCategory, transferCategoryMap map[string]*models.TransactionCategory, tagMap map[string]*models.TransactionTag) (*models.RecognizedTransactionResponse, *errs.Error) {
 	var result *models.RecognizedTransactionResult
 
-	if err := json.Unmarshal([]byte(llmResponse.Content), &result); err != nil {
-		log.Errorf(c, "[large_language_models.RecognizeReceiptImageHandler] failed to unmarshal recognized receipt image result from llm response \"%s\" for user \"uid:%d\", because %s", llmResponse.Content, uid, err.Error())
+	if err := json.Unmarshal([]byte(content), &result); err != nil {
+		log.Errorf(c, "[large_language_models.parseRecognizedReceiptImageContent] failed to unmarshal recognized receipt image result from llm response \"%s\" for user \"uid:%d\", because %s", content, uid, err.Error())
 		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	// a receipt is almost always a purchase, so a total without a type is treated as an expense
+	if result != nil && len(strings.TrimSpace(result.Type)) == 0 && len(strings.TrimSpace(result.Amount)) > 0 {
+		result.Type = "expense"
 	}
 
 	return a.parseRecognizedTransactionResponse(c, uid, clientTimezone, result, accountMap, expenseCategoryMap, incomeCategoryMap, transferCategoryMap, tagMap)
@@ -479,35 +489,25 @@ func (a *LargeLanguageModelsApi) parseRecognizedTransactionResponse(c *core.WebC
 		return nil, errs.ErrNoTransactionInformation
 	}
 
+	recognizedResult.Type = strings.ToLower(strings.TrimSpace(recognizedResult.Type))
+
 	if recognizedResult.Type == "income" {
 		recognizedTransactionResponse.Type = models.TRANSACTION_TYPE_INCOME
 
-		if len(recognizedResult.CategoryName) > 0 {
-			category, exists := incomeCategoryMap[recognizedResult.CategoryName]
-
-			if exists {
-				recognizedTransactionResponse.CategoryId = category.CategoryId
-			}
+		if category, exists := findByRecognizedName(incomeCategoryMap, recognizedResult.CategoryName); exists {
+			recognizedTransactionResponse.CategoryId = category.CategoryId
 		}
 	} else if recognizedResult.Type == "expense" {
 		recognizedTransactionResponse.Type = models.TRANSACTION_TYPE_EXPENSE
 
-		if len(recognizedResult.CategoryName) > 0 {
-			category, exists := expenseCategoryMap[recognizedResult.CategoryName]
-
-			if exists {
-				recognizedTransactionResponse.CategoryId = category.CategoryId
-			}
+		if category, exists := findByRecognizedName(expenseCategoryMap, recognizedResult.CategoryName); exists {
+			recognizedTransactionResponse.CategoryId = category.CategoryId
 		}
 	} else if recognizedResult.Type == "transfer" {
 		recognizedTransactionResponse.Type = models.TRANSACTION_TYPE_TRANSFER
 
-		if len(recognizedResult.CategoryName) > 0 {
-			category, exists := transferCategoryMap[recognizedResult.CategoryName]
-
-			if exists {
-				recognizedTransactionResponse.CategoryId = category.CategoryId
-			}
+		if category, exists := findByRecognizedName(transferCategoryMap, recognizedResult.CategoryName); exists {
+			recognizedTransactionResponse.CategoryId = category.CategoryId
 		}
 	} else if len(recognizedResult.Type) == 0 {
 		return nil, errs.ErrNoTransactionInformation
@@ -528,7 +528,7 @@ func (a *LargeLanguageModelsApi) parseRecognizedTransactionResponse(c *core.WebC
 	}
 
 	if len(recognizedResult.Amount) > 0 {
-		amount, err := utils.ParseAmount(recognizedResult.Amount)
+		amount, err := utils.ParseAmount(normalizeRecognizedAmount(recognizedResult.Amount))
 
 		if err != nil {
 			log.Errorf(c, "[large_language_models.parseRecognizedTransactionResponse] recoginzed amount \"%s\" is invalid", recognizedResult.Amount)
@@ -538,7 +538,7 @@ func (a *LargeLanguageModelsApi) parseRecognizedTransactionResponse(c *core.WebC
 		recognizedTransactionResponse.SourceAmount = amount
 
 		if recognizedTransactionResponse.Type == models.TRANSACTION_TYPE_TRANSFER && len(recognizedResult.DestinationAmount) > 0 {
-			destinationAmount, err := utils.ParseAmount(recognizedResult.DestinationAmount)
+			destinationAmount, err := utils.ParseAmount(normalizeRecognizedAmount(recognizedResult.DestinationAmount))
 
 			if err != nil {
 				log.Errorf(c, "[large_language_models.parseRecognizedTransactionResponse] recoginzed destination amount \"%s\" is invalid", recognizedResult.DestinationAmount)
@@ -549,28 +549,19 @@ func (a *LargeLanguageModelsApi) parseRecognizedTransactionResponse(c *core.WebC
 		}
 	}
 
-	if len(recognizedResult.AccountName) > 0 {
-		account, exists := accountMap[recognizedResult.AccountName]
-
-		if exists {
-			recognizedTransactionResponse.SourceAccountId = account.AccountId
-		}
+	if account, exists := findByRecognizedName(accountMap, recognizedResult.AccountName); exists {
+		recognizedTransactionResponse.SourceAccountId = account.AccountId
 	}
 
-	if len(recognizedResult.DestinationAccountName) > 0 {
-		account, exists := accountMap[recognizedResult.DestinationAccountName]
-
-		if exists {
-			recognizedTransactionResponse.DestinationAccountId = account.AccountId
-		}
+	if account, exists := findByRecognizedName(accountMap, recognizedResult.DestinationAccountName); exists {
+		recognizedTransactionResponse.DestinationAccountId = account.AccountId
 	}
 
 	if len(recognizedResult.TagNames) > 0 {
 		tagIds := make([]string, 0, len(recognizedResult.TagNames))
 
 		for i := 0; i < len(recognizedResult.TagNames); i++ {
-			tagName := recognizedResult.TagNames[i]
-			tag, exists := tagMap[tagName]
+			tag, exists := findByRecognizedName(tagMap, recognizedResult.TagNames[i])
 
 			if exists {
 				tagIds = append(tagIds, utils.Int64ToString(tag.TagId))
@@ -592,6 +583,9 @@ func (a *LargeLanguageModelsApi) parseRecognizedTransactionResponse(c *core.WebC
 }
 
 func (a *LargeLanguageModelsApi) getLongDateTime(dateTime string) string {
+	// some models write the date with slashes or in the iso 8601 form, e.g. 2024/01/02 or 2024-01-02T12:34:56
+	dateTime = strings.TrimSpace(strings.ReplaceAll(strings.Replace(dateTime, "T", " ", 1), "/", "-"))
+
 	if utils.IsValidLongDateTimeFormat(dateTime) {
 		return dateTime
 	}
@@ -605,4 +599,76 @@ func (a *LargeLanguageModelsApi) getLongDateTime(dateTime string) string {
 	}
 
 	return dateTime
+}
+
+// findByRecognizedName returns the item with the name returned by the large language model, and falls back to a case-insensitive match when exactly one item matches that way
+func findByRecognizedName[T any](itemMap map[string]T, name string) (T, bool) {
+	var found T
+	name = strings.TrimSpace(name)
+
+	if len(name) == 0 {
+		return found, false
+	}
+
+	if item, exists := itemMap[name]; exists {
+		return item, true
+	}
+
+	matchCount := 0
+
+	for itemName, item := range itemMap {
+		if strings.EqualFold(strings.TrimSpace(itemName), name) {
+			found = item
+			matchCount++
+		}
+	}
+
+	if matchCount != 1 {
+		var empty T
+		return empty, false
+	}
+
+	return found, true
+}
+
+// normalizeRecognizedAmount removes the currency symbol, spaces and thousands separators that models sometimes copy from a receipt, e.g. "$1,234.50" or "12,50 €"
+func normalizeRecognizedAmount(originalAmount string) string {
+	amount := strings.TrimSpace(originalAmount)
+	sign := ""
+
+	if strings.HasPrefix(amount, "-") || strings.HasPrefix(amount, "+") {
+		sign = amount[0:1]
+		amount = amount[1:]
+	}
+
+	amount = strings.TrimFunc(amount, func(r rune) bool {
+		return r < '0' || r > '9'
+	})
+
+	// keep the original value when there is no number at all, so that it is still rejected as invalid
+	if len(amount) == 0 {
+		return originalAmount
+	}
+
+	amount = strings.NewReplacer(" ", "", "\u00a0", "", "'", "").Replace(amount)
+
+	lastComma := strings.LastIndex(amount, ",")
+	lastDot := strings.LastIndex(amount, ".")
+
+	if lastComma >= 0 && lastDot >= 0 {
+		if lastComma < lastDot {
+			amount = strings.ReplaceAll(amount, ",", "")
+		} else {
+			amount = strings.ReplaceAll(amount, ".", "")
+			amount = strings.Replace(amount, ",", ".", 1)
+		}
+	} else if lastComma >= 0 {
+		if strings.Count(amount, ",") == 1 && len(amount)-lastComma-1 <= 2 {
+			amount = strings.Replace(amount, ",", ".", 1)
+		} else {
+			amount = strings.ReplaceAll(amount, ",", "")
+		}
+	}
+
+	return sign + amount
 }
