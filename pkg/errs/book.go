@@ -23,4 +23,8 @@ var (
 	ErrCannotManageSharedAccount         = NewNormalError(NormalSubcategoryBook, 16, http.StatusForbidden, "you can only stop sharing your own accounts")
 	ErrAccountsUsedBySharedBook          = NewNormalError(NormalSubcategoryBook, 17, http.StatusBadRequest, "some accounts are used in a shared book, stop sharing them or remove their transactions from the shared book first")
 	ErrSharedAccountRevoked              = NewNormalError(NormalSubcategoryBook, 18, http.StatusBadRequest, "this account is no longer shared to this book, its transactions cannot be added, changed or deleted")
+	ErrBookSettlementNotFound            = NewNormalError(NormalSubcategoryBook, 19, http.StatusBadRequest, "settlement not found")
+	ErrBookSettlementSameMember          = NewNormalError(NormalSubcategoryBook, 20, http.StatusBadRequest, "the payer and the recipient of a settlement must be different members")
+	ErrBookSettlementMemberInvalid       = NewNormalError(NormalSubcategoryBook, 21, http.StatusBadRequest, "the payer or the recipient of the settlement is not a member of this book")
+	ErrCannotDeleteBookSettlement        = NewNormalError(NormalSubcategoryBook, 22, http.StatusForbidden, "you can only delete settlements which you recorded, paid or received, unless you own this book")
 )
