@@ -41,6 +41,7 @@ type TransactionsApi struct {
 	transactionPictures   *services.TransactionPictureService
 	accounts              *services.AccountService
 	users                 *services.UserService
+	books                 *services.BookService
 }
 
 // Initialize a transaction api singleton instance
@@ -61,6 +62,7 @@ var (
 		transactionPictures:   services.TransactionPictures,
 		accounts:              services.Accounts,
 		users:                 services.Users,
+		books:                 services.Books,
 	}
 )
 
@@ -1367,49 +1369,10 @@ func (a *TransactionsApi) TransactionCreateHandler(c *core.WebContext) (any, *er
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	tagIds, err := utils.StringArrayToInt64Array(transactionCreateReq.TagIds)
+	tagIds, pictureIds, errResp := a.getTagAndPictureIdsOfTransactionCreateRequest(c, &transactionCreateReq)
 
-	if err != nil {
-		log.Warnf(c, "[transactions.TransactionCreateHandler] parse tag ids failed, because %s", err.Error())
-		return nil, errs.ErrTransactionTagIdInvalid
-	}
-
-	if len(tagIds) > models.MaximumTagsCountOfTransaction {
-		return nil, errs.ErrTransactionHasTooManyTags
-	}
-
-	pictureIds, err := utils.StringArrayToInt64Array(transactionCreateReq.PictureIds)
-
-	if err != nil {
-		log.Warnf(c, "[transactions.TransactionCreateHandler] parse picture ids failed, because %s", err.Error())
-		return nil, errs.ErrTransactionPictureIdInvalid
-	}
-
-	if len(pictureIds) > models.MaximumPicturesCountOfTransaction {
-		return nil, errs.ErrTransactionHasTooManyPictures
-	}
-
-	if transactionCreateReq.Type < models.TRANSACTION_TYPE_MODIFY_BALANCE || transactionCreateReq.Type > models.TRANSACTION_TYPE_TRANSFER {
-		log.Warnf(c, "[transactions.TransactionCreateHandler] transaction type is invalid")
-		return nil, errs.ErrTransactionTypeInvalid
-	}
-
-	if transactionCreateReq.Type == models.TRANSACTION_TYPE_MODIFY_BALANCE && transactionCreateReq.CategoryId != 0 {
-		log.Warnf(c, "[transactions.TransactionCreateHandler] balance modification transaction cannot set category id")
-		return nil, errs.ErrBalanceModificationTransactionCannotSetCategory
-	}
-
-	if transactionCreateReq.Type != models.TRANSACTION_TYPE_TRANSFER && transactionCreateReq.DestinationAccountId != 0 {
-		log.Warnf(c, "[transactions.TransactionCreateHandler] non-transfer transaction destination account cannot be set")
-		return nil, errs.ErrTransactionDestinationAccountCannotBeSet
-	} else if transactionCreateReq.Type == models.TRANSACTION_TYPE_TRANSFER && transactionCreateReq.SourceAccountId == transactionCreateReq.DestinationAccountId {
-		log.Warnf(c, "[transactions.TransactionCreateHandler] transfer transaction source account must not be destination account")
-		return nil, errs.ErrTransactionSourceAndDestinationIdCannotBeEqual
-	}
-
-	if transactionCreateReq.Type != models.TRANSACTION_TYPE_TRANSFER && transactionCreateReq.DestinationAmount != 0 {
-		log.Warnf(c, "[transactions.TransactionCreateHandler] non-transfer transaction destination amount cannot be set")
-		return nil, errs.ErrTransactionDestinationAmountCannotBeSet
+	if errResp != nil {
+		return nil, errResp
 	}
 
 	uid := c.GetCurrentBookUid()
@@ -1491,6 +1454,174 @@ func (a *TransactionsApi) TransactionCreateHandler(c *core.WebContext) (any, *er
 	a.SetSubmissionRemarkIfEnable(duplicatechecker.DUPLICATE_CHECKER_TYPE_NEW_TRANSACTION, uid, transactionCreateReq.ClientSessionId, utils.Int64ToString(transaction.TransactionId))
 	transactionResp := transaction.ToTransactionInfoResponse(tagIds, transactionEditable)
 	transactionResp.Pictures = a.GetTransactionPictureInfoResponseList(pictureInfos)
+
+	return transactionResp, nil
+}
+
+// TransactionMoveToBookHandler moves an existed transaction of another book to the current book by request parameters
+func (a *TransactionsApi) TransactionMoveToBookHandler(c *core.WebContext) (any, *errs.Error) {
+	var transactionMoveReq models.TransactionMoveToBookRequest
+	err := c.ShouldBindJSON(&transactionMoveReq)
+
+	if err != nil {
+		log.Warnf(c, "[transactions.TransactionMoveToBookHandler] parse request failed, because %s", err.Error())
+		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
+	}
+
+	clientTimezone, err := c.GetClientTimezone()
+
+	if err != nil {
+		log.Warnf(c, "[transactions.TransactionMoveToBookHandler] cannot get client timezone, because %s", err.Error())
+		return nil, errs.ErrClientTimezoneOffsetInvalid
+	}
+
+	tagIds, pictureIds, errResp := a.getTagAndPictureIdsOfTransactionCreateRequest(c, &transactionMoveReq.TransactionCreateRequest)
+
+	if errResp != nil {
+		return nil, errResp
+	}
+
+	if transactionMoveReq.Type == models.TRANSACTION_TYPE_MODIFY_BALANCE {
+		log.Warnf(c, "[transactions.TransactionMoveToBookHandler] balance modification transaction cannot be moved to another book")
+		return nil, errs.ErrTransactionTypeInvalid
+	}
+
+	uid := c.GetCurrentBookUid()
+	sourceUid := transactionMoveReq.SourceBookId
+
+	if sourceUid == uid {
+		return nil, errs.ErrCannotMoveTransactionToSameBook
+	}
+
+	if sourceUid != c.GetCurrentUid() {
+		canAccess, err := a.books.CanAccessBook(c, c.GetCurrentUid(), sourceUid)
+
+		if err != nil {
+			log.Errorf(c, "[transactions.TransactionMoveToBookHandler] failed to check whether user \"uid:%d\" can access book \"uid:%d\", because %s", c.GetCurrentUid(), sourceUid, err.Error())
+			return nil, errs.Or(err, errs.ErrOperationFailed)
+		} else if !canAccess {
+			return nil, errs.ErrBookAccessDenied
+		}
+	}
+
+	user, err := a.users.GetUserById(c, c.GetCurrentUid())
+
+	if err != nil {
+		if !errs.IsCustomError(err) {
+			log.Errorf(c, "[transactions.TransactionMoveToBookHandler] failed to get user, because %s", err.Error())
+		}
+
+		return nil, errs.ErrUserNotFound
+	}
+
+	oldTransaction, err := a.transactions.GetTransactionByTransactionId(c, sourceUid, transactionMoveReq.Id)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionMoveToBookHandler] failed to get transaction \"id:%d\" for user \"uid:%d\", because %s", transactionMoveReq.Id, sourceUid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	if oldTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_IN || oldTransaction.Type == models.TRANSACTION_DB_TYPE_MODIFY_BALANCE {
+		log.Warnf(c, "[transactions.TransactionMoveToBookHandler] cannot move transaction \"id:%d\" for user \"uid:%d\", because transaction type is %d", transactionMoveReq.Id, sourceUid, oldTransaction.Type)
+		return nil, errs.ErrTransactionTypeInvalid
+	}
+
+	oldUsedAccounts, err := a.getTransactionUsedAccounts(c, sourceUid, []*models.Transaction{oldTransaction}, false)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionMoveToBookHandler] failed to get transaction used accounts for user \"uid:%d\", because %s", sourceUid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	if !user.CanEditTransactionByTransactionTime(oldTransaction.TransactionTime, clientTimezone, oldUsedAccounts[oldTransaction.AccountId], oldUsedAccounts[oldTransaction.RelatedAccountId]) {
+		return nil, errs.ErrCannotModifyTransactionWithThisTransactionTime
+	}
+
+	creatorUid := oldTransaction.CreatedByUid
+
+	if creatorUid == 0 {
+		creatorUid = c.GetCurrentUid()
+	}
+
+	transaction := a.createNewTransactionModel(uid, creatorUid, &transactionMoveReq.TransactionCreateRequest, c.ClientIP())
+
+	allUsedAccounts, err := a.getTransactionUsedAccounts(c, uid, []*models.Transaction{transaction}, false)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionMoveToBookHandler] failed to get transaction used accounts for user \"uid:%d\", because %s", uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	transactionEditable := user.CanEditTransactionByTransactionTime(transaction.TransactionTime, clientTimezone, allUsedAccounts[transaction.AccountId], allUsedAccounts[transaction.RelatedAccountId])
+
+	if !transactionEditable {
+		return nil, errs.ErrCannotModifyTransactionWithThisTransactionTime
+	}
+
+	// pictures of the moved transaction are copied to the current book, other pictures must be new pictures uploaded to the current book
+	oldPictureInfos, err := a.transactionPictures.GetPictureInfosByTransactionId(c, sourceUid, oldTransaction.TransactionId)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionMoveToBookHandler] failed to get transaction picture infos for user \"uid:%d\", because %s", sourceUid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	oldPictureInfoMap := a.transactionPictures.GetPictureInfoMapByList(oldPictureInfos)
+	var picturesToCopy []*models.TransactionPictureInfo
+	var newPictureIds []int64
+
+	for i := 0; i < len(pictureIds); i++ {
+		if pictureInfo, exists := oldPictureInfoMap[pictureIds[i]]; exists {
+			picturesToCopy = append(picturesToCopy, pictureInfo)
+		} else {
+			newPictureIds = append(newPictureIds, pictureIds[i])
+		}
+	}
+
+	var newPictureInfos []*models.TransactionPictureInfo
+
+	if len(newPictureIds) > 0 {
+		newPictureInfos, err = a.transactionPictures.GetNewPictureInfosByPictureIds(c, uid, newPictureIds)
+
+		if err != nil {
+			log.Errorf(c, "[transactions.TransactionMoveToBookHandler] failed to get transactions pictures for user \"uid:%d\", because %s", uid, err.Error())
+			return nil, errs.Or(err, errs.ErrOperationFailed)
+		}
+
+		notExistsPictureIds := utils.Int64SliceMinus(newPictureIds, a.transactionPictures.GetTransactionPictureIds(newPictureInfos))
+
+		if len(notExistsPictureIds) > 0 {
+			log.Errorf(c, "[transactions.TransactionMoveToBookHandler] some pictures \"ids:%s\" does not exists for user \"uid:%d\"", strings.Join(utils.Int64ArrayToStringArray(notExistsPictureIds), ","), uid)
+			return nil, errs.ErrTransactionPictureNotFound
+		}
+	}
+
+	copiedPictureInfos, err := a.transactionPictures.CopyPicturesToBook(c, picturesToCopy, uid)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionMoveToBookHandler] failed to copy transaction pictures to user \"uid:%d\", because %s", uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	allPictureInfos := append(copiedPictureInfos, newPictureInfos...)
+	allPictureIds := a.transactionPictures.GetTransactionPictureIds(allPictureInfos)
+
+	err = a.transactions.MoveTransactionToBook(c, sourceUid, oldTransaction.TransactionId, transaction, tagIds, allPictureIds)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionMoveToBookHandler] failed to move transaction \"id:%d\" from user \"uid:%d\" to user \"uid:%d\", because %s", oldTransaction.TransactionId, sourceUid, uid, err.Error())
+
+		for i := 0; i < len(copiedPictureInfos); i++ {
+			_ = a.transactionPictures.RemoveUnusedTransactionPicture(c, uid, copiedPictureInfos[i].PictureId)
+		}
+
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	log.Infof(c, "[transactions.TransactionMoveToBookHandler] user \"uid:%d\" has moved transaction \"id:%d\" from book \"uid:%d\" to book \"uid:%d\" as transaction \"id:%d\"", c.GetCurrentUid(), oldTransaction.TransactionId, sourceUid, uid, transaction.TransactionId)
+
+	transactionResp := transaction.ToTransactionInfoResponse(tagIds, transactionEditable)
+	transactionResp.Pictures = a.GetTransactionPictureInfoResponseList(allPictureInfos)
 
 	return transactionResp, nil
 }
@@ -3369,6 +3500,56 @@ func (a *TransactionsApi) getTransactionImportResponse(result *models.Transactio
 }
 
 // getTransactionImportSubmissionId returns the duplicate submission identification of a transaction import task,
+// getTagAndPictureIdsOfTransactionCreateRequest checks the new transaction request and returns its tag ids and picture ids
+func (a *TransactionsApi) getTagAndPictureIdsOfTransactionCreateRequest(c *core.WebContext, transactionCreateReq *models.TransactionCreateRequest) ([]int64, []int64, *errs.Error) {
+	tagIds, err := utils.StringArrayToInt64Array(transactionCreateReq.TagIds)
+
+	if err != nil {
+		log.Warnf(c, "[transactions.getTagAndPictureIdsOfTransactionCreateRequest] parse tag ids failed, because %s", err.Error())
+		return nil, nil, errs.ErrTransactionTagIdInvalid
+	}
+
+	if len(tagIds) > models.MaximumTagsCountOfTransaction {
+		return nil, nil, errs.ErrTransactionHasTooManyTags
+	}
+
+	pictureIds, err := utils.StringArrayToInt64Array(transactionCreateReq.PictureIds)
+
+	if err != nil {
+		log.Warnf(c, "[transactions.getTagAndPictureIdsOfTransactionCreateRequest] parse picture ids failed, because %s", err.Error())
+		return nil, nil, errs.ErrTransactionPictureIdInvalid
+	}
+
+	if len(pictureIds) > models.MaximumPicturesCountOfTransaction {
+		return nil, nil, errs.ErrTransactionHasTooManyPictures
+	}
+
+	if transactionCreateReq.Type < models.TRANSACTION_TYPE_MODIFY_BALANCE || transactionCreateReq.Type > models.TRANSACTION_TYPE_TRANSFER {
+		log.Warnf(c, "[transactions.getTagAndPictureIdsOfTransactionCreateRequest] transaction type is invalid")
+		return nil, nil, errs.ErrTransactionTypeInvalid
+	}
+
+	if transactionCreateReq.Type == models.TRANSACTION_TYPE_MODIFY_BALANCE && transactionCreateReq.CategoryId != 0 {
+		log.Warnf(c, "[transactions.getTagAndPictureIdsOfTransactionCreateRequest] balance modification transaction cannot set category id")
+		return nil, nil, errs.ErrBalanceModificationTransactionCannotSetCategory
+	}
+
+	if transactionCreateReq.Type != models.TRANSACTION_TYPE_TRANSFER && transactionCreateReq.DestinationAccountId != 0 {
+		log.Warnf(c, "[transactions.getTagAndPictureIdsOfTransactionCreateRequest] non-transfer transaction destination account cannot be set")
+		return nil, nil, errs.ErrTransactionDestinationAccountCannotBeSet
+	} else if transactionCreateReq.Type == models.TRANSACTION_TYPE_TRANSFER && transactionCreateReq.SourceAccountId == transactionCreateReq.DestinationAccountId {
+		log.Warnf(c, "[transactions.getTagAndPictureIdsOfTransactionCreateRequest] transfer transaction source account must not be destination account")
+		return nil, nil, errs.ErrTransactionSourceAndDestinationIdCannotBeEqual
+	}
+
+	if transactionCreateReq.Type != models.TRANSACTION_TYPE_TRANSFER && transactionCreateReq.DestinationAmount != 0 {
+		log.Warnf(c, "[transactions.getTagAndPictureIdsOfTransactionCreateRequest] non-transfer transaction destination amount cannot be set")
+		return nil, nil, errs.ErrTransactionDestinationAmountCannotBeSet
+	}
+
+	return tagIds, pictureIds, nil
+}
+
 // the import tasks in a shared book are also distinguished by the member who submits them
 func (a *TransactionsApi) getTransactionImportSubmissionId(c *core.WebContext, clientSessionId string) string {
 	return getBookMemberSubmissionId(c.GetCurrentBookUid(), c.GetCurrentUid(), clientSessionId)

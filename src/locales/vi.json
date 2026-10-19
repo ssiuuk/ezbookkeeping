@@ -1248,6 +1248,7 @@
         "transaction time zone is invalid": "Múi giờ giao dịch không hợp lệ",
         "transaction amount is invalid": "Số tiền giao dịch không hợp lệ",
         "geographic location is invalid": "Vị trí địa lý không hợp lệ",
+        "cannot move transaction to the same book": "Cannot move transaction to the same book",
         "transaction category id is invalid": "ID danh mục giao dịch không hợp lệ",
         "transaction category not found": "Không tìm thấy danh mục giao dịch",
         "transaction category type is invalid": "Loại danh mục giao dịch không hợp lệ",

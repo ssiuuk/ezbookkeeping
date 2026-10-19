@@ -227,6 +227,68 @@ func (s *TransactionPictureService) UploadPicture(c core.Context, pictureInfo *m
 	})
 }
 
+// CopyPicturesToBook copies the picture files and saves them as new unused pictures of the specified book, so that a transaction moved to that book can use them
+func (s *TransactionPictureService) CopyPicturesToBook(c core.Context, pictureInfos []*models.TransactionPictureInfo, uid int64) ([]*models.TransactionPictureInfo, error) {
+	if uid <= 0 {
+		return nil, errs.ErrUserIdInvalid
+	}
+
+	if len(pictureInfos) < 1 {
+		return nil, nil
+	}
+
+	pictureIds := s.GenerateUuids(uuid.UUID_TYPE_USER, uint16(len(pictureInfos)))
+
+	if len(pictureIds) < len(pictureInfos) {
+		return nil, errs.ErrSystemIsBusy
+	}
+
+	now := time.Now().Unix()
+	newPictureInfos := make([]*models.TransactionPictureInfo, len(pictureInfos))
+
+	for i := 0; i < len(pictureInfos); i++ {
+		pictureInfo := pictureInfos[i]
+		pictureFile, exists, err := s.ReadTransactionPicture(c, pictureInfo.Uid, pictureInfo.PictureId, pictureInfo.PictureExtension)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if !exists {
+			return nil, errs.ErrTransactionPictureNoExists
+		}
+
+		err = s.SaveTransactionPicture(c, uid, pictureIds[i], pictureFile, pictureInfo.PictureExtension)
+		pictureFile.Close()
+
+		if err != nil {
+			return nil, err
+		}
+
+		newPictureInfos[i] = &models.TransactionPictureInfo{
+			PictureId:        pictureIds[i],
+			Uid:              uid,
+			Deleted:          false,
+			TransactionId:    models.TransactionPictureNewPictureTransactionId,
+			PictureExtension: pictureInfo.PictureExtension,
+			CreatedIp:        pictureInfo.CreatedIp,
+			CreatedUnixTime:  now,
+			UpdatedUnixTime:  now,
+		}
+	}
+
+	err := s.UserDataDB(uid).DoTransaction(c, func(sess *xorm.Session) error {
+		_, err := sess.Insert(newPictureInfos)
+		return err
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return newPictureInfos, nil
+}
+
 // RemoveUnusedTransactionPicture removes the unused transaction picture of specified user
 func (s *TransactionPictureService) RemoveUnusedTransactionPicture(c core.Context, uid int64, pictureId int64) error {
 	if uid <= 0 {

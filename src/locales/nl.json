@@ -1248,6 +1248,7 @@
         "transaction time zone is invalid": "Transactietijdzone is ongeldig",
         "transaction amount is invalid": "Transactiebedrag is ongeldig",
         "geographic location is invalid": "Geografische locatie is ongeldig",
+        "cannot move transaction to the same book": "Cannot move transaction to the same book",
         "transaction category id is invalid": "Transactiecategorie-ID is ongeldig",
         "transaction category not found": "Transactiecategorie niet gevonden",
         "transaction category type is invalid": "Type transactiecategorie is ongeldig",

@@ -1248,6 +1248,7 @@
         "transaction time zone is invalid": "ವಹಿವಾಟಿನ ಸಮಯ ವಲಯ ಅಮಾನ್ಯವಾಗಿದೆ",
         "transaction amount is invalid": "ವಹಿವಾಟಿನ ಮೊತ್ತ ಅಮಾನ್ಯವಾಗಿದೆ",
         "geographic location is invalid": "ಭೌಗೋಳಿಕ ಸ್ಥಳ ಅಮಾನ್ಯವಾಗಿದೆ",
+        "cannot move transaction to the same book": "Cannot move transaction to the same book",
         "transaction category id is invalid": "ವಹಿವಾಟು ವರ್ಗ ID ಅಮಾನ್ಯವಾಗಿದೆ",
         "transaction category not found": "ವಹಿವಾಟು ವರ್ಗ ಸಿಕ್ಕಿಲ್ಲ",
         "transaction category type is invalid": "ವಹಿವಾಟು ವರ್ಗದ ಪ್ರಕಾರ ಅಮಾನ್ಯವಾಗಿದೆ",

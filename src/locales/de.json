@@ -1248,6 +1248,7 @@
         "transaction time zone is invalid": "Transaktionszeitzone ist ungültig",
         "transaction amount is invalid": "Transaktionsbetrag ist ungültig",
         "geographic location is invalid": "Geografischer Standort ist ungültig",
+        "cannot move transaction to the same book": "Cannot move transaction to the same book",
         "transaction category id is invalid": "Transaktionskategorie-ID ist ungültig",
         "transaction category not found": "Transaktionskategorie nicht gefunden",
         "transaction category type is invalid": "Transaktionskategorietyp ist ungültig",

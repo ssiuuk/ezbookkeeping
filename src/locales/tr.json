@@ -1248,6 +1248,7 @@
         "transaction time zone is invalid": "İşlem saat dilimi geçersiz",
         "transaction amount is invalid": "İşlem tutarı geçersiz",
         "geographic location is invalid": "Coğrafi konum geçersiz",
+        "cannot move transaction to the same book": "Cannot move transaction to the same book",
         "transaction category id is invalid": "İşlem kategori ID geçersiz",
         "transaction category not found": "İşlem kategorisi bulunamadı",
         "transaction category type is invalid": "İşlem kategori türü geçersiz",
