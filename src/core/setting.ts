@@ -244,7 +244,8 @@ export const DEFAULT_APPLICATION_SETTINGS: ApplicationSettings = {
     // AI Clipboard Text Recognition
     alwaysRequireConfirmationOfClipboardContentBeforeSubmission: true,
     // AI Image Recognition
-    autoUploadTransactionPictureForAIRecognition: false,
+    // keep the receipt photo with the entry it was recognized into, unless the user turns it off
+    autoUploadTransactionPictureForAIRecognition: true,
     // Import Transaction Dialog
     rememberLastSelectedFileTypeInImportTransactionDialog: true,
     lastSelectedFileTypeInImportTransactionDialog: '',

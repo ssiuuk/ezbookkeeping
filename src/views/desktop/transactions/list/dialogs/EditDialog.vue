@@ -632,7 +632,7 @@ import {
     getTransactionSecondaryCategoryName,
     getParentCategoryIdForNewSubCategory
 } from '@/lib/category.ts';
-import { type SetTransactionOptions } from '@/lib/transaction.ts';
+import { type SetTransactionOptions, isPictureAttached } from '@/lib/transaction.ts';
 import {
     isTransactionFromAITextRecognitionEnabled,
     isTransactionPicturesEnabled,
@@ -822,6 +822,10 @@ const showEntryBookField = computed<boolean>(() => {
     return false;
 });
 
+// the recognized receipt image attached to the new transaction and the picture uploaded from it
+let recognizedPictureFile: File | null = null;
+let recognizedPictureId: string | null = null;
+
 const sourceAmountColor = computed<string | undefined>(() => {
     if (transaction.value.type === TransactionType.Expense) {
         return 'expense';
@@ -859,6 +863,8 @@ const isTransactionModified = computed<boolean>(() => {
 });
 
 function open(options: TransactionEditOptions): Promise<TransactionEditResponse | undefined> {
+    recognizedPictureFile = null;
+    recognizedPictureId = null;
     addByTemplateId.value = null;
     duplicateFromId.value = null;
     showState.value = true;
@@ -1002,7 +1008,8 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
         }
 
         if (options.autoUploadPicture) {
-            uploadPicture(options.autoUploadPicture);
+            recognizedPictureFile = options.autoUploadPicture;
+            uploadPicture(options.autoUploadPicture, true);
         }
 
         loading.value = false;
@@ -1051,6 +1058,9 @@ function onEntryBookChanged(bookId: string): void {
         return;
     }
 
+    // pictures belong to a book, so the recognized receipt image is uploaded again to the newly selected book
+    const reattachRecognizedPicture = !!recognizedPictureFile && isPictureAttached(transaction.value, recognizedPictureId);
+
     loading.value = true;
 
     // a saved transaction keeps the items with the same names in the other book
@@ -1065,6 +1075,10 @@ function onEntryBookChanged(bookId: string): void {
 
         loadMerchantNames().catch(error => logger.warn('failed to load merchants', error));
         loading.value = false;
+
+        if (reattachRecognizedPicture && recognizedPictureFile) {
+            uploadPicture(recognizedPictureFile, true);
+        }
     }).catch(error => {
         loading.value = false;
 
@@ -1439,7 +1453,7 @@ function showOpenPictureDialog(): void {
     pictureInput.value?.click();
 }
 
-function uploadPicture(file: File): void {
+function uploadPicture(file: File, isRecognizedPicture?: boolean): void {
     if (!file) {
         return;
     }
@@ -1453,6 +1467,11 @@ function uploadPicture(file: File): void {
         });
     }).then(response => {
         transaction.value.addPicture(response);
+
+        if (isRecognizedPicture) {
+            recognizedPictureId = response.pictureId;
+        }
+
         uploadingPicture.value = false;
         submitting.value = false;
     }).catch(error => {

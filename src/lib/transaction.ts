@@ -6,6 +6,7 @@ import { TransactionTag } from '@/models/transaction_tag.ts';
 import { TransactionPicture, type TransactionPictureInfoBasicResponse } from '@/models/transaction_picture_info.ts';
 import { Transaction } from '@/models/transaction.ts';
 import { NO_PROJECT_ID } from '@/models/project.ts';
+import type { RecognizedTransactionResponse } from '@/models/large_language_model.ts';
 
 import {
     isDefined,
@@ -32,6 +33,82 @@ export interface SetTransactionOptions {
     tagIds?: string;
     comment?: string;
     merchant?: string;
+}
+
+// the options to fill a new transaction with what ai recognition found
+export function getSetTransactionOptionsFromRecognizedResponse(response: RecognizedTransactionResponse): SetTransactionOptions {
+    return {
+        type: response.type,
+        time: response.time,
+        categoryId: response.categoryId,
+        accountId: response.sourceAccountId,
+        destinationAccountId: response.destinationAccountId,
+        amount: response.sourceAmount,
+        destinationAmount: response.destinationAmount,
+        tagIds: response.tagIds ? response.tagIds.join(',') : undefined,
+        comment: response.comment,
+        merchant: response.merchant
+    };
+}
+
+// the query parameters of the mobile add transaction page for what ai recognition found
+export function getRecognizedTransactionQueryParams(response: RecognizedTransactionResponse): string[] {
+    const params: string[] = [];
+
+    if (response.type) {
+        params.push(`type=${response.type}`);
+    }
+
+    if (response.time) {
+        params.push(`time=${response.time}`);
+    }
+
+    if (response.categoryId) {
+        params.push(`categoryId=${response.categoryId}`);
+    }
+
+    if (response.sourceAccountId) {
+        params.push(`accountId=${response.sourceAccountId}`);
+    }
+
+    if (response.destinationAccountId) {
+        params.push(`destinationAccountId=${response.destinationAccountId}`);
+    }
+
+    if (response.sourceAmount) {
+        params.push(`amount=${response.sourceAmount}`);
+    }
+
+    if (response.destinationAmount) {
+        params.push(`destinationAmount=${response.destinationAmount}`);
+    }
+
+    if (response.tagIds && response.tagIds.length) {
+        params.push(`tagIds=${response.tagIds.join(',')}`);
+    }
+
+    if (response.comment) {
+        params.push(`comment=${encodeURIComponent(response.comment)}`);
+    }
+
+    if (response.merchant) {
+        params.push(`merchant=${encodeURIComponent(response.merchant)}`);
+    }
+
+    return params;
+}
+
+// the recognized image is attached to the new transaction only when the server accepts transaction pictures
+export function shouldAttachRecognizedImageAsPicture(transactionPicturesEnabled: boolean, autoUploadRecognizedImage: boolean): boolean {
+    return transactionPicturesEnabled && autoUploadRecognizedImage;
+}
+
+export function isPictureAttached(transaction: Transaction, pictureId: string | null | undefined): boolean {
+    if (!pictureId || !transaction.pictures) {
+        return false;
+    }
+
+    return transaction.pictures.some(picture => picture.pictureId === pictureId);
 }
 
 export function* allTransactionPictures(transactions: Transaction[]): Iterable<[Transaction, TransactionPictureInfoBasicResponse]> {
