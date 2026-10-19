@@ -137,7 +137,8 @@ export function useUserProfilePageBase() {
             newProfile.value.digitGrouping === oldProfile.value.digitGrouping &&
             newProfile.value.coordinateDisplayType === oldProfile.value.coordinateDisplayType &&
             newProfile.value.expenseAmountColor === oldProfile.value.expenseAmountColor &&
-            newProfile.value.incomeAmountColor === oldProfile.value.incomeAmountColor) {
+            newProfile.value.incomeAmountColor === oldProfile.value.incomeAmountColor &&
+            newProfile.value.budgetAlertEmail === oldProfile.value.budgetAlertEmail) {
             return 'Nothing has been modified';
         } else if (!newProfile.value.password && newProfile.value.confirmPassword) {
             return 'Password cannot be blank';

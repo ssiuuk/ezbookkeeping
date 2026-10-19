@@ -469,6 +469,10 @@ func startWebServer(c *core.CliContext) error {
 			apiV1Route.POST("/transaction/categories/move.json", bindApi(api.TransactionCategories.CategoryMoveHandler, config))
 			apiV1Route.POST("/transaction/categories/delete.json", bindApi(api.TransactionCategories.CategoryDeleteHandler, config))
 
+			// Budget Alerts
+			apiV1Route.GET("/budgets/alerts/list.json", bindApi(api.BudgetAlerts.BudgetAlertListHandler, config))
+			apiV1Route.POST("/budgets/alerts/dismiss.json", bindApi(api.BudgetAlerts.BudgetAlertDismissHandler, config))
+
 			// Projects
 			apiV1Route.GET("/projects/list.json", bindApi(api.Projects.ProjectListHandler, config))
 			apiV1Route.GET("/projects/get.json", bindApi(api.Projects.ProjectGetHandler, config))

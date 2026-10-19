@@ -162,6 +162,30 @@
                 </list-item-selection-popup>
             </f7-list-item>
 
+            <f7-list-item
+                link="#"
+                class="list-item-with-header-and-title list-item-no-item-after"
+                popover-open=".budget-alert-email-popover-menu"
+                :header="tt('Budget Alert Emails')"
+                :title="getEnableDisableOption(newProfile.budgetAlertEmail)"
+                v-if="isBudgetAlertEmailEnabled()"
+            >
+                <f7-popover class="budget-alert-email-popover-menu">
+                    <f7-list dividers>
+                        <f7-list-item link="#" no-chevron popover-close
+                                      :title="option.displayName"
+                                      :class="{ 'list-item-selected': newProfile.budgetAlertEmail === option.value }"
+                                      :key="option.value"
+                                      v-for="option in enableDisableOptions"
+                                      @click="newProfile.budgetAlertEmail = option.value">
+                            <template #after>
+                                <f7-icon class="list-item-checked-icon" f7="checkmark_alt" v-if="newProfile.budgetAlertEmail === option.value"></f7-icon>
+                            </template>
+                        </f7-list-item>
+                    </f7-list>
+                </f7-popover>
+            </f7-list-item>
+
             <f7-list-item class="ebk-list-item-error-info" v-if="extendInputIsInvalid" :footer="tt(extendInputInvalidProblemMessage || '')"></f7-list-item>
         </f7-list>
 
@@ -602,7 +626,7 @@ import type { UserProfileResponse } from '@/models/user.ts';
 import { Account } from '@/models/account.ts';
 
 import { findDisplayNameByType } from '@/lib/common.ts';
-import { isUserVerifyEmailEnabled } from '@/lib/server_settings.ts';
+import { isUserVerifyEmailEnabled, isBudgetAlertEmailEnabled } from '@/lib/server_settings.ts';
 
 const props = defineProps<{
     f7router: Router.Router;

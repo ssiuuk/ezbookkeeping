@@ -1393,7 +1393,8 @@
         "project name is empty": "Project name is empty",
         "project name already exists": "Project name already exists",
         "cannot use hidden project": "Cannot use hidden project",
-        "balance modification transaction cannot set project": "Balance modification transaction cannot set project"
+        "balance modification transaction cannot set project": "Balance modification transaction cannot set project",
+        "budget alert id is invalid": "Budget alert ID is invalid"
     },
     "parameter": {
         "id": "ID",
@@ -1989,6 +1990,13 @@
     "The transaction has been saved, but the changes could not be applied to its scheduled transaction": "The transaction has been saved, but the changes could not be applied to its scheduled transaction",
     "You have saved this transaction and its scheduled transaction": "You have saved this transaction and its scheduled transaction",
     "You have moved this template to the selected book": "You have moved this template to the selected book",
+    "Budget Alert Emails": "Budget Alert Emails",
+    "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})": "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})",
+    "{category}: the budget for {period} has been exceeded ({spent} of {budget})": "{category}: the budget for {period} has been exceeded ({spent} of {budget})",
+    "Dismiss": "Dismiss",
+    "Dismiss All": "Dismiss All",
+    "Unable to retrieve budget alerts": "Unable to retrieve budget alerts",
+    "Unable to dismiss budget alerts": "Unable to dismiss budget alerts",
     "My Book": "My Book",
     "Switch Book": "Switch Book",
     "Shared Books": "Shared Books",

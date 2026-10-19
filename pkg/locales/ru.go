@@ -30,4 +30,12 @@ var ru = &LocaleTextItems{
 		ResetPassword:             "Сбросить пароль",
 		DescriptionBelowBtnFormat: "Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо. Если вы не можете нажать на ссылку выше, скопируйте указанный выше URL и вставьте его в браузер. Ссылка для сброса пароля истечет через %v минут.",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "Budget Alert",
+		SalutationFormat:          "Hi %s,",
+		WarningDescriptionFormat:  "The spending of \"%s\" in %s has reached %d%% of its budget, %s of %s has been spent.",
+		ExceededDescriptionFormat: "The spending of \"%s\" in %s has exceeded its budget, %s of %s has been spent.",
+		ViewBudgets:               "View Budgets",
+		DisableEmailDescription:   "You can turn off budget alert emails in user settings.",
+	},
 }

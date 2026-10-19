@@ -37,6 +37,7 @@ export class User {
     public coordinateDisplayType: number = EMPTY_USER_BASIC_INFO.coordinateDisplayType;
     public expenseAmountColor: number = EMPTY_USER_BASIC_INFO.expenseAmountColor;
     public incomeAmountColor: number = EMPTY_USER_BASIC_INFO.incomeAmountColor;
+    public budgetAlertEmail: boolean = EMPTY_USER_BASIC_INFO.budgetAlertEmail ?? true;
 
     private constructor(language: string, defaultCurrency: string, firstDayOfWeek: number) {
         this.language = language;
@@ -70,6 +71,7 @@ export class User {
         this.coordinateDisplayType = user.coordinateDisplayType;
         this.expenseAmountColor = user.expenseAmountColor;
         this.incomeAmountColor = user.incomeAmountColor;
+        this.budgetAlertEmail = user.budgetAlertEmail ?? true;
     }
 
     public toRegisterRequest(categories?: LocalizedPresetCategory[]): UserRegisterRequest {
@@ -112,7 +114,8 @@ export class User {
             digitGrouping: this.digitGrouping,
             coordinateDisplayType: this.coordinateDisplayType,
             expenseAmountColor: this.expenseAmountColor,
-            incomeAmountColor: this.incomeAmountColor
+            incomeAmountColor: this.incomeAmountColor,
+            budgetAlertEmail: this.budgetAlertEmail
         };
     }
 
@@ -137,6 +140,7 @@ export class User {
         user.coordinateDisplayType = userInfo.coordinateDisplayType;
         user.expenseAmountColor = userInfo.expenseAmountColor;
         user.incomeAmountColor = userInfo.incomeAmountColor;
+        user.budgetAlertEmail = userInfo.budgetAlertEmail ?? true;
 
         return user;
     }
@@ -174,6 +178,7 @@ export interface UserBasicInfo {
     readonly coordinateDisplayType: number;
     readonly expenseAmountColor: number;
     readonly incomeAmountColor: number;
+    readonly budgetAlertEmail?: boolean;
     readonly emailVerified: boolean;
 }
 
@@ -231,6 +236,7 @@ export interface UserProfileUpdateRequest {
     readonly coordinateDisplayType?: number;
     readonly expenseAmountColor?: number;
     readonly incomeAmountColor?: number;
+    readonly budgetAlertEmail?: boolean;
 }
 
 export interface UserProfileUpdateResponse {
@@ -271,5 +277,6 @@ export const EMPTY_USER_BASIC_INFO: UserBasicInfo = {
     coordinateDisplayType: CoordinateDisplayType.Default.type,
     expenseAmountColor: PresetAmountColor.DefaultExpenseColor.type,
     incomeAmountColor: PresetAmountColor.DefaultIncomeColor.type,
+    budgetAlertEmail: true,
     emailVerified: false
 }

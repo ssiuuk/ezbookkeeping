@@ -30,4 +30,12 @@ var ro = &LocaleTextItems{
 		ResetPassword:             "Resetare Parolă",
 		DescriptionBelowBtnFormat: "Dacă nu ați solicitat resetarea parolei, ignorați acest email. Dacă nu puteți accesa linkul de mai sus, copiați adresa URL și inserați-o în browser. Linkul de resetare va expira după %v minute.",
 	},
+	BudgetAlertMailTextItems: &BudgetAlertMailTextItems{
+		Title:                     "Budget Alert",
+		SalutationFormat:          "Hi %s,",
+		WarningDescriptionFormat:  "The spending of \"%s\" in %s has reached %d%% of its budget, %s of %s has been spent.",
+		ExceededDescriptionFormat: "The spending of \"%s\" in %s has exceeded its budget, %s of %s has been spent.",
+		ViewBudgets:               "View Budgets",
+		DisableEmailDescription:   "You can turn off budget alert emails in user settings.",
+	},
 }

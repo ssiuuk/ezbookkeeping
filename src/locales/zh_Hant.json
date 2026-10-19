@@ -1393,7 +1393,8 @@
         "project name is empty": "專案名稱不能為空",
         "project name already exists": "專案名稱已經存在",
         "cannot use hidden project": "不能使用隱藏的專案",
-        "balance modification transaction cannot set project": "餘額修改交易不能設定專案"
+        "balance modification transaction cannot set project": "餘額修改交易不能設定專案",
+        "budget alert id is invalid": "預算提醒ID無效"
     },
     "parameter": {
         "id": "ID",
@@ -1989,6 +1990,13 @@
     "The transaction has been saved, but the changes could not be applied to its scheduled transaction": "交易已儲存，但修改未能套用到其定期交易",
     "You have saved this transaction and its scheduled transaction": "您已儲存此交易及其定期交易",
     "You have moved this template to the selected book": "您已將此範本移動到所選帳本",
+    "Budget Alert Emails": "預算提醒郵件",
+    "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})": "{category}：{period} 已花費預算的 {percent}%（{spent} / {budget}）",
+    "{category}: the budget for {period} has been exceeded ({spent} of {budget})": "{category}：{period} 的預算已超支（{spent} / {budget}）",
+    "Dismiss": "忽略",
+    "Dismiss All": "全部忽略",
+    "Unable to retrieve budget alerts": "無法取得預算提醒",
+    "Unable to dismiss budget alerts": "無法忽略預算提醒",
     "My Book": "我的帳本",
     "Switch Book": "切換帳本",
     "Shared Books": "共享帳本",

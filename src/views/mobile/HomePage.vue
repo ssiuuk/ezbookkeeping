@@ -10,6 +10,7 @@
             </f7-nav-right>
         </f7-navbar>
 
+        <budget-alert-notice ref="budgetAlertNotice" v-if="isUserLogined() && isUserUnlocked()" />
         <overview-dashboard :layout="layout" :loading="loading" @navigate="onNavigate" />
 
         <f7-toolbar tabbar icons bottom class="main-tabbar">
@@ -75,6 +76,7 @@
 
 <script setup lang="ts">
 import AIImageRecognitionSheet, { type AIImageRecognitionResult } from '@/components/mobile/AIImageRecognitionSheet.vue';
+import BudgetAlertNotice from '@/components/mobile/BudgetAlertNotice.vue';
 import OverviewDashboard from './overview/OverviewDashboard.vue';
 
 import { ref, computed, useTemplateRef } from 'vue';
@@ -120,6 +122,7 @@ import {
 import logger from '@/lib/logger.ts';
 
 type AIImageRecognitionSheetType = InstanceType<typeof AIImageRecognitionSheet>;
+type BudgetAlertNoticeType = InstanceType<typeof BudgetAlertNotice>;
 
 const props = defineProps<{
     f7router: Router.Router;
@@ -135,6 +138,7 @@ const transactionTemplatesStore = useTransactionTemplatesStore();
 const overviewStore = useOverviewStore();
 
 const aiImageRecognitionSheet = useTemplateRef<AIImageRecognitionSheetType>('aiImageRecognitionSheet');
+const budgetAlertNotice = useTemplateRef<BudgetAlertNoticeType>('budgetAlertNotice');
 
 const loading = ref<boolean>(true);
 const showTransactionTemplatePopover = ref<boolean>(false);
@@ -194,6 +198,8 @@ function init(): void {
 function reload(done?: () => void): void {
     const force = !!done;
     const promises: Promise<unknown>[] = reloadOverviewData(force);
+
+    budgetAlertNotice.value?.reload();
 
     if (promises.length < 1) {
         done?.();
