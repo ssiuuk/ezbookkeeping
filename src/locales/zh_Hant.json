@@ -2017,6 +2017,7 @@
     "Unable to retrieve settlement list": "無法取得結算列表",
     "Unable to record settlement": "無法記錄結算",
     "Unable to delete settlement": "無法刪除結算",
+    "You have moved this transaction to the selected book": "您已將此交易移動到所選帳本",
     "My Book": "我的帳本",
     "Switch Book": "切換帳本",
     "Shared Books": "共享帳本",
