@@ -25,6 +25,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Check the tag matches the version in package.json
+        run: |
+          VERSION="$(grep '"version": ' package.json | head -n 1 | awk -F ':' '{print $2}' | tr -d ' ,"')"
+          if [ "${{ github.ref_name }}" != "v${VERSION}" ]; then
+            echo "::error::Tag ${{ github.ref_name }} does not match version ${VERSION} in package.json, which the app shows. Bump the version in package.json first, or tag v${VERSION}."
+            exit 1
+          fi
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v6
