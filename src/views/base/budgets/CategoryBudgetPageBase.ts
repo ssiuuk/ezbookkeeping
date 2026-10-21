@@ -192,6 +192,11 @@ export function useCategoryBudgetPageBase() {
     function startEditing(): void {
         const result: Record<string, number> = {};
 
+        // every category needs a number, the amount input cannot show an empty value
+        for (const category of primaryExpenseCategories.value) {
+            result[category.id] = 0;
+        }
+
         for (const [categoryId, budget] of Object.entries(budgets.value)) {
             result[categoryId] = budget.amount;
         }
