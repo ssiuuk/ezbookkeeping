@@ -16,6 +16,42 @@ ezBookkeeping offers tailored interfaces for mobile and desktop devices. With PW
 
 Live Demo: [https://ezbookkeeping-demo.mayswind.net](https://ezbookkeeping-demo.mayswind.net)
 
+## About This Fork
+This is a fork of [mayswind/ezbookkeeping](https://github.com/mayswind/ezbookkeeping) for family bookkeeping. It keeps up with upstream and adds the features below. Its releases and Docker image are separate from upstream's (see [Installation](#installation)).
+
+### Added in This Fork
+- **Family Books**
+    - Shared books besides your personal book, with members you invite by username
+    - Members share their own accounts into a family book; totals count them, and a departed member's account keeps its history
+    - Each entry records who created it; choose the book when adding an entry
+    - Move a saved entry to another book (web, mobile and API), and move scheduled entries between books
+    - Household report across all your books
+    - Settle up: who owes whom in a family book (expenses split equally, the payer is the owner of the paying account), with "Mark as Settled"
+    - Export and import inside a family book
+- **Budgets**
+    - Monthly budgets per expense category, with a budget vs actual page; budgets keep the currency they were entered in
+    - Budget alerts at 80% and 100% of a category budget, shown in the app and optionally emailed (each member can turn the email off)
+    - Optional monthly budget on the "This Month's Expense Progress" overview widget, with a daily allowance and month-end estimate
+- **Entries**
+    - Merchant field on entries, merchant suggestions and a merchant report; merchants carry through import, export and AI recognition
+    - Projects to group entries across categories, with a project report
+    - Secondary categories can be added while editing an entry
+    - Receipt photos fill in the merchant, a category and an account from the current book, and attach the photo
+    - Repeat every N weeks, months or years; schedule dates beyond next year
+- **Backups (SQLite)**
+    - Nightly backup at 3:00, keeping 30 by default (`[cron] enable_database_backup`, `database_backup_keep_count`)
+    - Optional copy of each backup to another folder or to the configured object storage (`database_backup_copy_path`, `database_backup_copy_to_storage`)
+    - Command line: `ezbookkeeping database backup`, `database backup list` and `database restore --file <backup>`, which saves an undo copy first
+- **Android App**
+    - A native Android app lives in [ssiuuk/ezbookkeeping-android](https://github.com/ssiuuk/ezbookkeeping-android) and connects to your own server. It can also pick up Google Wallet purchases into a "To review" list. Download the APK from its [releases](https://github.com/ssiuuk/ezbookkeeping-android/releases).
+
+### Upgrading
+New features add database tables and columns. The server adds them when it starts, unless `auto_update_database` is set to `false` in the `[database]` section; in that case run this once after upgrading:
+
+    $ ./ezbookkeeping database update
+
+The sections below are upstream's README, with the install links pointing to this fork.
+
 ## Features
 - **Open Source & Self-Hosted**
     - Built for privacy and control
@@ -67,20 +103,22 @@ For a full list of features, visit the [Full Feature List](https://ezbookkeeping
 
 ## Installation
 ### Run with Docker
-Visit [Docker Hub](https://hub.docker.com/r/mayswind/ezbookkeeping) to see all images and tags.
+This fork's image is [ssiu/ezbookkeeping](https://hub.docker.com/r/ssiu/ezbookkeeping) on Docker Hub.
 
 **Latest Release:**
 
-    $ docker run -p8080:8080 mayswind/ezbookkeeping
+    $ docker run -p8080:8080 ssiu/ezbookkeeping
 
 **Latest Daily Build:**
 
-    $ docker run -p8080:8080 mayswind/ezbookkeeping:latest-snapshot
+    $ docker run -p8080:8080 ssiu/ezbookkeeping:latest-snapshot
+
+Upstream's images are [mayswind/ezbookkeeping](https://hub.docker.com/r/mayswind/ezbookkeeping), without this fork's features.
 
 For production use of ezBookkeeping, you need to mount a persistent volume when starting the container to prevent data loss. For more information, see [documentation](https://ezbookkeeping.mayswind.net/installation/installation-docker).
 
 ### Install from Binary
-Download the latest release: [https://github.com/mayswind/ezbookkeeping/releases](https://github.com/mayswind/ezbookkeeping/releases)
+Download the latest release: [https://github.com/ssiuuk/ezbookkeeping/releases](https://github.com/ssiuuk/ezbookkeeping/releases)
 
 **Linux / macOS**
 
