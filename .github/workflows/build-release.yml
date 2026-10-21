@@ -25,11 +25,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Check the tag matches the version in package.json
+      - name: Check the tag is a version
         run: |
-          VERSION="$(grep '"version": ' package.json | head -n 1 | awk -F ':' '{print $2}' | tr -d ' ,"')"
-          if [ "${{ github.ref_name }}" != "v${VERSION}" ]; then
-            echo "::error::Tag ${{ github.ref_name }} does not match version ${VERSION} in package.json, which the app shows. Bump the version in package.json first, or tag v${VERSION}."
+          if ! echo "${{ github.ref_name }}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Tag ${{ github.ref_name }} is not in the form vX.Y.Z"
             exit 1
           fi
 
@@ -76,6 +75,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Set the version in package.json from the tag
+        shell: bash
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+
       - uses: ./.github/actions/build-linux-docker-and-package
         with:
           release-build: 1
@@ -112,6 +115,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Set the version in package.json from the tag
+        shell: bash
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
 
       - uses: ./.github/actions/build-linux-docker-and-package
         with:
@@ -163,6 +170,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Set the version in package.json from the tag
+        shell: bash
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+
       - uses: ./.github/actions/build-windows-backend
         with:
           release-build: 1
@@ -179,6 +190,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Set the version in package.json from the tag
+        shell: bash
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
 
       - uses: ./.github/actions/build-macos-backend
         with:
@@ -197,6 +212,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Set the version in package.json from the tag
+        shell: bash
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
 
       - uses: ./.github/actions/build-freebsd-backend
         with:
