@@ -934,6 +934,16 @@ export interface TransactionMerchantStatisticResponseItem {
     readonly count: number;
 }
 
+export interface TransactionMerchantLastUsedRequest {
+    readonly merchant: string;
+    readonly type: number;
+}
+
+export interface TransactionMerchantLastUsedResponse {
+    readonly categoryId: string;
+    readonly accountId: string;
+}
+
 export interface TransactionStatisticTrendsResponseItem {
     readonly year: number;
     readonly month: number; // 1-based (1 = January, 12 = December)

@@ -137,6 +137,9 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
 
     const transaction = ref<Transaction | TransactionTemplate>(createNewTransactionModel(transactionDefaultType));
     const allMerchantNames = ref<string[]>([]);
+    // an account chosen by hand (or given when the page opened) is never replaced by a shop's last account
+    const sourceAccountPicked = ref<boolean>(false);
+    let merchantAccountRequestId = 0;
 
     // pictures saved with the edited transaction stay in its book until it is saved in another book
     const savedPictureIds = ref<Record<string, boolean>>({});
@@ -517,6 +520,47 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         });
     }
 
+    function onSourceAccountPicked(): void {
+        sourceAccountPicked.value = true;
+    }
+
+    // on a new transaction, choosing a shop picks the account last used there, like the Android app does
+    function applyMerchantLastAccount(merchant: string): void {
+        const currentTransaction = transaction.value;
+
+        if (type !== TransactionEditPageType.Transaction || mode.value !== TransactionEditPageMode.Add || sourceAccountPicked.value) {
+            return;
+        }
+
+        if (currentTransaction.type !== TransactionType.Expense && currentTransaction.type !== TransactionType.Income) {
+            return;
+        }
+
+        const name = merchant.trim().toLowerCase();
+        const knownMerchant = name ? allMerchantNames.value.find(item => item.toLowerCase() === name) : undefined;
+
+        if (!knownMerchant) {
+            return;
+        }
+
+        const requestId = ++merchantAccountRequestId;
+        const transactionType = currentTransaction.type;
+
+        services.getTransactionMerchantLastUsed({ merchant: knownMerchant, type: transactionType }).then(response => {
+            const accountId = response.data?.result?.accountId;
+
+            if (requestId !== merchantAccountRequestId || sourceAccountPicked.value || transaction.value.type !== transactionType || !accountId || accountId === '0') {
+                return;
+            }
+
+            if (allVisibleAccounts.value.some(account => account.id === accountId)) {
+                transaction.value.sourceAccountId = accountId;
+            }
+        }).catch(() => {
+            // the shop's account is only a convenience, so a failed lookup leaves the account as it is
+        });
+    }
+
     function resetTransactionBookRelatedFields(): void {
         const currentTransaction = transaction.value;
 
@@ -528,6 +572,7 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         currentTransaction.tagIds = [];
         currentTransaction.projectId = NO_PROJECT_ID;
         currentTransaction.clearPictures();
+        sourceAccountPicked.value = false;
 
         setTransactionModel(null, { type: currentTransaction.type }, false);
     }
@@ -747,6 +792,7 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         setGeoLocationByClickMap,
         transaction,
         allMerchantNames,
+        sourceAccountPicked,
         // computed states
         numeralSystem,
         currentTimezoneOffsetMinutes,
@@ -794,6 +840,8 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         createNewTransactionModel,
         setTransactionModel,
         loadMerchantNames,
+        onSourceAccountPicked,
+        applyMerchantLastAccount,
         resetTransactionBookRelatedFields,
         setSavedTransactionPictures,
         getTransactionBookRelatedItems,

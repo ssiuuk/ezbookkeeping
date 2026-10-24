@@ -2600,6 +2600,29 @@ func (s *TransactionService) GetRecentMerchants(c core.Context, uid int64, count
 	return result, nil
 }
 
+// GetLatestTransactionOfMerchant returns the latest income or expense transaction of a merchant, or nil if there is none
+func (s *TransactionService) GetLatestTransactionOfMerchant(c core.Context, uid int64, merchant string, transactionType models.TransactionDbType) (*models.Transaction, error) {
+	if uid <= 0 {
+		return nil, errs.ErrUserIdInvalid
+	}
+
+	transaction := &models.Transaction{}
+	has, err := s.UserDataDB(uid).NewSession(c).
+		Cols("transaction_id", "category_id", "account_id", "transaction_time").
+		Where("uid=? AND deleted=? AND type=? AND merchant=?", uid, false, transactionType, merchant).
+		OrderBy("transaction_time desc").
+		Limit(1).
+		Get(transaction)
+
+	if err != nil {
+		return nil, err
+	} else if !has {
+		return nil, nil
+	}
+
+	return transaction, nil
+}
+
 // GetMerchantsTotalIncomeAndExpense returns the total income and expense amounts and transaction counts of every merchant in every account by specific date range
 func (s *TransactionService) GetMerchantsTotalIncomeAndExpense(c core.Context, uid int64, startUnixTime int64, endUnixTime int64) ([]*models.TransactionMerchantTotalAmount, error) {
 	if uid <= 0 {

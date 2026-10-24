@@ -34,6 +34,7 @@ This is a fork of [mayswind/ezbookkeeping](https://github.com/mayswind/ezbookkee
     - Optional monthly budget on the "This Month's Expense Progress" overview widget, with a daily allowance and month-end estimate
 - **Entries**
     - Merchant field on entries, merchant suggestions and a merchant report; merchants carry through import, export and AI recognition
+    - Choosing a shop on a new entry picks the account last used there, unless an account was already chosen
     - Projects to group entries across categories, with a project report
     - Secondary categories can be added while editing an entry
     - Receipt photos fill in the merchant, a category and an account from the current book, and attach the photo

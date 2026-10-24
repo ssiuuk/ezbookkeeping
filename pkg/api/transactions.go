@@ -690,6 +690,40 @@ func (a *TransactionsApi) TransactionMerchantListHandler(c *core.WebContext) (an
 	return merchants, nil
 }
 
+// TransactionMerchantLastUsedHandler returns the category and account of the latest transaction of a merchant in current book
+func (a *TransactionsApi) TransactionMerchantLastUsedHandler(c *core.WebContext) (any, *errs.Error) {
+	var lastUsedReq models.TransactionMerchantLastUsedRequest
+	err := c.ShouldBindQuery(&lastUsedReq)
+
+	if err != nil {
+		log.Warnf(c, "[transactions.TransactionMerchantLastUsedHandler] parse request failed, because %s", err.Error())
+		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
+	}
+
+	transactionDbType, err := lastUsedReq.Type.ToTransactionDbType()
+
+	if err != nil {
+		return nil, errs.ErrTransactionTypeInvalid
+	}
+
+	uid := c.GetCurrentBookUid()
+	transaction, err := a.transactions.GetLatestTransactionOfMerchant(c, uid, strings.TrimSpace(lastUsedReq.Merchant), transactionDbType)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionMerchantLastUsedHandler] failed to get latest transaction of merchant for user \"uid:%d\", because %s", uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	if transaction == nil {
+		return &models.TransactionMerchantLastUsedResponse{}, nil
+	}
+
+	return &models.TransactionMerchantLastUsedResponse{
+		CategoryId: transaction.CategoryId,
+		AccountId:  transaction.AccountId,
+	}, nil
+}
+
 // TransactionMerchantStatisticsHandler returns the income and expense amounts of every merchant of current book
 func (a *TransactionsApi) TransactionMerchantStatisticsHandler(c *core.WebContext) (any, *errs.Error) {
 	var statisticReq models.TransactionMerchantStatisticRequest

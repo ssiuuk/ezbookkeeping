@@ -253,7 +253,8 @@
                                                                    :label="tt(sourceAccountTitle)"
                                                                    :placeholder="tt(sourceAccountTitle)"
                                                                    :items="allVisibleCategorizedAccounts"
-                                                                   v-model="transaction.sourceAccountId">
+                                                                   v-model="transaction.sourceAccountId"
+                                                                   @update:model-value="onSourceAccountPicked">
                                                 </two-column-select>
                                             </div>
                                         </template>
@@ -706,6 +707,7 @@ const {
     setGeoLocationByClickMap,
     transaction,
     allMerchantNames,
+    sourceAccountPicked,
     defaultCurrency,
     showProjectField,
     showMerchantField,
@@ -740,6 +742,8 @@ const {
     createNewTransactionModel,
     setTransactionModel,
     loadMerchantNames,
+    onSourceAccountPicked,
+    applyMerchantLastAccount,
     resetTransactionBookRelatedFields,
     setSavedTransactionPictures,
     getTransactionBookRelatedItems,
@@ -878,6 +882,8 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
     noTransactionDraft.value = options.noTransactionDraft || false;
 
     initOptions.value = options;
+    // an account given by the caller (such as an account's transaction list) stays when a shop is chosen
+    sourceAccountPicked.value = !!options.accountId;
     initEntryBook();
     resetRepeat();
     setSavedTransactionPictures(null);
@@ -1049,6 +1055,7 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
 
 function updateMerchant(value: string | null): void {
     transaction.value.merchant = value ?? '';
+    applyMerchantLastAccount(transaction.value.merchant);
 }
 
 function onEntryBookChanged(bookId: string): void {
