@@ -57,6 +57,7 @@ import {
 
 import { type BookItemReference, findSameBookItemId, findSameBookItemIds } from '@/lib/book_item.ts';
 import { handleApiResponse } from '@/lib/api.ts';
+import { MerchantAccountLookup } from '@/lib/merchant_account.ts';
 import services from '@/lib/services.ts';
 
 export enum TransactionEditPageType {
@@ -139,7 +140,9 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
     const allMerchantNames = ref<string[]>([]);
     // an account chosen by hand (or given when the page opened) is never replaced by a shop's last account
     const sourceAccountPicked = ref<boolean>(false);
-    let merchantAccountRequestId = 0;
+    const merchantAccountLookup = new MerchantAccountLookup(merchant => {
+        return services.getTransactionMerchantLastUsed({ merchant: merchant, type: transaction.value.type }).then(response => response.data?.result?.accountId);
+    });
 
     // pictures saved with the edited transaction stay in its book until it is saved in another book
     const savedPictureIds = ref<Record<string, boolean>>({});
@@ -527,38 +530,31 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
     // on a new transaction, choosing a shop picks the account last used there, like the Android app does
     function applyMerchantLastAccount(merchant: string): void {
         const currentTransaction = transaction.value;
-
-        if (type !== TransactionEditPageType.Transaction || mode.value !== TransactionEditPageMode.Add || sourceAccountPicked.value) {
-            return;
-        }
-
-        if (currentTransaction.type !== TransactionType.Expense && currentTransaction.type !== TransactionType.Income) {
-            return;
-        }
-
-        const name = merchant.trim().toLowerCase();
-        const knownMerchant = name ? allMerchantNames.value.find(item => item.toLowerCase() === name) : undefined;
-
-        if (!knownMerchant) {
-            return;
-        }
-
-        const requestId = ++merchantAccountRequestId;
         const transactionType = currentTransaction.type;
+        const isNewIncomeOrExpense = (): boolean => type === TransactionEditPageType.Transaction && mode.value === TransactionEditPageMode.Add && !sourceAccountPicked.value
+            && (transactionType === TransactionType.Expense || transactionType === TransactionType.Income);
 
-        services.getTransactionMerchantLastUsed({ merchant: knownMerchant, type: transactionType }).then(response => {
-            const accountId = response.data?.result?.accountId;
+        if (!isNewIncomeOrExpense()) {
+            merchantAccountLookup.cancel();
+            return;
+        }
 
-            if (requestId !== merchantAccountRequestId || sourceAccountPicked.value || transaction.value.type !== transactionType || !accountId || accountId === '0') {
-                return;
+        merchantAccountLookup.lookup({
+            merchant: merchant,
+            knownMerchants: allMerchantNames.value,
+            currentMerchant: () => transaction.value.merchant ?? '',
+            isStillCurrent: () => transaction.value === currentTransaction && transaction.value.type === transactionType && isNewIncomeOrExpense(),
+            apply: accountId => {
+                if (allVisibleAccounts.value.some(account => account.id === accountId)) {
+                    transaction.value.sourceAccountId = accountId;
+                }
             }
-
-            if (allVisibleAccounts.value.some(account => account.id === accountId)) {
-                transaction.value.sourceAccountId = accountId;
-            }
-        }).catch(() => {
-            // the shop's account is only a convenience, so a failed lookup leaves the account as it is
         });
+    }
+
+    // an answer still on its way must not reach an editor that was reset or opened for another entry
+    function cancelMerchantLastAccount(): void {
+        merchantAccountLookup.cancel();
     }
 
     function resetTransactionBookRelatedFields(): void {
@@ -573,6 +569,7 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         currentTransaction.projectId = NO_PROJECT_ID;
         currentTransaction.clearPictures();
         sourceAccountPicked.value = false;
+        merchantAccountLookup.cancel();
 
         setTransactionModel(null, { type: currentTransaction.type }, false);
     }
@@ -842,6 +839,7 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         loadMerchantNames,
         onSourceAccountPicked,
         applyMerchantLastAccount,
+        cancelMerchantLastAccount,
         resetTransactionBookRelatedFields,
         setSavedTransactionPictures,
         getTransactionBookRelatedItems,

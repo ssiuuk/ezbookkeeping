@@ -744,6 +744,7 @@ const {
     loadMerchantNames,
     onSourceAccountPicked,
     applyMerchantLastAccount,
+    cancelMerchantLastAccount,
     resetTransactionBookRelatedFields,
     setSavedTransactionPictures,
     getTransactionBookRelatedItems,
@@ -884,6 +885,7 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
     initOptions.value = options;
     // an account given by the caller (such as an account's transaction list) stays when a shop is chosen
     sourceAccountPicked.value = !!options.accountId;
+    cancelMerchantLastAccount();
     initEntryBook();
     resetRepeat();
     setSavedTransactionPictures(null);
