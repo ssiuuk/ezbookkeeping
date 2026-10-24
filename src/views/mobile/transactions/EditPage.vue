@@ -231,7 +231,8 @@
                                                       :enable-filter="true" :filter-placeholder="tt('Find account')" :filter-no-items-text="tt('No available account')"
                                                       :items="allVisibleCategorizedAccounts"
                                                       v-model:show="showSourceAccountSheet"
-                                                      v-model="transaction.sourceAccountId">
+                                                      v-model="transaction.sourceAccountId"
+                                                      @update:model-value="onSourceAccountPicked">
                 </two-column-list-item-selection-sheet>
             </f7-list-item>
 
@@ -623,7 +624,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, useTemplateRef } from 'vue';
+import { ref, computed, useTemplateRef, watch } from 'vue';
 import type { PhotoBrowser, Router } from 'framework7/types';
 
 import type { TwoLevelItemAddEvent } from '@/components/base/TwoLevelItemSelectionBase.ts';
@@ -728,6 +729,7 @@ const {
     setGeoLocationByClickMap,
     transaction,
     allMerchantNames,
+    sourceAccountPicked,
     numeralSystem,
     currentTimezoneOffsetMinutes,
     defaultCurrency,
@@ -764,6 +766,8 @@ const {
     inputIsEmpty,
     setTransactionModel,
     loadMerchantNames,
+    onSourceAccountPicked,
+    applyMerchantLastAccount,
     resetTransactionBookRelatedFields,
     setSavedTransactionPictures,
     getTransactionBookRelatedItems,
@@ -1137,6 +1141,8 @@ function init(): void {
 
     // merchant names are only suggestions, so failing to load them should not block the page either
     loadMerchantNames().catch(error => logger.warn('failed to load merchants', error));
+    // an account given in the link (such as from an account's transaction list) stays when a shop is chosen
+    sourceAccountPicked.value = !!query['accountId'];
 
     if (pageTypeAndMode.type === TransactionEditPageType.Transaction) {
         if (query['id']) {
@@ -1824,6 +1830,12 @@ function onPageBeforeOut(page: Router.Page): void {
         transactionsStore.saveTransactionDraft(transaction.value, initAmount, query['categoryId'], query['accountId'], query['tagIds'], firstVisibleAccountId.value);
     }
 }
+
+watch(() => transaction.value.merchant, merchant => {
+    if (!loading.value) {
+        applyMerchantLastAccount(merchant ?? '');
+    }
+});
 
 init();
 </script>

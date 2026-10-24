@@ -95,6 +95,8 @@ import type {
     TransactionStatisticAssetTrendsResponseItem,
     TransactionMerchantStatisticRequest,
     TransactionMerchantStatisticResponse,
+    TransactionMerchantLastUsedRequest,
+    TransactionMerchantLastUsedResponse,
     TransactionAmountsRequestParams,
     TransactionAmountsResponse,
     TransactionDailyAmountsRequest,
@@ -714,6 +716,9 @@ export default {
     },
     getTransactionMerchants: (options?: BookRequestOptions): ApiResponsePromise<string[]> => {
         return axios.get<ApiResponse<string[]>>('v1/transactions/merchants/list.json', options ? { bookId: options.bookId } as ApiRequestConfig : undefined);
+    },
+    getTransactionMerchantLastUsed: (req: TransactionMerchantLastUsedRequest): ApiResponsePromise<TransactionMerchantLastUsedResponse> => {
+        return axios.get<ApiResponse<TransactionMerchantLastUsedResponse>>(`v1/transactions/merchants/last_used.json?merchant=${encodeURIComponent(req.merchant)}&type=${req.type}`);
     },
     getTransactionStatisticsTrends: (req: TransactionStatisticTrendsRequest): ApiResponsePromise<TransactionStatisticTrendsResponseItem[]> => {
         const queryParams: string[] = [];

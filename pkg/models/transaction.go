@@ -540,6 +540,18 @@ type TransactionMerchantStatisticRequest struct {
 	EndTime   int64 `form:"end_time" binding:"min=0"`
 }
 
+// TransactionMerchantLastUsedRequest represents all parameters of the request for the latest transaction of a merchant
+type TransactionMerchantLastUsedRequest struct {
+	Merchant string          `form:"merchant" binding:"required,notBlank,max=64"`
+	Type     TransactionType `form:"type" binding:"required,min=2,max=3"`
+}
+
+// TransactionMerchantLastUsedResponse represents the category and account of the latest transaction of a merchant
+type TransactionMerchantLastUsedResponse struct {
+	CategoryId int64 `json:"categoryId,string"`
+	AccountId  int64 `json:"accountId,string"`
+}
+
 // TransactionMerchantLastUsedTime represents a merchant name and the time of its latest transaction
 type TransactionMerchantLastUsedTime struct {
 	Merchant            string `xorm:"merchant"`
