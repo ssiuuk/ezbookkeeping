@@ -4,6 +4,15 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to build again, e.g. v2.4.0"
+        required: true
+        type: string
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   setup:
@@ -24,11 +33,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
 
       - name: Check the tag is a version
         run: |
-          if ! echo "${{ github.ref_name }}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::Tag ${{ github.ref_name }} is not in the form vX.Y.Z"
+          if ! echo "${{ env.RELEASE_TAG }}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Tag ${{ env.RELEASE_TAG }} is not in the form vX.Y.Z"
             exit 1
           fi
 
@@ -39,8 +50,8 @@ jobs:
           images: |
             ${{ vars.DOCKER_IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}},value=${{ env.RELEASE_TAG }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ env.RELEASE_TAG }}
             type=raw,value=latest
 
       - name: Set up variables
@@ -53,7 +64,7 @@ jobs:
           echo "ezbookkeeping_docker_bake_meta_artifact_name=ezbookkeeping-build-release-docker-bake-meta-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
           echo "ezbookkeeping_docker_digests_file_path=${{ runner.temp }}/digests" >> "$GITHUB_OUTPUT"
           echo "ezbookkeeping_docker_digests_artifact_name_prefix=ezbookkeeping-build-release-digests-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
-          echo "ezbookkeeping_package_file_name_prefix=ezbookkeeping-${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          echo "ezbookkeeping_package_file_name_prefix=ezbookkeeping-${{ env.RELEASE_TAG }}" >> "$GITHUB_OUTPUT"
           echo "ezbookkeeping_backend_artifact_name_prefix=ezbookkeeping-build-release-backend-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
 
       - name: Rename docker bake meta file
@@ -74,10 +85,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
 
       - name: Set the version in package.json from the tag
         shell: bash
-        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+        run: npm version "${RELEASE_TAG#v}" --no-git-tag-version --allow-same-version
 
       - uses: ./.github/actions/build-linux-docker-and-package
         with:
@@ -115,10 +128,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
 
       - name: Set the version in package.json from the tag
         shell: bash
-        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+        run: npm version "${RELEASE_TAG#v}" --no-git-tag-version --allow-same-version
 
       - uses: ./.github/actions/build-linux-docker-and-package
         with:
@@ -150,6 +165,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
 
       - uses: ./.github/actions/push-linux-docker
         with:
@@ -169,10 +186,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
 
       - name: Set the version in package.json from the tag
         shell: bash
-        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+        run: npm version "${RELEASE_TAG#v}" --no-git-tag-version --allow-same-version
 
       - uses: ./.github/actions/build-windows-backend
         with:
@@ -190,10 +209,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
 
       - name: Set the version in package.json from the tag
         shell: bash
-        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+        run: npm version "${RELEASE_TAG#v}" --no-git-tag-version --allow-same-version
 
       - uses: ./.github/actions/build-macos-backend
         with:
@@ -212,10 +233,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
 
       - name: Set the version in package.json from the tag
         shell: bash
-        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+        run: npm version "${RELEASE_TAG#v}" --no-git-tag-version --allow-same-version
 
       - uses: ./.github/actions/build-freebsd-backend
         with:
@@ -236,6 +259,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
 
       - uses: ./.github/actions/build-windows-package
         with:
@@ -251,6 +276,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
 
       - uses: ./.github/actions/build-macos-package
         with:
@@ -267,6 +294,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
 
       - uses: ./.github/actions/build-freebsd-package
         with:
@@ -295,10 +324,10 @@ jobs:
           skip-decompress: true
           path: release-files
 
-      - name: Publish Release ${{ github.ref_name }}
+      - name: Publish Release ${{ env.RELEASE_TAG }}
         uses: softprops/action-gh-release@v3
         with:
-          name: ${{ github.ref_name }}
-          tag_name: ${{ github.ref_name }}
+          name: ${{ env.RELEASE_TAG }}
+          tag_name: ${{ env.RELEASE_TAG }}
           files: ./release-files/*
           draft: true
