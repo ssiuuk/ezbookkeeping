@@ -1,5 +1,5 @@
 # Build backend binary file
-FROM golang:1.27.1-alpine3.24 AS be-builder
+FROM golang:1.27.3-alpine3.24 AS be-builder
 ARG RELEASE_BUILD
 ARG BUILD_PIPELINE
 ARG BUILD_UNIXTIME
@@ -38,7 +38,7 @@ RUN apk add git
 RUN ./build.sh frontend
 
 # Package docker image
-FROM alpine:3.24.2
+FROM alpine:3.24.3
 LABEL maintainer="MaysWind <i@mayswind.net>"
 RUN addgroup -S -g 1000 ezbookkeeping && adduser -S -G ezbookkeeping -u 1000 ezbookkeeping
 RUN apk --no-cache add tzdata
