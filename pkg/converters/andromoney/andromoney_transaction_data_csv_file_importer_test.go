@@ -112,3 +112,42 @@ func TestAndroMoneyCsvFileImporterParseImportedData_InvalidFile(t *testing.T) {
 	_, _, _, _, _, _, err = importer.ParseImportedData(context, user, []byte("\"Id\",\"Currency\",\"Amount\",\"Category\",\"Sub Category\",\"Date\",\"From\",\"To\",\"Note\",\"Periodic\",\"Project\",\"Payee\",\"uid\",\"Time\"\n\"1\",\"GBP\",\"1\",\"A\",\"B\",\"2026-9-1\",\"Cash\",\"\",\"\",\"\",\"\",\"\",\"x\",\"\"\n"), time.UTC, converter.DefaultImporterOptions, nil, nil, nil, nil, nil)
 	assert.EqualError(t, err, errs.ErrTransactionTimeInvalid.Message)
 }
+
+func TestAndroMoneyCsvFileImporterParseImportedData_TransferToNewAccountKeepsCurrency(t *testing.T) {
+	importer := AndroMoneyTransactionDataCsvFileImporter
+	context := core.NewNullContext()
+
+	// the user's default currency differs from the currency of the file
+	user := &models.User{
+		Uid:             1234567890,
+		DefaultCurrency: "USD",
+	}
+
+	data := "\"Id\",\"Currency\",\"Amount\",\"Category\",\"Sub Category\",\"Date\",\"From\",\"To\",\"Note\",\"Periodic\",\"Project\",\"Payee\",\"uid\",\"Time\"\n" +
+		"\"1\",\"GBP\",\"100\",\"Transfer\",\"Savings\",\"20260901\",\"Account A\",\"Account B\",\"\",\"\",\"\",\"\",\"a\",\"900\"\n" +
+		"\"2\",\"GBP\",\"5\",\"Food\",\"Lunch\",\"20260902\",\"Account B\",\"\",\"\",\"\",\"\",\"\",\"b\",\"1200\"\n" +
+		"\"3\",\"HKD\",\"80\",\"Food\",\"Lunch\",\"20260903\",\"Account C\",\"\",\"\",\"\",\"\",\"\",\"c\",\"1200\"\n"
+
+	allNewTransactions, allNewAccounts, _, _, _, _, err := importer.ParseImportedData(context, user, []byte(data), time.UTC, converter.DefaultImporterOptions, nil, nil, nil, nil, nil)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(allNewTransactions))
+	assert.Equal(t, 3, len(allNewAccounts))
+
+	for _, account := range allNewAccounts {
+		if account.Name == "Account C" {
+			assert.Equal(t, "HKD", account.Currency)
+		} else {
+			assert.Equal(t, "GBP", account.Currency, account.Name)
+		}
+	}
+
+	assert.Equal(t, models.TRANSACTION_DB_TYPE_TRANSFER_OUT, allNewTransactions[0].Type)
+	assert.Equal(t, "GBP", allNewTransactions[0].OriginalDestinationAccountCurrency)
+	assert.Equal(t, int64(10000), allNewTransactions[0].RelatedAccountAmount)
+
+	// a transfer into an account used with another currency has an unknown received amount, so it is refused
+	_, _, _, _, _, _, err = importer.ParseImportedData(context, user, []byte(data+
+		"\"4\",\"GBP\",\"10\",\"Transfer\",\"Savings\",\"20260904\",\"Account A\",\"Account C\",\"\",\"\",\"\",\"\",\"d\",\"1200\"\n"), time.UTC, converter.DefaultImporterOptions, nil, nil, nil, nil, nil)
+	assert.EqualError(t, err, errs.ErrAccountCurrencyInvalid.Message)
+}

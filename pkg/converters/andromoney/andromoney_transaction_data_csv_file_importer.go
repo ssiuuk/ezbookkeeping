@@ -41,8 +41,18 @@ const (
 
 const andromoneyMinimumColumnCount = andromoneyColumnIndexUid + 1
 
-// the transaction type is not in the file, it is added as a column after the AndroMoney columns
-const andromoneyTypeColumnName = "Type"
+// these columns are not in the file, they are added after the AndroMoney columns
+const (
+	andromoneyTypeColumnName              = "Type"
+	andromoneyToAccountCurrencyColumnName = "To Account Currency"
+	andromoneyToAmountColumnName          = "To Amount"
+)
+
+var andromoneyAddedColumnNames = []string{
+	andromoneyTypeColumnName,
+	andromoneyToAccountCurrencyColumnName,
+	andromoneyToAmountColumnName,
+}
 
 // the header names are replaced with these, so that the columns can be found whatever language the file was exported in
 var andromoneyColumnNames = []string{
@@ -63,17 +73,19 @@ var andromoneyColumnNames = []string{
 }
 
 var andromoneyTransactionDataColumnNameMapping = map[datatable.TransactionDataTableColumn]string{
-	datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TIME:     andromoneyColumnNames[andromoneyColumnIndexDate],
-	datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TYPE:     andromoneyTypeColumnName,
-	datatable.TRANSACTION_DATA_TABLE_CATEGORY:             andromoneyColumnNames[andromoneyColumnIndexCategory],
-	datatable.TRANSACTION_DATA_TABLE_SUB_CATEGORY:         andromoneyColumnNames[andromoneyColumnIndexSubCategory],
-	datatable.TRANSACTION_DATA_TABLE_ACCOUNT_NAME:         andromoneyColumnNames[andromoneyColumnIndexFromAccount],
-	datatable.TRANSACTION_DATA_TABLE_ACCOUNT_CURRENCY:     andromoneyColumnNames[andromoneyColumnIndexCurrency],
-	datatable.TRANSACTION_DATA_TABLE_AMOUNT:               andromoneyColumnNames[andromoneyColumnIndexAmount],
-	datatable.TRANSACTION_DATA_TABLE_RELATED_ACCOUNT_NAME: andromoneyColumnNames[andromoneyColumnIndexToAccount],
-	datatable.TRANSACTION_DATA_TABLE_DESCRIPTION:          andromoneyColumnNames[andromoneyColumnIndexNote],
-	datatable.TRANSACTION_DATA_TABLE_PROJECT:              andromoneyColumnNames[andromoneyColumnIndexProject],
-	datatable.TRANSACTION_DATA_TABLE_MERCHANT:             andromoneyColumnNames[andromoneyColumnIndexMerchant],
+	datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TIME:         andromoneyColumnNames[andromoneyColumnIndexDate],
+	datatable.TRANSACTION_DATA_TABLE_TRANSACTION_TYPE:         andromoneyTypeColumnName,
+	datatable.TRANSACTION_DATA_TABLE_CATEGORY:                 andromoneyColumnNames[andromoneyColumnIndexCategory],
+	datatable.TRANSACTION_DATA_TABLE_SUB_CATEGORY:             andromoneyColumnNames[andromoneyColumnIndexSubCategory],
+	datatable.TRANSACTION_DATA_TABLE_ACCOUNT_NAME:             andromoneyColumnNames[andromoneyColumnIndexFromAccount],
+	datatable.TRANSACTION_DATA_TABLE_ACCOUNT_CURRENCY:         andromoneyColumnNames[andromoneyColumnIndexCurrency],
+	datatable.TRANSACTION_DATA_TABLE_AMOUNT:                   andromoneyColumnNames[andromoneyColumnIndexAmount],
+	datatable.TRANSACTION_DATA_TABLE_RELATED_ACCOUNT_NAME:     andromoneyColumnNames[andromoneyColumnIndexToAccount],
+	datatable.TRANSACTION_DATA_TABLE_RELATED_ACCOUNT_CURRENCY: andromoneyToAccountCurrencyColumnName,
+	datatable.TRANSACTION_DATA_TABLE_RELATED_AMOUNT:           andromoneyToAmountColumnName,
+	datatable.TRANSACTION_DATA_TABLE_DESCRIPTION:              andromoneyColumnNames[andromoneyColumnIndexNote],
+	datatable.TRANSACTION_DATA_TABLE_PROJECT:                  andromoneyColumnNames[andromoneyColumnIndexProject],
+	datatable.TRANSACTION_DATA_TABLE_MERCHANT:                 andromoneyColumnNames[andromoneyColumnIndexMerchant],
 }
 
 var andromoneyTransactionTypeNameMapping = map[models.TransactionType]string{
@@ -122,13 +134,25 @@ func (c *andromoneyTransactionDataCsvFileImporter) ParseImportedData(ctx core.Co
 	dataLines := make([]*datatable.PlainTextDataTableLineData, 0, len(allLines)-headerLineIndex)
 	dataLines = append(dataLines, &datatable.PlainTextDataTableLineData{
 		LineNumber: allLines[headerLineIndex].LineNumber,
-		Items:      append(append([]string{}, andromoneyColumnNames...), andromoneyTypeColumnName),
+		Items:      append(append([]string{}, andromoneyColumnNames...), andromoneyAddedColumnNames...),
 	})
 
+	accountCurrencies := getAndroMoneyAccountCurrencies(allLines[headerLineIndex+1:])
+
 	for _, line := range allLines[headerLineIndex+1:] {
+		items := convertAndroMoneyDataLine(line.Items, accountCurrencies)
+		toAccountCurrency := items[len(andromoneyColumnNames)+1]
+
+		// the file only has the amount paid from, so the amount received in another currency is unknown,
+		// the transfer is refused instead of importing a wrong amount
+		if toAccountCurrency != "" && toAccountCurrency != items[andromoneyColumnIndexCurrency] {
+			log.Errorf(ctx, "[andromoney_transaction_data_csv_file_importer.ParseImportedData] cannot import transfer from \"%s\" (%s) to \"%s\" (%s) in line %d, because the received amount is unknown", items[andromoneyColumnIndexFromAccount], items[andromoneyColumnIndexCurrency], items[andromoneyColumnIndexToAccount], toAccountCurrency, line.LineNumber)
+			return nil, nil, nil, nil, nil, nil, errs.NewImportError(errs.ErrAccountCurrencyInvalid, fmt.Sprintf("line:%d", line.LineNumber), items[andromoneyColumnIndexToAccount]+" ("+toAccountCurrency+")")
+		}
+
 		dataLines = append(dataLines, &datatable.PlainTextDataTableLineData{
 			LineNumber: line.LineNumber,
-			Items:      convertAndroMoneyDataLine(line.Items),
+			Items:      items,
 		})
 	}
 
@@ -148,9 +172,32 @@ func getAndroMoneyFileEncoding(data []byte) encoding.Encoding {
 	return traditionalchinese.Big5
 }
 
-// convertAndroMoneyDataLine returns the items of a data line with the date and time joined and the transaction type added
-func convertAndroMoneyDataLine(originalItems []string) []string {
-	items := make([]string, len(andromoneyColumnNames)+1)
+// getAndroMoneyAccountCurrencies returns the currency of each account paid from or paid into in the file,
+// the currency of a row is the currency of the account paid from, or of the account paid into for an income
+func getAndroMoneyAccountCurrencies(lines []*datatable.PlainTextDataTableLineData) map[string]string {
+	accountCurrencies := make(map[string]string)
+
+	for _, line := range lines {
+		if len(line.Items) <= andromoneyColumnIndexToAccount || line.Items[andromoneyColumnIndexCurrency] == "" {
+			continue
+		}
+
+		fromAccount := line.Items[andromoneyColumnIndexFromAccount]
+		toAccount := line.Items[andromoneyColumnIndexToAccount]
+
+		if fromAccount != "" {
+			accountCurrencies[fromAccount] = line.Items[andromoneyColumnIndexCurrency]
+		} else if toAccount != "" {
+			accountCurrencies[toAccount] = line.Items[andromoneyColumnIndexCurrency]
+		}
+	}
+
+	return accountCurrencies
+}
+
+// convertAndroMoneyDataLine returns the items of a data line with the date and time joined, and the transaction type and the account paid into of a transfer added
+func convertAndroMoneyDataLine(originalItems []string, accountCurrencies map[string]string) []string {
+	items := make([]string, len(andromoneyColumnNames)+len(andromoneyAddedColumnNames))
 	copy(items, originalItems)
 
 	// expenses only have the account paid from, incomes only the account paid into, and transfers have both
@@ -169,6 +216,18 @@ func convertAndroMoneyDataLine(originalItems []string) []string {
 	}
 
 	items[len(andromoneyColumnNames)] = transactionType
+
+	if fromAccount != "" && toAccount != "" {
+		// the account paid into has the currency it is used with elsewhere in the file, otherwise the currency of the transfer
+		toAccountCurrency := accountCurrencies[toAccount]
+
+		if toAccountCurrency == "" {
+			toAccountCurrency = items[andromoneyColumnIndexCurrency]
+		}
+
+		items[len(andromoneyColumnNames)+1] = toAccountCurrency
+		items[len(andromoneyColumnNames)+2] = items[andromoneyColumnIndexAmount]
+	}
 	items[andromoneyColumnIndexDate] = getAndroMoneyDateTime(items[andromoneyColumnIndexDate], items[andromoneyColumnIndexTime])
 
 	return items
