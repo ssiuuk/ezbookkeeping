@@ -51,5 +51,7 @@ var (
 	ErrTransactionTimeZoneInvalid                                  = NewNormalError(NormalSubcategoryTransaction, 44, http.StatusBadRequest, "transaction time zone is invalid")
 	ErrAmountInvalid                                               = NewNormalError(NormalSubcategoryTransaction, 45, http.StatusBadRequest, "transaction amount is invalid")
 	ErrGeographicLocationInvalid                                   = NewNormalError(NormalSubcategoryTransaction, 46, http.StatusBadRequest, "geographic location is invalid")
-	ErrCannotMoveTransactionToSameBook                             = NewNormalError(NormalSubcategoryTransaction, 47, http.StatusBadRequest, "cannot move transaction to the same book")
+	ErrCannotMoveTransactionToSameBook                             = NewNormalError(NormalSubcategoryTransaction, 900, http.StatusBadRequest, "cannot move transaction to the same book")
+	ErrTransactionBatchCreateNoTransactions                        = NewNormalError(NormalSubcategoryTransaction, 47, http.StatusBadRequest, "no transactions")
+	ErrTransactionBatchCreateTooManyTransactions                   = NewNormalError(NormalSubcategoryTransaction, 48, http.StatusBadRequest, "too many transactions")
 )
