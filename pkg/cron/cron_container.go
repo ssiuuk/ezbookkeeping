@@ -86,10 +86,10 @@ func (c *CronJobSchedulerContainer) registerAllJobs(ctx core.Context, config *se
 	}
 
 	if config.EnableDatabaseBackup {
-		if config.DatabaseConfig != nil && config.DatabaseConfig.DatabaseType == settings.Sqlite3DbType {
+		if config.DatabaseConfig != nil && (config.DatabaseConfig.DatabaseType == settings.Sqlite3DbType || config.DatabaseConfig.DatabaseType == settings.MySqlDbType) {
 			Container.registerIntervalJob(ctx, DatabaseBackupJob)
 		} else {
-			log.Infof(ctx, "[cron_container.registerAllJobs] built-in database backup is only supported for sqlite3 database, skip registering job \"%s\"", DatabaseBackupJob.Name)
+			log.Infof(ctx, "[cron_container.registerAllJobs] built-in database backup is only supported for sqlite3 and mysql database, skip registering job \"%s\"", DatabaseBackupJob.Name)
 		}
 	}
 }

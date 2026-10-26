@@ -21,7 +21,7 @@ const (
 var sqliteDatabaseSideFileSuffixes = []string{"-journal", "-wal", "-shm"}
 
 // ErrDatabaseRestoreNotSupported is returned when the current database type does not support built-in restore
-var ErrDatabaseRestoreNotSupported = errors.New("database restore is only supported for sqlite3 database")
+var ErrDatabaseRestoreNotSupported = errors.New("database restore is only supported for sqlite3 and mysql database")
 
 // ErrDatabaseRestoreFileIsCurrentDatabase is returned when the file to restore from is the current database file
 var ErrDatabaseRestoreFileIsCurrentDatabase = errors.New("the file to restore from is the current database file")
@@ -34,16 +34,32 @@ type DatabaseRestoreResult struct {
 	RemovedSideFilePaths        []string
 }
 
-// GetDatabaseBeforeRestoreBackupFileName returns the file name of the backup taken before restoring at the specified time
+// GetDatabaseBeforeRestoreBackupFileName returns the file name of the sqlite backup taken before restoring at the specified time
 func GetDatabaseBeforeRestoreBackupFileName(t time.Time) string {
 	return databaseBackupFileNamePrefix + t.Format(databaseBackupFileNameTimeLayout) + databaseBeforeRestoreBackupMarker + databaseBackupFileNameSuffix
 }
 
-// RestoreDatabase replaces the current sqlite database file with the specified backup file,
+// getMysqlDatabaseBeforeRestoreBackupFileName returns the file name of the mysql backup taken before restoring at the specified time
+func getMysqlDatabaseBeforeRestoreBackupFileName(t time.Time) string {
+	return databaseBackupFileNamePrefix + t.Format(databaseBackupFileNameTimeLayout) + databaseBeforeRestoreBackupMarker + mysqlDatabaseBackupFileSuffix
+}
+
+// VerifyDatabaseBackupFile returns an error if the specified file is not a backup which can be restored into the database of the specified type
+func VerifyDatabaseBackupFile(databaseType string, filePath string) error {
+	if databaseType == settings.MySqlDbType {
+		return VerifyMysqlDatabaseBackupFile(filePath)
+	} else if databaseType == settings.Sqlite3DbType {
+		return VerifySqliteDatabaseFile(filePath)
+	}
+
+	return ErrDatabaseRestoreNotSupported
+}
+
+// RestoreDatabase replaces the current sqlite database file or the tables of the current mysql database with the specified backup file,
 // the current database is backed up into the backup directory first so that the restore can be undone,
 // the data store is closed afterwards and must not be used anymore
 func RestoreDatabase(c core.Context, config *settings.Config, restoreFromFilePath string, backupDir string) (*DatabaseRestoreResult, error) {
-	if config.DatabaseConfig == nil || config.DatabaseConfig.DatabaseType != settings.Sqlite3DbType {
+	if config.DatabaseConfig == nil || (config.DatabaseConfig.DatabaseType != settings.Sqlite3DbType && config.DatabaseConfig.DatabaseType != settings.MySqlDbType) {
 		return nil, ErrDatabaseRestoreNotSupported
 	}
 
@@ -51,7 +67,14 @@ func RestoreDatabase(c core.Context, config *settings.Config, restoreFromFilePat
 		return nil, ErrDatabaseIsNotInitialized
 	}
 
-	result, err := restoreSqliteDatabase(c, Container.UserStore.Get(0), config.DatabaseConfig.DatabasePath, restoreFromFilePath, backupDir, time.Now())
+	var result *DatabaseRestoreResult
+	var err error
+
+	if config.DatabaseConfig.DatabaseType == settings.MySqlDbType {
+		result, err = restoreMysqlDatabase(c, Container.UserStore.Get(0), config.DatabaseConfig.DatabaseName, restoreFromFilePath, backupDir, time.Now())
+	} else {
+		result, err = restoreSqliteDatabase(c, Container.UserStore.Get(0), config.DatabaseConfig.DatabasePath, restoreFromFilePath, backupDir, time.Now())
+	}
 
 	if err != nil {
 		return result, err
@@ -166,6 +189,48 @@ func restoreSqliteDatabase(c core.Context, db *Database, databasePath string, re
 
 	// copy into a temporary file in the database directory and rename it, so the database file is never partially written
 	if err = copyFileAtomically(restoreFromFilePath, databasePath, databaseBackupFileMode); err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+func restoreMysqlDatabase(c core.Context, db *Database, databaseName string, restoreFromFilePath string, backupDir string, now time.Time) (*DatabaseRestoreResult, error) {
+	if db.databaseType != settings.MySqlDbType {
+		return nil, ErrDatabaseRestoreNotSupported
+	}
+
+	restoreFromFilePath, err := filepath.Abs(restoreFromFilePath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// verify before touching anything, an invalid file leaves the current database untouched
+	if err = VerifyMysqlDatabaseBackupFile(restoreFromFilePath); err != nil {
+		return nil, err
+	}
+
+	result := &DatabaseRestoreResult{
+		DatabaseFilePath:     databaseName,
+		RestoredFromFilePath: restoreFromFilePath,
+	}
+
+	// keep the current database so that the restore can be undone by restoring this file
+	result.BeforeRestoreBackupFilePath, err = backupMysqlDatabaseToFile(c, db, backupDir, getMysqlDatabaseBeforeRestoreBackupFileName(now))
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to back up the current database before restoring, because %s", err.Error())
+	}
+
+	err = restoreMysqlDatabaseFromFile(c, db.engineGroup.Master().DB().DB, restoreFromFilePath)
+
+	// the restoring connection has changed its session settings (e.g. foreign key checks), so no connection is reused afterwards
+	if closeErr := db.engineGroup.Close(); err == nil {
+		err = closeErr
+	}
+
+	if err != nil {
 		return result, err
 	}
 

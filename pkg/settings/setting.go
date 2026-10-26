@@ -179,8 +179,9 @@ const (
 	defaultDatabaseMaxOpenConn     uint16 = 0
 	defaultDatabaseConnMaxLifetime uint32 = 14400
 
-	defaultDatabaseBackupDirName   string = "backups"
-	defaultDatabaseBackupKeepCount uint32 = 30
+	defaultDatabaseBackupDirName            string = "backups"
+	defaultMysqlDatabaseBackupParentDirName string = "data"
+	defaultDatabaseBackupKeepCount          uint32 = 30
 
 	defaultLogMode        string = "console"
 	defaultLogFileMaxSize uint32 = 104857600 // 100 MB
@@ -1085,11 +1086,14 @@ func loadCronConfiguration(config *Config, configFile *ini.File, sectionName str
 	config.EnableDatabaseBackup = getConfigItemBoolValue(configFile, sectionName, "enable_database_backup", true)
 	config.DatabaseBackupKeepCount = getConfigItemUint32Value(configFile, sectionName, "database_backup_keep_count", defaultDatabaseBackupKeepCount)
 
-	if config.DatabaseConfig != nil && config.DatabaseConfig.DatabaseType == Sqlite3DbType {
+	if config.DatabaseConfig != nil && (config.DatabaseConfig.DatabaseType == Sqlite3DbType || config.DatabaseConfig.DatabaseType == MySqlDbType) {
 		databaseBackupPath := getConfigItemStringValue(configFile, sectionName, "database_backup_path")
 
-		if databaseBackupPath == "" {
+		if databaseBackupPath == "" && config.DatabaseConfig.DatabaseType == Sqlite3DbType {
 			config.DatabaseBackupPath = filepath.Join(filepath.Dir(config.DatabaseConfig.DatabasePath), defaultDatabaseBackupDirName)
+		} else if databaseBackupPath == "" {
+			// a mysql database has no local file, so its backups are kept in the data directory, which is the volume in docker
+			config.DatabaseBackupPath, _ = getFinalPath(config.WorkingPath, filepath.Join(defaultMysqlDatabaseBackupParentDirName, defaultDatabaseBackupDirName))
 		} else {
 			config.DatabaseBackupPath, _ = getFinalPath(config.WorkingPath, databaseBackupPath)
 		}

@@ -39,11 +39,13 @@ This is a fork of [mayswind/ezbookkeeping](https://github.com/mayswind/ezbookkee
     - Secondary categories can be added while editing an entry
     - Receipt photos fill in the merchant, a category and an account from the current book, and attach the photo
     - Repeat every N weeks, months or years; schedule dates beyond next year
+- **Backups (SQLite, MySQL and MariaDB)**
 - **Import**
     - AndroMoney CSV exports (Big5 or UTF-8), with each AndroMoney project as a tag
     - The import check step can filter by several tags at once, or hide entries with any of them, to split one file between books
 - **Backups (SQLite)**
     - Nightly backup at 3:00, keeping 30 by default (`[cron] enable_database_backup`, `database_backup_keep_count`)
+    - SQLite backups go to `backups` next to the database file; MySQL and MariaDB backups are compressed SQL files (`*.sql.gz`) in `data/backups`, read in one transaction so the server keeps running
     - Optional copy of each backup to another folder or to the configured object storage (`database_backup_copy_path`, `database_backup_copy_to_storage`)
     - Command line: `ezbookkeeping database backup`, `database backup list` and `database restore --file <backup>`, which saves an undo copy first
 - **Android App**

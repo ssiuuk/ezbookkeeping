@@ -33,10 +33,10 @@ var CreateScheduledTransactionJob = &CronJob{
 	},
 }
 
-// DatabaseBackupJob represents the cron job which periodically back up the sqlite database
+// DatabaseBackupJob represents the cron job which periodically back up the sqlite or mysql database
 var DatabaseBackupJob = &CronJob{
 	Name:        "DatabaseBackup",
-	Description: "Periodically back up the sqlite database, copy it to the configured off-site locations and delete old backup files.",
+	Description: "Periodically back up the sqlite or mysql database, copy it to the configured off-site locations and delete old backup files.",
 	Period: CronJobFixedHourPeriod{
 		Hour: 3,
 	},

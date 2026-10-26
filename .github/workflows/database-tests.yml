@@ -1,0 +1,60 @@
+name: Database Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  mysql:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: MySQL 8.4
+            image: mysql:8.4
+            health-command: "mysqladmin ping -h 127.0.0.1 -uroot -prootpass"
+          - name: MariaDB 11.4
+            image: mariadb:11.4
+            health-command: "healthcheck.sh --connect --innodb_initialized"
+    services:
+      database:
+        image: ${{ matrix.image }}
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: ezb_test
+          MYSQL_USER: ezb
+          MYSQL_PASSWORD: ezbpass
+          MARIADB_ROOT_PASSWORD: rootpass
+          MARIADB_DATABASE: ezb_test
+          MARIADB_USER: ezb
+          MARIADB_PASSWORD: ezbpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "${{ matrix.health-command }}"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Run the database backup and restore tests
+        env:
+          EZBOOKKEEPING_TEST_MYSQL_HOST: 127.0.0.1:3306
+          EZBOOKKEEPING_TEST_MYSQL_NAME: ezb_test
+          EZBOOKKEEPING_TEST_MYSQL_USER: ezb
+          EZBOOKKEEPING_TEST_MYSQL_PASSWORD: ezbpass
+        run: go test ./pkg/datastore/ -run 'Mysql' -v
