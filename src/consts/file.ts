@@ -364,6 +364,15 @@ export const SUPPORTED_IMPORT_FILE_CATEGORY_AND_TYPES: ImportFileCategoryAndType
                 extensions: '.beancount'
             },
             {
+                type: 'andromoney_csv',
+                name: 'AndroMoney Data Export File',
+                extensions: '.csv',
+                supportedAdditionalOptions: {
+                    projectAsTag: true,
+                    merchantAsTag: false,
+                }
+            },
+            {
                 type: 'feidee_mymoney_csv',
                 name: 'Feidee MyMoney (App) Data Export File',
                 extensions: '.csv',

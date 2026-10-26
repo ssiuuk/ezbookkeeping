@@ -476,6 +476,7 @@ import { TransactionTag } from '@/models/transaction_tag.ts';
 import { ImportTransaction } from '@/models/imported_transaction.ts';
 
 import {
+    isArray,
     isString,
     isNumber,
     replaceAll,
@@ -530,7 +531,8 @@ interface ImportTransactionCheckDataFilter {
     category: string | null | undefined; // null for 'All Category', undefined for 'Invalid Category'
     amount: string | null; // null for 'All Amount'
     account: string | null | undefined; // null for 'All Account', undefined for 'Invalid Account'
-    tag: string | null | undefined; // null for 'All Tag', undefined for 'Invalid Tag'
+    tag: string | string[] | null | undefined; // null for 'All Tag', undefined for 'Invalid Tag', '' for 'None', otherwise the names of the selected tags
+    tagExcluded: boolean; // whether the transactions with any of the selected tags are hidden instead of shown
     description: string | null; // null for 'All Description'
 }
 
@@ -593,6 +595,7 @@ const filters = ref<ImportTransactionCheckDataFilter>({
     amount: null,
     account: null,
     tag: null,
+    tagExcluded: false,
     description: null
 });
 
@@ -667,6 +670,7 @@ const filterMenus = computed<ImportTransactionCheckDataMenuGroup[]>(() => [
                     filters.value.amount = null;
                     filters.value.account = null;
                     filters.value.tag = null;
+                    filters.value.tagExcluded = false;
                     filters.value.description = null;
                 }
             }
@@ -815,23 +819,35 @@ const filterMenus = computed<ImportTransactionCheckDataMenuGroup[]>(() => [
             {
                 title: tt('All'),
                 appendIcon: filters.value.tag === null ? mdiCheck : undefined,
-                onClick: () => filters.value.tag = null
+                onClick: () => setTagFilter(null)
             },
             {
                 title: tt('Invalid Tag'),
                 appendIcon: filters.value.tag === undefined ? mdiCheck : undefined,
-                onClick: () => filters.value.tag = undefined
+                onClick: () => setTagFilter(undefined)
             },
             {
                 title: tt('None'),
                 appendIcon: filters.value.tag === '' ? mdiCheck : undefined,
-                onClick: () => filters.value.tag = ''
+                onClick: () => setTagFilter('')
             },
             ...allUsedTagNames.value.map(name => ({
                 title: name,
-                appendIcon: filters.value.tag === name ? mdiCheck : undefined,
-                onClick: () => filters.value.tag = name
-            }))
+                appendIcon: isArray(filters.value.tag) && filters.value.tag.includes(name) ? mdiCheck : undefined,
+                onClick: () => toggleTagFilter(name)
+            })),
+            ...(isArray(filters.value.tag) ? [
+                {
+                    title: tt('Include Any Selected Tags'),
+                    appendIcon: !filters.value.tagExcluded ? mdiCheck : undefined,
+                    onClick: () => filters.value.tagExcluded = false
+                },
+                {
+                    title: tt('Exclude Any Selected Tags'),
+                    appendIcon: filters.value.tagExcluded ? mdiCheck : undefined,
+                    onClick: () => filters.value.tagExcluded = true
+                }
+            ] : [])
         ]
     },
     {
@@ -1246,10 +1262,12 @@ function isTransactionDisplayed(transaction: ImportTransaction): boolean {
         }
     }
 
-    if (isString(filters.value.tag)) {
-        if (filters.value.tag === '' && transaction.tagIds && transaction.tagIds.length) {
+    if (filters.value.tag === '') {
+        if (transaction.tagIds && transaction.tagIds.length) {
             return false;
-        } else if (filters.value.tag !== '') {
+        }
+    } else if (isArray(filters.value.tag)) {
+        if (filters.value.tag.length) {
             let hasTagName = false;
 
             if (transaction.tagIds && transaction.tagIds.length) {
@@ -1260,14 +1278,14 @@ function isTransactionDisplayed(transaction: ImportTransaction): boolean {
                         tagName = allTagsMap.value[tagId].name;
                     }
 
-                    if (tagName === filters.value.tag) {
+                    if (filters.value.tag.includes(tagName)) {
                         hasTagName = true;
                         break;
                     }
                 }
             }
 
-            if (!hasTagName) {
+            if (hasTagName === filters.value.tagExcluded) {
                 return false;
             }
         }
@@ -1691,6 +1709,27 @@ function selectAllInThisPage(): void {
 function selectNoneInThisPage(): void {
     for (const importTransaction of currentPageTransactions.value) {
         importTransaction.selected = false;
+    }
+}
+
+function setTagFilter(tag: string | null | undefined): void {
+    filters.value.tag = tag;
+    filters.value.tagExcluded = false;
+}
+
+// several tags can be selected, so that the transactions with any of them can be shown or hidden together
+function toggleTagFilter(tagName: string): void {
+    if (!isArray(filters.value.tag)) {
+        filters.value.tag = [ tagName ];
+        filters.value.tagExcluded = false;
+    } else if (filters.value.tag.includes(tagName)) {
+        filters.value.tag = filters.value.tag.filter(name => name !== tagName);
+
+        if (!filters.value.tag.length) {
+            setTagFilter(null);
+        }
+    } else {
+        filters.value.tag = [ ...filters.value.tag, tagName ];
     }
 }
 
@@ -2257,6 +2296,7 @@ function reset(): void {
     filters.value.category = null;
     filters.value.account = null;
     filters.value.tag = null;
+    filters.value.tagExcluded = false;
     filters.value.description = null;
     currentPage.value = 1;
     countPerPage.value = 10;
