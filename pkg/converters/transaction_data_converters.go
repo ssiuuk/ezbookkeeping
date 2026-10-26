@@ -3,6 +3,7 @@ package converters
 import (
 	"github.com/mayswind/ezbookkeeping/pkg/converters/ai"
 	"github.com/mayswind/ezbookkeeping/pkg/converters/alipay"
+	"github.com/mayswind/ezbookkeeping/pkg/converters/andromoney"
 	"github.com/mayswind/ezbookkeeping/pkg/converters/beancount"
 	"github.com/mayswind/ezbookkeeping/pkg/converters/camt"
 	"github.com/mayswind/ezbookkeeping/pkg/converters/converter"
@@ -69,6 +70,8 @@ func GetTransactionDataImporter(fileType string) (converter.TransactionDataImpor
 		return fireflyIII.FireflyIIITransactionDataCsvFileImporter, nil
 	} else if fileType == "beancount" {
 		return beancount.BeancountTransactionDataImporter, nil
+	} else if fileType == "andromoney_csv" {
+		return andromoney.AndroMoneyTransactionDataCsvFileImporter, nil
 	} else if fileType == "feidee_mymoney_csv" {
 		return feidee.FeideeMymoneyAppTransactionDataCsvFileImporter, nil
 	} else if fileType == "feidee_mymoney_xls" {
