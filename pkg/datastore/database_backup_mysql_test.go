@@ -239,6 +239,28 @@ func TestBackupAndRestoreMysqlDatabase(t *testing.T) {
 
 	assert.Nil(t, sqlDB.QueryRow("SELECT COUNT(*) FROM `test_item` WHERE `id` = 6").Scan(&count))
 	assert.Equal(t, 0, count)
+
+	// restoring the backup taken before restoring undoes the restore
+	undoResult, err := restoreMysqlDatabase(c, restoredDb, "ezb_test", result.BeforeRestoreBackupFilePath, backupDir, now.Add(2*time.Hour))
+	assert.Nil(t, err)
+	assert.Equal(t, filepath.Join(backupDir, "ezbookkeeping-20261026-050000-before-restore.sql.gz"), undoResult.BeforeRestoreBackupFilePath)
+
+	undoneDb := openMysqlTestDatabase(t)
+	defer undoneDb.engineGroup.Close()
+
+	sqlDB = undoneDb.engineGroup.Master().DB().DB
+
+	assert.Nil(t, sqlDB.QueryRow("SELECT `name` FROM `user` WHERE `uid` = 1").Scan(&userName))
+	assert.Equal(t, "changed", userName)
+
+	assert.Nil(t, sqlDB.QueryRow("SELECT COUNT(*) FROM `test_item`").Scan(&count))
+	assert.Equal(t, 28, count)
+
+	assert.Nil(t, sqlDB.QueryRow("SELECT COUNT(*) FROM `test_item` WHERE `id` = 1").Scan(&count))
+	assert.Equal(t, 0, count)
+
+	assert.Nil(t, sqlDB.QueryRow("SELECT `name` FROM `test_item` WHERE `id` = 6").Scan(&name))
+	assert.Equal(t, "added after backup", name)
 }
 
 func TestRestoreMysqlDatabaseRefusesInvalidFile(t *testing.T) {
