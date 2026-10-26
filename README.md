@@ -61,7 +61,7 @@ The sections below are upstream's README, with the install links pointing to thi
 - **Easy Installation**
     - Docker support
     - SQLite, MySQL and PostgreSQL support
-    - Cross-platform (Windows, macOS, Linux)
+    - Cross-platform (Windows, macOS, Linux, FreeBSD)
     - Works on x86, amd64, ARM architectures
 - **User-Friendly Interface**
     - UI optimized for both mobile and desktop
@@ -121,7 +121,7 @@ For production use of ezBookkeeping, you need to mount a persistent volume when 
 ### Install from Binary
 Download the latest release: [https://github.com/ssiuuk/ezbookkeeping/releases](https://github.com/ssiuuk/ezbookkeeping/releases)
 
-**Linux / macOS**
+**Linux / macOS / FreeBSD**
 
     $ ./ezbookkeeping server run
 
@@ -134,7 +134,7 @@ By default, ezBookkeeping listens on port 8080. You can then visit `http://{YOUR
 ### Build from Source
 Make sure you have [Golang](https://golang.org/), [GCC](https://gcc.gnu.org/), [Node.js](https://nodejs.org/) and [NPM](https://www.npmjs.com/) installed. Then download the source code, and follow these steps:
 
-**Linux / macOS**
+**Linux / macOS / FreeBSD**
 
     $ ./build.sh package -o ezbookkeeping.tar.gz
 
