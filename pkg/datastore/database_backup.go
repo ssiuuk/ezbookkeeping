@@ -20,14 +20,15 @@ import (
 const (
 	databaseBackupFileNamePrefix     = "ezbookkeeping-"
 	databaseBackupFileNameSuffix     = ".db"
+	mysqlDatabaseBackupFileSuffix    = ".sql.gz"
 	databaseBackupFileNameTimeLayout = "20060102-150405"
 	databaseBackupTempFileSuffix     = ".tmp"
 	databaseBackupDirMode            = 0700
 	databaseBackupFileMode           = 0600
 )
 
-var databaseBackupFileNamePattern = regexp.MustCompile(`^ezbookkeeping-\d{8}-\d{6}\.db$`)
-var databaseAnyBackupFileNamePattern = regexp.MustCompile(`^ezbookkeeping-(\d{8}-\d{6})(` + regexp.QuoteMeta(databaseBeforeRestoreBackupMarker) + `)?\.db$`)
+var databaseBackupFileNamePattern = regexp.MustCompile(`^ezbookkeeping-\d{8}-\d{6}(\.db|\.sql\.gz)$`)
+var databaseAnyBackupFileNamePattern = regexp.MustCompile(`^ezbookkeeping-(\d{8}-\d{6})(` + regexp.QuoteMeta(databaseBeforeRestoreBackupMarker) + `)?(\.db|\.sql\.gz)$`)
 
 // DatabaseBackupFileInfo represents a database backup file in the backup directory
 type DatabaseBackupFileInfo struct {
@@ -39,7 +40,7 @@ type DatabaseBackupFileInfo struct {
 }
 
 // ErrDatabaseBackupNotSupported is returned when the current database type does not support built-in backup
-var ErrDatabaseBackupNotSupported = errors.New("database backup is only supported for sqlite3 database")
+var ErrDatabaseBackupNotSupported = errors.New("database backup is only supported for sqlite3 and mysql database")
 
 // ErrDatabaseIsNotInitialized is returned when the data store has not been initialized
 var ErrDatabaseIsNotInitialized = errors.New("database is not initialized")
@@ -47,9 +48,14 @@ var ErrDatabaseIsNotInitialized = errors.New("database is not initialized")
 // ErrDatabaseBackupPathIsEmpty is returned when the database backup directory is empty
 var ErrDatabaseBackupPathIsEmpty = errors.New("database backup path is empty")
 
-// GetDatabaseBackupFileName returns the backup file name for the specified time
+// GetDatabaseBackupFileName returns the backup file name of sqlite database for the specified time
 func GetDatabaseBackupFileName(t time.Time) string {
 	return databaseBackupFileNamePrefix + t.Format(databaseBackupFileNameTimeLayout) + databaseBackupFileNameSuffix
+}
+
+// getMysqlDatabaseBackupFileName returns the backup file name of mysql database for the specified time
+func getMysqlDatabaseBackupFileName(t time.Time) string {
+	return databaseBackupFileNamePrefix + t.Format(databaseBackupFileNameTimeLayout) + mysqlDatabaseBackupFileSuffix
 }
 
 // IsDatabaseBackupFileName returns whether the specified file name matches the backup file naming pattern
@@ -57,10 +63,10 @@ func IsDatabaseBackupFileName(fileName string) bool {
 	return databaseBackupFileNamePattern.MatchString(fileName)
 }
 
-// BackupDatabase takes a consistent snapshot of the current sqlite database into the backup directory,
+// BackupDatabase takes a consistent snapshot of the current sqlite or mysql database into the backup directory,
 // then deletes old backup files exceeding the keep count (0 means keeping all), and returns the backup file path
 func BackupDatabase(c core.Context, config *settings.Config, backupDir string) (string, error) {
-	if config.DatabaseConfig == nil || config.DatabaseConfig.DatabaseType != settings.Sqlite3DbType {
+	if config.DatabaseConfig == nil || (config.DatabaseConfig.DatabaseType != settings.Sqlite3DbType && config.DatabaseConfig.DatabaseType != settings.MySqlDbType) {
 		return "", ErrDatabaseBackupNotSupported
 	}
 
@@ -68,7 +74,14 @@ func BackupDatabase(c core.Context, config *settings.Config, backupDir string) (
 		return "", ErrDatabaseIsNotInitialized
 	}
 
-	backupFilePath, err := backupSqliteDatabase(c, Container.UserStore.Get(0), backupDir, time.Now())
+	var backupFilePath string
+	var err error
+
+	if config.DatabaseConfig.DatabaseType == settings.MySqlDbType {
+		backupFilePath, err = backupMysqlDatabaseToFile(c, Container.UserStore.Get(0), backupDir, getMysqlDatabaseBackupFileName(time.Now()))
+	} else {
+		backupFilePath, err = backupSqliteDatabase(c, Container.UserStore.Get(0), backupDir, time.Now())
+	}
 
 	if err != nil {
 		return "", err

@@ -29,7 +29,7 @@ var Database = &cli.Command{
 		},
 		{
 			Name:   "backup",
-			Usage:  "Back up the sqlite database once",
+			Usage:  "Back up the sqlite or mysql database once",
 			Action: bindAction(backupDatabase),
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -42,7 +42,7 @@ var Database = &cli.Command{
 			Commands: []*cli.Command{
 				{
 					Name:   "list",
-					Usage:  "List the sqlite database backup files",
+					Usage:  "List the database backup files",
 					Action: bindAction(listDatabaseBackups),
 					Flags: []cli.Flag{
 						&cli.StringFlag{
@@ -57,7 +57,7 @@ var Database = &cli.Command{
 		},
 		{
 			Name:   "restore",
-			Usage:  "Restore the sqlite database from a backup file, the server must be stopped first",
+			Usage:  "Restore the sqlite or mysql database from a backup file, the server must be stopped first",
 			Action: bindAction(restoreDatabase),
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -196,19 +196,24 @@ func restoreDatabase(c *core.CliContext) error {
 		return err
 	}
 
-	if config.DatabaseConfig == nil || config.DatabaseConfig.DatabaseType != settings.Sqlite3DbType {
+	if config.DatabaseConfig == nil || (config.DatabaseConfig.DatabaseType != settings.Sqlite3DbType && config.DatabaseConfig.DatabaseType != settings.MySqlDbType) {
 		log.CliErrorf(c, "[database.restoreDatabase] %s, please use the tools of your database server to restore", datastore.ErrDatabaseRestoreNotSupported.Error())
 		return datastore.ErrDatabaseRestoreNotSupported
 	}
 
 	// check the file before asking, so an invalid file is refused without any confirmation
-	if err = datastore.VerifySqliteDatabaseFile(restoreFromFilePath); err != nil {
+	if err = datastore.VerifyDatabaseBackupFile(config.DatabaseConfig.DatabaseType, restoreFromFilePath); err != nil {
 		log.CliErrorf(c, "[database.restoreDatabase] the backup file is refused and the database is untouched, because %s", err.Error())
 		return err
 	}
 
 	if !c.Bool("yes") {
-		fmt.Printf("The database \"%s\" will be replaced with \"%s\".\n", config.DatabaseConfig.DatabasePath, restoreFromFilePath)
+		if config.DatabaseConfig.DatabaseType == settings.MySqlDbType {
+			fmt.Printf("The tables in the mysql database \"%s\" on \"%s\" will be replaced with the ones in \"%s\".\n", config.DatabaseConfig.DatabaseName, config.DatabaseConfig.DatabaseHost, restoreFromFilePath)
+		} else {
+			fmt.Printf("The database \"%s\" will be replaced with \"%s\".\n", config.DatabaseConfig.DatabasePath, restoreFromFilePath)
+		}
+
 		fmt.Printf("The current database will be backed up into \"%s\" first.\n", backupDir)
 		fmt.Printf("Make sure the ezBookkeeping server is stopped, otherwise it will keep using the old database.\n")
 		fmt.Printf("Type \"yes\" to continue: ")
