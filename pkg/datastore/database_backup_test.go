@@ -150,7 +150,7 @@ func TestBackupSqliteDatabase(t *testing.T) {
 }
 
 func TestBackupSqliteDatabaseRejectsNonSqlite(t *testing.T) {
-	_, err := backupSqliteDatabase(core.NewNullContext(), &Database{databaseType: settings.MySqlDbType}, t.TempDir(), time.Now())
+	_, err := backupSqliteDatabase(core.NewNullContext(), &XOrmDatabase{databaseType: settings.MySqlDbType}, t.TempDir(), time.Now())
 	assert.Equal(t, ErrDatabaseBackupNotSupported, err)
 
 	_, err = BackupDatabase(core.NewNullContext(), &settings.Config{

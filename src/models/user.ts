@@ -39,10 +39,18 @@ export class User {
     public incomeAmountColor: number = EMPTY_USER_BASIC_INFO.incomeAmountColor;
     public budgetAlertEmail: boolean = EMPTY_USER_BASIC_INFO.budgetAlertEmail ?? true;
 
-    private constructor(language: string, defaultCurrency: string, firstDayOfWeek: number) {
+    private constructor(language: string, defaultCurrency: string, firstDayOfWeek: number, preferredExpenseAmountColor?: number, preferredIncomeAmountColor?: number) {
         this.language = language;
         this.defaultCurrency = defaultCurrency;
         this.firstDayOfWeek = firstDayOfWeek;
+
+        if (preferredExpenseAmountColor) {
+            this.expenseAmountColor = preferredExpenseAmountColor;
+        }
+
+        if (preferredIncomeAmountColor) {
+            this.incomeAmountColor = preferredIncomeAmountColor;
+        }
     }
 
     public fillFrom(user: User | UserBasicInfo | UserProfileResponse): void {
@@ -83,6 +91,8 @@ export class User {
             language: this.language,
             defaultCurrency: this.defaultCurrency,
             firstDayOfWeek: this.firstDayOfWeek,
+            expenseAmountColor: this.expenseAmountColor,
+            incomeAmountColor: this.incomeAmountColor,
             categories: categories
         };
     }
@@ -145,8 +155,8 @@ export class User {
         return user;
     }
 
-    public static createNewUser(language: string, defaultCurrency: string, firstDayOfWeek: number): User {
-        return new User(language, defaultCurrency, firstDayOfWeek);
+    public static createNewUser(language: string, defaultCurrency: string, firstDayOfWeek: number, preferredExpenseAmountColor?: number, preferredIncomeAmountColor?: number): User {
+        return new User(language, defaultCurrency, firstDayOfWeek, preferredExpenseAmountColor, preferredIncomeAmountColor);
     }
 }
 
@@ -196,12 +206,8 @@ export interface UserRegisterRequest {
     readonly defaultCurrency: string;
     readonly firstDayOfWeek: number;
     readonly categories?: LocalizedPresetCategory[];
-}
-
-export interface UserVerifyEmailResponse {
-    readonly newToken?: string;
-    readonly user: UserBasicInfo;
-    readonly notificationContent?: string;
+    readonly expenseAmountColor?: number;
+    readonly incomeAmountColor?: number;
 }
 
 export interface UserResendVerifyEmailRequest {

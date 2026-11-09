@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 
 import { TransactionType } from '@/core/transaction.ts';
 import { ImportTransactionColumnType } from '@/core/import_transaction.ts';
-import { KNOWN_COLUMN_NAME_MAPPING } from '@/consts/import_transaction.ts';
+import { KNOWN_COLUMN_NAME_MAPPING } from '@/consts/import_mapping.ts';
 import { TRANSACTION_MAX_MERCHANT_LENGTH } from '@/consts/transaction.ts';
 import { ImportTransaction, type ImportTransactionResponse } from '@/models/imported_transaction.ts';
 import { Transaction } from '@/models/transaction.ts';

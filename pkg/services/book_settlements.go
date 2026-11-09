@@ -4,7 +4,6 @@ import (
 	"sort"
 	"time"
 
-	"xorm.io/xorm"
 
 	"github.com/mayswind/ezbookkeeping/pkg/core"
 	"github.com/mayswind/ezbookkeeping/pkg/datastore"
@@ -207,7 +206,7 @@ func (s *BookSettlementService) CreateSettlement(c core.Context, settlement *mod
 		settlement.SettlementTime = now
 	}
 
-	return s.UserDataDB(settlement.BookId).DoTransaction(c, func(sess *xorm.Session) error {
+	return s.UserDataDB(settlement.BookId).DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		_, err := sess.Insert(settlement)
 		return err
 	})
@@ -226,7 +225,7 @@ func (s *BookSettlementService) DeleteSettlement(c core.Context, bookId int64, s
 		DeletedUnixTime: now,
 	}
 
-	return s.UserDataDB(bookId).DoTransaction(c, func(sess *xorm.Session) error {
+	return s.UserDataDB(bookId).DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		deletedRows, err := sess.ID(settlementId).Cols("deleted", "deleted_unix_time").Where("book_id=? AND deleted=?", bookId, false).Update(updateModel)
 
 		if err != nil {
@@ -250,7 +249,7 @@ func (s *BookSettlementService) DeleteAllSettlementsOfBook(c core.Context, bookI
 		DeletedUnixTime: time.Now().Unix(),
 	}
 
-	return s.UserDataDB(bookId).DoTransaction(c, func(sess *xorm.Session) error {
+	return s.UserDataDB(bookId).DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		_, err := sess.Cols("deleted", "deleted_unix_time").Where("book_id=? AND deleted=?", bookId, false).Update(updateModel)
 		return err
 	})

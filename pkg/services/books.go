@@ -3,7 +3,6 @@ package services
 import (
 	"time"
 
-	"xorm.io/xorm"
 
 	"github.com/mayswind/ezbookkeeping/pkg/core"
 	"github.com/mayswind/ezbookkeeping/pkg/datastore"
@@ -120,7 +119,7 @@ func (s *BookService) CreateSharedBook(c core.Context, ownerUid int64, name stri
 		return nil, errs.ErrSystemIsBusy
 	}
 
-	err := s.UserDB().DoTransaction(c, func(sess *xorm.Session) error {
+	err := s.UserDB().DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		_, err := sess.Insert(book)
 		return err
 	})
@@ -149,7 +148,7 @@ func (s *BookService) ModifySharedBookName(c core.Context, ownerUid int64, bookI
 	book.Name = name
 	book.UpdatedUnixTime = time.Now().Unix()
 
-	return s.UserDB().DoTransaction(c, func(sess *xorm.Session) error {
+	return s.UserDB().DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		_, err := sess.ID(bookId).Cols("name", "updated_unix_time").Update(book)
 		return err
 	})
@@ -179,7 +178,7 @@ func (s *BookService) DeleteSharedBook(c core.Context, ownerUid int64, bookId in
 
 	now := time.Now().Unix()
 
-	return s.UserDB().DoTransaction(c, func(sess *xorm.Session) error {
+	return s.UserDB().DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		updateModel := &models.SharedBook{
 			Deleted:         true,
 			DeletedUnixTime: now,
@@ -278,7 +277,7 @@ func (s *BookService) AddBookMember(c core.Context, book *models.SharedBook, mem
 		CreatedUnixTime: time.Now().Unix(),
 	}
 
-	err := s.UserDB().DoTransaction(c, func(sess *xorm.Session) error {
+	err := s.UserDB().DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		exists, err := sess.Where("book_uid=? AND member_uid=?", book.BookId, memberUid).Exist(&models.BookMember{})
 
 		if err != nil {
@@ -306,7 +305,7 @@ func (s *BookService) RemoveBookMember(c core.Context, bookId int64, memberUid i
 		return errs.ErrUserIdInvalid
 	}
 
-	err := s.UserDB().DoTransaction(c, func(sess *xorm.Session) error {
+	err := s.UserDB().DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		deletedRows, err := sess.Where("book_uid=? AND member_uid=?", bookId, memberUid).Delete(&models.BookMember{})
 
 		if err != nil {
@@ -424,7 +423,7 @@ func (s *BookService) ShareAccount(c core.Context, bookId int64, ownerUid int64,
 		CreatedUnixTime: time.Now().Unix(),
 	}
 
-	err = s.UserDB().DoTransaction(c, func(sess *xorm.Session) error {
+	err = s.UserDB().DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		existingSharedAccount := &models.SharedBookAccount{}
 		exists, err := sess.Where("book_id=? AND account_id=?", bookId, accountId).Get(existingSharedAccount)
 
@@ -458,7 +457,7 @@ func (s *BookService) UnshareAccount(c core.Context, bookId int64, accountId int
 		return errs.ErrBookIdInvalid
 	}
 
-	err := s.UserDB().DoTransaction(c, func(sess *xorm.Session) error {
+	err := s.UserDB().DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		updateModel := &models.SharedBookAccount{
 			RevokedUnixTime: time.Now().Unix(),
 		}

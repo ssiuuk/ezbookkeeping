@@ -177,7 +177,6 @@ func initializeBudgetAlertTestEnv(t *testing.T) *budgetAlertTestEnv {
 			&models.Account{AccountId: budgetAlertTestJpyAccountId + offset, Uid: bookUid, Name: "Yen Card", Type: models.ACCOUNT_TYPE_SINGLE_ACCOUNT, Currency: "JPY"},
 			&models.TransactionCategoryBudget{Uid: bookUid, CategoryId: budgetAlertTestFoodCategoryId + offset, Amount: budgetAlertTestBudgetAmount, Currency: "USD"},
 		)
-		sess.Close()
 		assert.Nil(t, err)
 	}
 
@@ -192,7 +191,6 @@ func (e *budgetAlertTestEnv) addExpense(accountId int64, amount int64) {
 
 func (e *budgetAlertTestEnv) addBookExpenseAt(uid int64, categoryId int64, accountId int64, amount int64, unixTime int64) {
 	sess := datastore.Container.UserDataStore.Choose(uid).NewSession(core.NewNullContext())
-	defer sess.Close()
 
 	_, err := sess.Insert(&models.Transaction{
 		TransactionId:   uuid.Container.GenerateUuid(uuid.UUID_TYPE_TRANSACTION),

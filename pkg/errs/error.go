@@ -49,6 +49,7 @@ const (
 	NormalSubcategoryBook                   = 21
 	NormalSubcategoryProject                = 22
 	NormalSubcategoryBudgetAlert            = 23
+	NormalSubcategoryImportPreset           = 24
 )
 
 // Error represents the specific error returned to user

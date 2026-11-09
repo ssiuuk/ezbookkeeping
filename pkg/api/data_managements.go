@@ -33,6 +33,7 @@ type DataManagementsApi struct {
 	pictures                *services.TransactionPictureService
 	templates               *services.TransactionTemplateService
 	userCustomIcons         *services.UserCustomIconService
+	importPresets           *services.ImportPresetsService
 	userCustomExchangeRates *services.UserCustomExchangeRatesService
 	insightsExploreres      *services.InsightsExplorerService
 	categoryBudgets         *services.TransactionCategoryBudgetService
@@ -57,6 +58,7 @@ var (
 		pictures:                services.TransactionPictures,
 		templates:               services.TransactionTemplates,
 		userCustomIcons:         services.UserCustomIcons,
+		importPresets:           services.ImportPresets,
 		userCustomExchangeRates: services.UserCustomExchangeRates,
 		insightsExploreres:      services.InsightsExplorers,
 		categoryBudgets:         services.TransactionCategoryBudgets,
@@ -143,6 +145,13 @@ func (a *DataManagementsApi) DataStatisticsHandler(c *core.WebContext) (any, *er
 		return nil, errs.ErrOperationFailed
 	}
 
+	totalImportPresetCount, err := a.importPresets.GetTotalImportPresetCountByUid(c, uid)
+
+	if err != nil {
+		log.Errorf(c, "[data_managements.DataStatisticsHandler] failed to get total import preset count for user \"uid:%d\", because %s", uid, err.Error())
+		return nil, errs.ErrOperationFailed
+	}
+
 	dataStatisticsResp := &models.DataStatisticsResponse{
 		TotalAccountCount:              totalAccountCount,
 		TotalTransactionCategoryCount:  totalTransactionCategoryCount,
@@ -153,6 +162,7 @@ func (a *DataManagementsApi) DataStatisticsHandler(c *core.WebContext) (any, *er
 		TotalTransactionTemplateCount:  totalTransactionTemplateCount,
 		TotalScheduledTransactionCount: totalScheduledTransactionCount,
 		TotalCustomIconCount:           totalCustomIconCount,
+		TotalImportPresetCount:         totalImportPresetCount,
 	}
 
 	return dataStatisticsResp, nil
@@ -172,15 +182,6 @@ func (a *DataManagementsApi) ClearAllDataHandler(c *core.WebContext) (any, *errs
 
 	if c.GetCurrentBookUid() != uid {
 		return nil, errs.ErrOperationNotAvailableInSharedBook
-	}
-	claims := c.GetTokenClaims()
-
-	if claims == nil {
-		log.Warnf(c, "[data_managements.ClearAllDataHandler] current token is null")
-		return nil, errs.ErrInvalidToken
-	} else if claims.Type != core.USER_TOKEN_TYPE_NORMAL {
-		log.Warnf(c, "[data_managements.ClearAllDataHandler] token type \"%d\" is not allowed to clear all user data", claims.Type)
-		return nil, errs.ErrInvalidToken
 	}
 
 	user, err := a.users.GetUserById(c, uid)
@@ -275,6 +276,13 @@ func (a *DataManagementsApi) ClearAllDataHandler(c *core.WebContext) (any, *errs
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
+	err = a.importPresets.DeleteAllPresets(c, uid)
+
+	if err != nil {
+		log.Errorf(c, "[data_managements.ClearAllDataHandler] failed to delete all import presets, because %s", err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
 	err = a.userCustomExchangeRates.DeleteAllCustomExchangeRates(c, uid)
 
 	if err != nil {
@@ -307,15 +315,6 @@ func (a *DataManagementsApi) ClearAllTransactionsHandler(c *core.WebContext) (an
 
 	if c.GetCurrentBookUid() != uid {
 		return nil, errs.ErrOperationNotAvailableInSharedBook
-	}
-	claims := c.GetTokenClaims()
-
-	if claims == nil {
-		log.Warnf(c, "[data_managements.ClearAllTransactionsHandler] current token is null")
-		return nil, errs.ErrInvalidToken
-	} else if claims.Type != core.USER_TOKEN_TYPE_NORMAL {
-		log.Warnf(c, "[data_managements.ClearAllTransactionsHandler] token type \"%d\" is not allowed to clear all transactions", claims.Type)
-		return nil, errs.ErrInvalidToken
 	}
 
 	user, err := a.users.GetUserById(c, uid)
@@ -361,15 +360,6 @@ func (a *DataManagementsApi) ClearAllTransactionsByAccountHandler(c *core.WebCon
 
 	if c.GetCurrentBookUid() != uid {
 		return nil, errs.ErrOperationNotAvailableInSharedBook
-	}
-	claims := c.GetTokenClaims()
-
-	if claims == nil {
-		log.Warnf(c, "[data_managements.ClearAllTransactionsByAccountHandler] current token is null")
-		return nil, errs.ErrInvalidToken
-	} else if claims.Type != core.USER_TOKEN_TYPE_NORMAL {
-		log.Warnf(c, "[data_managements.ClearAllTransactionsByAccountHandler] token type \"%d\" is not allowed to clear all transactions of account", claims.Type)
-		return nil, errs.ErrInvalidToken
 	}
 
 	user, err := a.users.GetUserById(c, uid)

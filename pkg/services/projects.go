@@ -3,7 +3,6 @@ package services
 import (
 	"time"
 
-	"xorm.io/xorm"
 
 	"github.com/mayswind/ezbookkeeping/pkg/core"
 	"github.com/mayswind/ezbookkeeping/pkg/datastore"
@@ -143,7 +142,7 @@ func (s *ProjectService) CreateProject(c core.Context, project *models.Project) 
 	project.CreatedUnixTime = now
 	project.UpdatedUnixTime = now
 
-	return s.UserDataDB(project.Uid).DoTransaction(c, func(sess *xorm.Session) error {
+	return s.UserDataDB(project.Uid).DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		_, err := sess.Insert(project)
 		return err
 	})
@@ -167,7 +166,7 @@ func (s *ProjectService) ModifyProject(c core.Context, project *models.Project, 
 
 	project.UpdatedUnixTime = time.Now().Unix()
 
-	return s.UserDataDB(project.Uid).DoTransaction(c, func(sess *xorm.Session) error {
+	return s.UserDataDB(project.Uid).DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		updatedRows, err := sess.ID(project.ProjectId).Cols("name", "comment", "updated_unix_time").Where("uid=? AND deleted=?", project.Uid, false).Update(project)
 
 		if err != nil {
@@ -191,7 +190,7 @@ func (s *ProjectService) HideProject(c core.Context, uid int64, ids []int64, hid
 		UpdatedUnixTime: time.Now().Unix(),
 	}
 
-	return s.UserDataDB(uid).DoTransaction(c, func(sess *xorm.Session) error {
+	return s.UserDataDB(uid).DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		updatedRows, err := sess.Cols("hidden", "updated_unix_time").Where("uid=? AND deleted=?", uid, false).In("project_id", ids).Update(updateModel)
 
 		if err != nil {
@@ -216,7 +215,7 @@ func (s *ProjectService) ModifyProjectDisplayOrders(c core.Context, uid int64, p
 		projects[i].UpdatedUnixTime = now
 	}
 
-	return s.UserDataDB(uid).DoTransaction(c, func(sess *xorm.Session) error {
+	return s.UserDataDB(uid).DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		for i := 0; i < len(projects); i++ {
 			project := projects[i]
 			updatedRows, err := sess.ID(project.ProjectId).Cols("display_order", "updated_unix_time").Where("uid=? AND deleted=?", uid, false).Update(project)
@@ -245,7 +244,7 @@ func (s *ProjectService) DeleteProject(c core.Context, uid int64, projectId int6
 		DeletedUnixTime: now,
 	}
 
-	return s.UserDataDB(uid).DoTransaction(c, func(sess *xorm.Session) error {
+	return s.UserDataDB(uid).DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		deletedRows, err := sess.ID(projectId).Cols("deleted", "deleted_unix_time").Where("uid=? AND deleted=?", uid, false).Update(updateModel)
 
 		if err != nil {
@@ -276,7 +275,7 @@ func (s *ProjectService) DeleteAllProjects(c core.Context, uid int64) error {
 		DeletedUnixTime: time.Now().Unix(),
 	}
 
-	return s.UserDataDB(uid).DoTransaction(c, func(sess *xorm.Session) error {
+	return s.UserDataDB(uid).DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		_, err := sess.Cols("deleted", "deleted_unix_time").Where("uid=? AND deleted=?", uid, false).Update(updateModel)
 		return err
 	})

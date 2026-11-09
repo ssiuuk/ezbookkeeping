@@ -55,7 +55,6 @@ func initClearTestDataStore(t *testing.T) {
 // to a family book and used by a family book expense of 30.00, so its balance is 70.00
 func insertClearTestData(t *testing.T, shareAccount bool, addFamilyTransaction bool) {
 	sess := datastore.Container.UserDataStore.Choose(clearTestUid).NewSession(core.NewNullContext())
-	defer sess.Close()
 
 	balance := int64(10000)
 
@@ -202,7 +201,6 @@ func TestDeleteAllTransactions_RejectedWhenAccountIsDestinationOfFamilyBookTrans
 		RelatedAccountId: clearTestOtherAccountId,
 		TransactionTime:  4000,
 	})
-	sess.Close()
 	assert.Nil(t, err)
 
 	err = Transactions.DeleteAllTransactions(core.NewNullContext(), clearTestUid, true)
@@ -253,7 +251,6 @@ func TestDeleteAllTransactions_IgnoresDeletedFamilyBookTransactions(t *testing.T
 
 	sess := datastore.Container.UserDataStore.Choose(clearTestUid).NewSession(core.NewNullContext())
 	_, err := sess.ID(int64(3)).Cols("deleted").Update(&models.Transaction{Deleted: true})
-	sess.Close()
 	assert.Nil(t, err)
 
 	err = Transactions.DeleteAllTransactions(core.NewNullContext(), clearTestUid, true)

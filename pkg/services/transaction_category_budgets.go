@@ -3,7 +3,6 @@ package services
 import (
 	"time"
 
-	"xorm.io/xorm"
 
 	"github.com/mayswind/ezbookkeeping/pkg/core"
 	"github.com/mayswind/ezbookkeeping/pkg/datastore"
@@ -86,7 +85,7 @@ func (s *TransactionCategoryBudgetService) SaveBudgets(c core.Context, uid int64
 
 	now := time.Now().Unix()
 
-	return s.UserDataDB(uid).DoTransaction(c, func(sess *xorm.Session) error {
+	return s.UserDataDB(uid).DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		var existedBudgets []*models.TransactionCategoryBudget
 		err := sess.Where("uid=?", uid).Find(&existedBudgets)
 
@@ -154,7 +153,7 @@ func (s *TransactionCategoryBudgetService) DeleteAllBudgets(c core.Context, uid 
 		return errs.ErrUserIdInvalid
 	}
 
-	return s.UserDataDB(uid).DoTransaction(c, func(sess *xorm.Session) error {
+	return s.UserDataDB(uid).DoTransaction(c, func(sess datastore.DatabaseSession) error {
 		_, err := sess.Where("uid=?", uid).Delete(&models.TransactionCategoryBudget{})
 		return err
 	})

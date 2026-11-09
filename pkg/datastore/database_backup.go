@@ -74,13 +74,19 @@ func BackupDatabase(c core.Context, config *settings.Config, backupDir string) (
 		return "", ErrDatabaseIsNotInitialized
 	}
 
+	db, ok := Container.UserStore.Get(0).(*XOrmDatabase)
+
+	if !ok {
+		return "", ErrDatabaseBackupNotSupported
+	}
+
 	var backupFilePath string
 	var err error
 
 	if config.DatabaseConfig.DatabaseType == settings.MySqlDbType {
-		backupFilePath, err = backupMysqlDatabaseToFile(c, Container.UserStore.Get(0), backupDir, getMysqlDatabaseBackupFileName(time.Now()))
+		backupFilePath, err = backupMysqlDatabaseToFile(c, db, backupDir, getMysqlDatabaseBackupFileName(time.Now()))
 	} else {
-		backupFilePath, err = backupSqliteDatabase(c, Container.UserStore.Get(0), backupDir, time.Now())
+		backupFilePath, err = backupSqliteDatabase(c, db, backupDir, time.Now())
 	}
 
 	if err != nil {
@@ -162,11 +168,11 @@ func ListDatabaseBackupFiles(backupDir string) ([]*DatabaseBackupFileInfo, error
 	return backupFiles, nil
 }
 
-func backupSqliteDatabase(c core.Context, db *Database, backupDir string, now time.Time) (string, error) {
+func backupSqliteDatabase(c core.Context, db *XOrmDatabase, backupDir string, now time.Time) (string, error) {
 	return backupSqliteDatabaseToFile(c, db, backupDir, GetDatabaseBackupFileName(now))
 }
 
-func backupSqliteDatabaseToFile(c core.Context, db *Database, backupDir string, backupFileName string) (string, error) {
+func backupSqliteDatabaseToFile(c core.Context, db *XOrmDatabase, backupDir string, backupFileName string) (string, error) {
 	if db.databaseType != settings.Sqlite3DbType {
 		return "", ErrDatabaseBackupNotSupported
 	}

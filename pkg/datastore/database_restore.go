@@ -67,13 +67,19 @@ func RestoreDatabase(c core.Context, config *settings.Config, restoreFromFilePat
 		return nil, ErrDatabaseIsNotInitialized
 	}
 
+	db, ok := Container.UserStore.Get(0).(*XOrmDatabase)
+
+	if !ok {
+		return nil, ErrDatabaseRestoreNotSupported
+	}
+
 	var result *DatabaseRestoreResult
 	var err error
 
 	if config.DatabaseConfig.DatabaseType == settings.MySqlDbType {
-		result, err = restoreMysqlDatabase(c, Container.UserStore.Get(0), config.DatabaseConfig.DatabaseName, restoreFromFilePath, backupDir, time.Now())
+		result, err = restoreMysqlDatabase(c, db, config.DatabaseConfig.DatabaseName, restoreFromFilePath, backupDir, time.Now())
 	} else {
-		result, err = restoreSqliteDatabase(c, Container.UserStore.Get(0), config.DatabaseConfig.DatabasePath, restoreFromFilePath, backupDir, time.Now())
+		result, err = restoreSqliteDatabase(c, db, config.DatabaseConfig.DatabasePath, restoreFromFilePath, backupDir, time.Now())
 	}
 
 	if err != nil {
@@ -133,7 +139,7 @@ func VerifySqliteDatabaseFile(filePath string) error {
 	return nil
 }
 
-func restoreSqliteDatabase(c core.Context, db *Database, databasePath string, restoreFromFilePath string, backupDir string, now time.Time) (*DatabaseRestoreResult, error) {
+func restoreSqliteDatabase(c core.Context, db *XOrmDatabase, databasePath string, restoreFromFilePath string, backupDir string, now time.Time) (*DatabaseRestoreResult, error) {
 	if db.databaseType != settings.Sqlite3DbType {
 		return nil, ErrDatabaseRestoreNotSupported
 	}
@@ -195,7 +201,7 @@ func restoreSqliteDatabase(c core.Context, db *Database, databasePath string, re
 	return result, nil
 }
 
-func restoreMysqlDatabase(c core.Context, db *Database, databaseName string, restoreFromFilePath string, backupDir string, now time.Time) (*DatabaseRestoreResult, error) {
+func restoreMysqlDatabase(c core.Context, db *XOrmDatabase, databaseName string, restoreFromFilePath string, backupDir string, now time.Time) (*DatabaseRestoreResult, error) {
 	if db.databaseType != settings.MySqlDbType {
 		return nil, ErrDatabaseRestoreNotSupported
 	}

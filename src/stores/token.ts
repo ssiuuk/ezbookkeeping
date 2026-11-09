@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 
 import { useSettingsStore } from './setting.ts';
 import { useUserStore } from './user.ts';
+import { useUserCustomIconsStore } from './userCustomIcon.ts';
 
 import type {
     TokenGenerateAPIResponse,
@@ -19,6 +20,7 @@ import services from '@/lib/services.ts';
 export const useTokensStore = defineStore('tokens', () => {
     const settingsStore = useSettingsStore();
     const userStore = useUserStore();
+    const userCustomIconsStore = useUserCustomIconsStore();
 
     function getAllTokens(): Promise<TokenInfoResponse[]> {
         return new Promise((resolve, reject) => {
@@ -46,7 +48,7 @@ export const useTokensStore = defineStore('tokens', () => {
     }
 
     function refreshTokenAndRevokeOldToken(): Promise<TokenRefreshResponse> {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             services.refreshToken().then(response => {
                 const data = response.data;
 
@@ -61,27 +63,40 @@ export const useTokensStore = defineStore('tokens', () => {
                 if (data && data.success && data.result && data.result.newToken) {
                     updateCurrentToken(data.result.newToken);
 
+                    if (!userCustomIconsStore.customIconListStateInvalid) {
+                        userCustomIconsStore.updateCustomIconListInvalidState(true);
+                    }
+
                     if (data.result.oldTokenId) {
                         revokeToken({
                             tokenId: data.result.oldTokenId,
                             ignoreError: true
+                        }).catch(error => {
+                            logger.warn('failed to revoke old token after refreshing', error);
                         });
                     }
                 }
 
                 resolve(data.result);
-            });
+            }).catch(reject);
         });
     }
 
-    function generateToken<T extends 'api' | 'mcp'>({ type, expiresInSeconds, password }: { type: T, expiresInSeconds: number, password: string }): Promise<{ 'api': TokenGenerateAPIResponse, 'mcp': TokenGenerateMCPResponse }[T]> {
+    function generateToken<T extends 'api' | 'mcp'>({ type, expiresInSeconds, password, enabledMCPTools }: { type: T, expiresInSeconds: number, password: string, enabledMCPTools?: string[] }): Promise<{ 'api': TokenGenerateAPIResponse, 'mcp': TokenGenerateMCPResponse }[T]> {
         return new Promise((resolve, reject) => {
             let promise = null;
 
             if (type === 'api') {
-                promise = services.generateAPIToken({ expiresInSeconds, password });
+                promise = services.generateAPIToken({
+                    expiresInSeconds: expiresInSeconds,
+                    password: password
+                });
             } else if (type === 'mcp') {
-                promise = services.generateMCPToken({ expiresInSeconds, password });
+                promise = services.generateMCPToken({
+                    expiresInSeconds: expiresInSeconds,
+                    password: password,
+                    enabledTools: enabledMCPTools
+                });
             } else {
                 reject({ message: 'An error occurred' });
                 return;
