@@ -28,3 +28,16 @@ func TestGetRelatedUpdateColumns_KeepsMerchantColumn(t *testing.T) {
 	actualValue := Transactions.getRelatedUpdateColumns([]string{"amount", "merchant"})
 	assert.Equal(t, []string{"related_account_amount", "merchant"}, actualValue)
 }
+
+func TestGetMerchantsSortedByLastUsedTime(t *testing.T) {
+	lastUsedTimes := map[string]int64{
+		"Tesco":  300,
+		"Amazon": 500,
+		"Boots":  300,
+		"Argos":  100,
+	}
+
+	assert.Equal(t, []string{"Amazon", "Boots", "Tesco", "Argos"}, getMerchantsSortedByLastUsedTime(lastUsedTimes, 0))
+	assert.Equal(t, []string{"Amazon", "Boots"}, getMerchantsSortedByLastUsedTime(lastUsedTimes, 2))
+	assert.Equal(t, []string{}, getMerchantsSortedByLastUsedTime(map[string]int64{}, 10))
+}
