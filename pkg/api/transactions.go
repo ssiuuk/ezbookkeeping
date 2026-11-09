@@ -40,6 +40,7 @@ type TransactionsApi struct {
 	transactionTags       *services.TransactionTagService
 	transactionPictures   *services.TransactionPictureService
 	accounts              *services.AccountService
+	tokens                *services.TokenService
 	users                 *services.UserService
 	books                 *services.BookService
 	budgetAlerts          *services.BudgetAlertService
@@ -55,13 +56,14 @@ var (
 			ApiUsingConfig: ApiUsingConfig{
 				container: settings.Container,
 			},
-			container: duplicatechecker.Container,
+			duplicateChecker: duplicatechecker.Container,
 		},
 		transactions:          services.Transactions,
 		transactionCategories: services.TransactionCategories,
 		transactionTags:       services.TransactionTags,
 		transactionPictures:   services.TransactionPictures,
 		accounts:              services.Accounts,
+		tokens:                services.Tokens,
 		users:                 services.Users,
 		books:                 services.Books,
 		budgetAlerts:          services.BudgetAlerts,
@@ -1375,6 +1377,11 @@ func (a *TransactionsApi) TransactionGetHandler(c *core.WebContext) (any, *errs.
 	transactionTagIds := allTransactionTagIds[transaction.TransactionId]
 	transactionResp := transaction.ToTransactionInfoResponse(transactionTagIds, transactionEditable)
 
+	if transactionResp == nil {
+		log.Warnf(c, "[transactions.TransactionGetHandler] failed to assemble transaction response for transaction \"id:%d\" of user \"uid:%d\"", transaction.TransactionId, uid)
+		return nil, errs.ErrSystemError
+	}
+
 	if !transactionGetReq.TrimAccount {
 		if sourceAccount := accountMap[transaction.AccountId]; sourceAccount != nil {
 			transactionResp.SourceAccount = sourceAccount.ToAccountInfoResponse()
@@ -1395,8 +1402,15 @@ func (a *TransactionsApi) TransactionGetHandler(c *core.WebContext) (any, *errs.
 		transactionResp.Tags = a.getTransactionTagInfoResponses(transactionTagIds, tagMap)
 	}
 
-	if transactionGetReq.WithPictures && a.CurrentConfig().EnableTransactionPictures {
-		transactionResp.Pictures = a.GetTransactionPictureInfoResponseList(pictureInfos)
+	if transactionGetReq.WithPictures && a.CurrentConfig().EnableTransactionPictures && len(pictureInfos) > 0 {
+		pictureToken, err := a.GetTransactionPictureToken(c, uid)
+
+		if err != nil {
+			log.Errorf(c, "[transactions.TransactionGetHandler] failed to get transaction picture token for user \"uid:%d\", because %s", uid, err.Error())
+			return nil, errs.Or(err, errs.ErrTokenGenerating)
+		}
+
+		transactionResp.Pictures = a.GetTransactionPictureInfoResponseList(c, pictureInfos, pictureToken)
 	}
 
 	return transactionResp, nil
@@ -1485,7 +1499,17 @@ func (a *TransactionsApi) TransactionCreateHandler(c *core.WebContext) (any, *er
 				}
 
 				transactionResp := transaction.ToTransactionInfoResponse(tagIds, transactionEditable)
-				transactionResp.Pictures = a.GetTransactionPictureInfoResponseList(pictureInfos)
+
+				if len(pictureInfos) > 0 {
+					pictureToken, err := a.GetTransactionPictureToken(c, uid)
+
+					if err != nil {
+						log.Errorf(c, "[transactions.TransactionCreateHandler] failed to get transaction picture token for user \"uid:%d\", because %s", uid, err.Error())
+						return nil, errs.Or(err, errs.ErrTokenGenerating)
+					}
+
+					transactionResp.Pictures = a.GetTransactionPictureInfoResponseList(c, pictureInfos, pictureToken)
+				}
 
 				return transactionResp, nil
 			}
@@ -1507,7 +1531,17 @@ func (a *TransactionsApi) TransactionCreateHandler(c *core.WebContext) (any, *er
 
 	a.SetSubmissionRemarkIfEnable(duplicatechecker.DUPLICATE_CHECKER_TYPE_NEW_TRANSACTION, uid, transactionCreateReq.ClientSessionId, utils.Int64ToString(transaction.TransactionId))
 	transactionResp := transaction.ToTransactionInfoResponse(tagIds, transactionEditable)
-	transactionResp.Pictures = a.GetTransactionPictureInfoResponseList(pictureInfos)
+
+	if len(pictureInfos) > 0 {
+		pictureToken, err := a.GetTransactionPictureToken(c, uid)
+
+		if err != nil {
+			log.Errorf(c, "[transactions.TransactionCreateHandler] failed to get transaction picture token for user \"uid:%d\", because %s", uid, err.Error())
+			return nil, errs.Or(err, errs.ErrTokenGenerating)
+		}
+
+		transactionResp.Pictures = a.GetTransactionPictureInfoResponseList(c, pictureInfos, pictureToken)
+	}
 
 	return transactionResp, nil
 }
@@ -1679,7 +1713,17 @@ func (a *TransactionsApi) TransactionMoveToBookHandler(c *core.WebContext) (any,
 	}
 
 	transactionResp := transaction.ToTransactionInfoResponse(tagIds, transactionEditable)
-	transactionResp.Pictures = a.GetTransactionPictureInfoResponseList(allPictureInfos)
+
+	if len(allPictureInfos) > 0 {
+		pictureToken, err := a.GetTransactionPictureToken(c, uid)
+
+		if err != nil {
+			log.Errorf(c, "[transactions.TransactionMoveToBookHandler] failed to get transaction picture token for user \"uid:%d\", because %s", uid, err.Error())
+			return nil, errs.Or(err, errs.ErrTokenGenerating)
+		}
+
+		transactionResp.Pictures = a.GetTransactionPictureInfoResponseList(c, allPictureInfos, pictureToken)
+	}
 
 	return transactionResp, nil
 }
@@ -1909,7 +1953,17 @@ func (a *TransactionsApi) TransactionModifyHandler(c *core.WebContext) (any, *er
 	}
 
 	newTransactionResp := newTransaction.ToTransactionInfoResponse(tagIds, transactionEditable)
-	newTransactionResp.Pictures = a.GetTransactionPictureInfoResponseList(newPictureInfos)
+
+	if len(newPictureInfos) > 0 {
+		pictureToken, err := a.GetTransactionPictureToken(c, uid)
+
+		if err != nil {
+			log.Errorf(c, "[transactions.TransactionModifyHandler] failed to get transaction picture token for user \"uid:%d\", because %s", uid, err.Error())
+			return nil, errs.Or(err, errs.ErrTokenGenerating)
+		}
+
+		newTransactionResp.Pictures = a.GetTransactionPictureInfoResponseList(c, newPictureInfos, pictureToken)
+	}
 
 	return newTransactionResp, nil
 }
@@ -3543,7 +3597,11 @@ func (a *TransactionsApi) getTransactionEssentialDataByTransactionIds(c *core.We
 		categoryIds = append(categoryIds, transactions[i].CategoryId)
 	}
 
-	accountMap, err = a.accounts.GetAccountsUsedByBookByAccountIds(c, uid, utils.ToUniqueInt64Slice(accountIds))
+	transactionIds = utils.ToUniqueInt64Slice(transactionIds)
+	accountIds = utils.ToUniqueInt64Slice(accountIds)
+	categoryIds = utils.ToUniqueInt64Slice(categoryIds)
+
+	accountMap, err = a.accounts.GetAccountsUsedByBookByAccountIds(c, uid, accountIds)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.getTransactionEssentialDataByTransactionIds] failed to get accounts for user \"uid:%d\", because %s", uid, err.Error())
@@ -3558,7 +3616,7 @@ func (a *TransactionsApi) getTransactionEssentialDataByTransactionIds(c *core.We
 	}
 
 	if !trimCategory {
-		categoryMap, err = a.transactionCategories.GetCategoriesByCategoryIds(c, uid, utils.ToUniqueInt64Slice(categoryIds))
+		categoryMap, err = a.transactionCategories.GetCategoriesByCategoryIds(c, uid, categoryIds)
 
 		if err != nil {
 			log.Errorf(c, "[transactions.getTransactionEssentialDataByTransactionIds] failed to get transactions categories for user \"uid:%d\", because %s", uid, err.Error())
@@ -3576,7 +3634,7 @@ func (a *TransactionsApi) getTransactionEssentialDataByTransactionIds(c *core.We
 	}
 
 	if withPictures && a.CurrentConfig().EnableTransactionPictures {
-		pictureInfoMap, err = a.transactionPictures.GetPictureInfosByTransactionIds(c, uid, utils.ToUniqueInt64Slice(a.transactions.GetTransactionIds(transactions)))
+		pictureInfoMap, err = a.transactionPictures.GetPictureInfosByTransactionIds(c, uid, transactionIds)
 
 		if err != nil {
 			log.Errorf(c, "[transactions.getTransactionEssentialDataByTransactionIds] failed to get transactions pictures for user \"uid:%d\", because %s", uid, err.Error())
@@ -3634,6 +3692,18 @@ func (a *TransactionsApi) getTransactionUsedAccounts(c *core.WebContext, uid int
 }
 
 func (a *TransactionsApi) getTransactionResponseListResult(c *core.WebContext, user *models.User, transactions []*models.Transaction, allAccounts map[int64]*models.Account, categoryMap map[int64]*models.TransactionCategory, tagMap map[int64]*models.TransactionTag, allTransactionTagIds map[int64][]int64, pictureInfoMap map[int64][]*models.TransactionPictureInfo, clientTimezone *time.Location, withPictures bool, trimAccount bool, trimCategory bool, trimTag bool) (models.TransactionInfoResponseSlice, error) {
+	var err error
+	pictureToken := ""
+
+	if withPictures && a.CurrentConfig().EnableTransactionPictures && len(pictureInfoMap) > 0 {
+		pictureToken, err = a.GetTransactionPictureToken(c, user.Uid)
+
+		if err != nil {
+			log.Errorf(c, "[transactions.getTransactionResponseListResult] failed to get transaction picture token for user \"uid:%d\", because %s", user.Uid, err.Error())
+			return nil, errs.Or(err, errs.ErrTokenGenerating)
+		}
+	}
+
 	result := make(models.TransactionInfoResponseSlice, len(transactions))
 
 	for i := 0; i < len(transactions); i++ {
@@ -3671,7 +3741,7 @@ func (a *TransactionsApi) getTransactionResponseListResult(c *core.WebContext, u
 			pictureInfos, exists := pictureInfoMap[transaction.TransactionId]
 
 			if exists {
-				result[i].Pictures = a.GetTransactionPictureInfoResponseList(pictureInfos)
+				result[i].Pictures = a.GetTransactionPictureInfoResponseList(c, pictureInfos, pictureToken)
 			}
 		}
 	}
@@ -3679,6 +3749,28 @@ func (a *TransactionsApi) getTransactionResponseListResult(c *core.WebContext, u
 	sort.Sort(result)
 
 	return result, nil
+}
+
+func (a *TransactionsApi) GetTransactionPictureToken(c *core.WebContext, uid int64) (string, error) {
+	claims := c.GetTokenClaims()
+
+	if claims == nil {
+		log.Warnf(c, "[transactions.GetTransactionPictureToken] token is invalid, because claims is nil or token type is not normal")
+		return "", errs.ErrInvalidToken
+	}
+
+	if claims.Type != core.USER_TOKEN_TYPE_NORMAL {
+		return "", nil
+	}
+
+	pictureToken, err := a.tokens.DeriveTransactionPictureToken(c, claims, c.GetTokenRecord())
+
+	if err != nil {
+		log.Errorf(c, "[transactions.GetTransactionPictureToken] failed to derive transaction picture token for user \"uid:%d\", because %s", uid, err.Error())
+		return "", errs.Or(err, errs.ErrTokenGenerating)
+	}
+
+	return pictureToken, nil
 }
 
 func (a *TransactionsApi) getTransactionImportResponse(result *models.TransactionImportResponse) (any, *errs.Error) {

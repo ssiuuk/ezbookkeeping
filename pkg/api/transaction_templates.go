@@ -35,7 +35,7 @@ var (
 			ApiUsingConfig: ApiUsingConfig{
 				container: settings.Container,
 			},
-			container: duplicatechecker.Container,
+			duplicateChecker: duplicatechecker.Container,
 		},
 		templates: services.TransactionTemplates,
 		books:     services.Books,

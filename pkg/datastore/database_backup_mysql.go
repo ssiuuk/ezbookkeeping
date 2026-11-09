@@ -63,7 +63,7 @@ var ErrMysqlDatabaseBackupFileInvalid = errors.New("the file is not a complete e
 
 // backupMysqlDatabaseToFile writes all tables of the current mysql database as sql statements into a gzip file in the backup directory,
 // the data of all tables is read in one transaction, so the backup is consistent without locking the tables
-func backupMysqlDatabaseToFile(c core.Context, db *Database, backupDir string, backupFileName string) (string, error) {
+func backupMysqlDatabaseToFile(c core.Context, db *XOrmDatabase, backupDir string, backupFileName string) (string, error) {
 	if db.databaseType != settings.MySqlDbType {
 		return "", ErrDatabaseBackupNotSupported
 	}

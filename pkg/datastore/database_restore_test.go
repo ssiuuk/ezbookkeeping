@@ -15,7 +15,7 @@ import (
 
 // newTestSqliteDatabase creates a sqlite database with a user table and two rows in the specified directory,
 // the database is closed before the temporary directory is removed (windows cannot remove open files)
-func newTestSqliteDatabase(t *testing.T, dir string) (*Database, string) {
+func newTestSqliteDatabase(t *testing.T, dir string) (*XOrmDatabase, string) {
 	databasePath := filepath.Join(dir, "ezbookkeeping.db")
 
 	db, err := initializeDatabase(&settings.DatabaseConfig{
@@ -146,7 +146,7 @@ func TestRestoreSqliteDatabaseRefusesInvalidFile(t *testing.T) {
 
 	// the current database is untouched and still usable, and no backup has been taken
 	var count int
-	_, err = db.NewSession(c).SQL("SELECT COUNT(*) FROM user").Get(&count)
+	_, err = db.engineGroup.SQL("SELECT COUNT(*) FROM user").Get(&count)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, count)
 	assert.Equal(t, []string{"first", "second"}, queryTestUserNames(t, databasePath))
@@ -156,7 +156,7 @@ func TestRestoreSqliteDatabaseRefusesInvalidFile(t *testing.T) {
 }
 
 func TestRestoreSqliteDatabaseRejectsNonSqlite(t *testing.T) {
-	_, err := restoreSqliteDatabase(core.NewNullContext(), &Database{databaseType: settings.MySqlDbType}, "a.db", "b.db", t.TempDir(), time.Now())
+	_, err := restoreSqliteDatabase(core.NewNullContext(), &XOrmDatabase{databaseType: settings.MySqlDbType}, "a.db", "b.db", t.TempDir(), time.Now())
 	assert.Equal(t, ErrDatabaseRestoreNotSupported, err)
 
 	_, err = RestoreDatabase(core.NewNullContext(), &settings.Config{

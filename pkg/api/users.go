@@ -37,7 +37,8 @@ var (
 				container: settings.Container,
 			},
 			ApiUsingAvatarProvider: ApiUsingAvatarProvider{
-				container: avatars.Container,
+				avatarProvider: avatars.Container,
+				tokens:         services.Tokens,
 			},
 		},
 		users:    services.Users,
@@ -77,6 +78,8 @@ func (a *UsersApi) UserRegisterHandler(c *core.WebContext) (any, *errs.Error) {
 		Language:             userRegisterReq.Language,
 		DefaultCurrency:      userRegisterReq.DefaultCurrency,
 		FirstDayOfWeek:       userRegisterReq.FirstDayOfWeek,
+		ExpenseAmountColor:   userRegisterReq.ExpenseAmountColor,
+		IncomeAmountColor:    userRegisterReq.IncomeAmountColor,
 		FiscalYearStart:      core.FISCAL_YEAR_START_DEFAULT,
 		TransactionEditScope: models.TRANSACTION_EDIT_SCOPE_ALL,
 		FeatureRestriction:   a.CurrentConfig().DefaultFeatureRestrictions,
@@ -101,10 +104,17 @@ func (a *UsersApi) UserRegisterHandler(c *core.WebContext) (any, *errs.Error) {
 		}
 	}
 
+	userBasicInfo, err := a.GetUserBasicInfo(c, user)
+
+	if err != nil {
+		log.Errorf(c, "[users.UserRegisterHandler] failed to get user basic info for user \"uid:%d\", because %s", user.Uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
 	authResp := &models.RegisterResponse{
 		AuthResponse: models.AuthResponse{
 			Need2FA:             false,
-			User:                a.GetUserBasicInfo(user),
+			User:                userBasicInfo,
 			NotificationContent: a.GetAfterRegisterNotificationContent(user.Language, c.GetClientLocale()),
 		},
 		NeedVerifyEmail:       a.CurrentConfig().EnableUserVerifyEmail && a.CurrentConfig().EnableUserForceVerifyEmail,
@@ -131,7 +141,7 @@ func (a *UsersApi) UserRegisterHandler(c *core.WebContext) (any, *errs.Error) {
 		return authResp, nil
 	}
 
-	token, claims, err := a.tokens.CreateToken(c, user)
+	token, claims, tokenRecord, err := a.tokens.CreateToken(c, user)
 
 	if err != nil {
 		log.Warnf(c, "[users.UserRegisterHandler] failed to create token for user \"uid:%d\", because %s", user.Uid, err.Error())
@@ -141,7 +151,7 @@ func (a *UsersApi) UserRegisterHandler(c *core.WebContext) (any, *errs.Error) {
 	authResp.Token = token
 	c.SetTextualToken(token)
 	c.SetTokenClaims(claims)
-	c.SetTokenContext("")
+	c.SetTokenRecord(tokenRecord)
 
 	log.Infof(c, "[users.UserRegisterHandler] user \"uid:%d\" has logged in, token will be expired at %d", user.Uid, claims.ExpiresAt)
 
@@ -150,9 +160,6 @@ func (a *UsersApi) UserRegisterHandler(c *core.WebContext) (any, *errs.Error) {
 
 // UserEmailVerifyHandler sets user email address verified
 func (a *UsersApi) UserEmailVerifyHandler(c *core.WebContext) (any, *errs.Error) {
-	var userVerifyEmailReq models.UserVerifyEmailRequest
-	err := c.ShouldBindJSON(&userVerifyEmailReq)
-
 	uid := c.GetCurrentUid()
 	user, err := a.users.GetUserById(c, uid)
 
@@ -189,28 +196,7 @@ func (a *UsersApi) UserEmailVerifyHandler(c *core.WebContext) (any, *errs.Error)
 		log.Warnf(c, "[users.UserEmailVerifyHandler] failed to revoke old email verify tokens for user \"uid:%d\", because %s", user.Uid, err.Error())
 	}
 
-	resp := &models.UserVerifyEmailResponse{}
-
-	if userVerifyEmailReq.RequestNewToken {
-		token, claims, err := a.tokens.CreateToken(c, user)
-
-		if err != nil {
-			log.Warnf(c, "[users.UserEmailVerifyHandler] failed to create token for user \"uid:%d\", because %s", user.Uid, err.Error())
-			return resp, nil
-		}
-
-		resp.NewToken = token
-		resp.User = a.GetUserBasicInfo(user)
-		resp.NotificationContent = a.GetAfterLoginNotificationContent(user.Language, c.GetClientLocale())
-
-		c.SetTextualToken(token)
-		c.SetTokenClaims(claims)
-		c.SetTokenContext("")
-
-		log.Infof(c, "[users.UserEmailVerifyHandler] user \"uid:%d\" token created, new token will be expired at %d", user.Uid, claims.ExpiresAt)
-	}
-
-	return resp, nil
+	return true, nil
 }
 
 // UserProfileHandler returns user profile of current user
@@ -220,13 +206,19 @@ func (a *UsersApi) UserProfileHandler(c *core.WebContext) (any, *errs.Error) {
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
-			log.Errorf(c, "[users.UserRegisterHandler] failed to get user, because %s", err.Error())
+			log.Errorf(c, "[users.UserProfileHandler] failed to get user, because %s", err.Error())
 		}
 
 		return nil, errs.ErrUserNotFound
 	}
 
-	userResp := a.getUserProfileResponse(user)
+	userResp, err := a.getUserProfileResponse(c, user)
+
+	if err != nil {
+		log.Errorf(c, "[users.UserProfileHandler] failed to get user profile response for user \"uid:%d\", because %s", user.Uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
 	return userResp, nil
 }
 
@@ -241,16 +233,6 @@ func (a *UsersApi) UserUpdateProfileHandler(c *core.WebContext) (any, *errs.Erro
 	}
 
 	uid := c.GetCurrentUid()
-	claims := c.GetTokenClaims()
-
-	if claims == nil {
-		log.Warnf(c, "[users.UserUpdateProfileHandler] current token is null")
-		return nil, errs.ErrInvalidToken
-	} else if claims.Type != core.USER_TOKEN_TYPE_NORMAL {
-		log.Warnf(c, "[users.UserUpdateProfileHandler] token type \"%d\" is not allowed to update user profile", claims.Type)
-		return nil, errs.ErrInvalidToken
-	}
-
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -574,8 +556,15 @@ func (a *UsersApi) UserUpdateProfileHandler(c *core.WebContext) (any, *errs.Erro
 
 	log.Infof(c, "[users.UserUpdateProfileHandler] user \"uid:%d\" has updated successfully", user.Uid)
 
+	userBasicInfo, err := a.GetUserBasicInfo(c, user)
+
+	if err != nil {
+		log.Errorf(c, "[users.UserUpdateProfileHandler] failed to get user basic info for user \"uid:%d\", because %s", user.Uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
 	resp := &models.UserProfileUpdateResponse{
-		User: a.GetUserBasicInfo(user),
+		User: userBasicInfo,
 	}
 
 	if emailSetToUnverified && a.CurrentConfig().EnableUserVerifyEmail && a.CurrentConfig().EnableSMTP {
@@ -610,7 +599,7 @@ func (a *UsersApi) UserUpdateProfileHandler(c *core.WebContext) (any, *errs.Erro
 			log.Warnf(c, "[users.UserUpdateProfileHandler] failed to revoke old tokens for user \"uid:%d\", because %s", user.Uid, err.Error())
 		}
 
-		token, claims, err := a.tokens.CreateToken(c, user)
+		token, claims, tokenRecord, err := a.tokens.CreateToken(c, user)
 
 		if err != nil {
 			log.Warnf(c, "[users.UserUpdateProfileHandler] failed to create token for user \"uid:%d\", because %s", user.Uid, err.Error())
@@ -620,7 +609,16 @@ func (a *UsersApi) UserUpdateProfileHandler(c *core.WebContext) (any, *errs.Erro
 		resp.NewToken = token
 		c.SetTextualToken(token)
 		c.SetTokenClaims(claims)
-		c.SetTokenContext("")
+		c.SetTokenRecord(tokenRecord)
+
+		userBasicInfo, err := a.GetUserBasicInfo(c, user)
+
+		if err != nil {
+			log.Errorf(c, "[users.UserUpdateProfileHandler] failed to get user basic info for user \"uid:%d\", because %s", user.Uid, err.Error())
+			return nil, errs.Or(err, errs.ErrOperationFailed)
+		}
+
+		resp.User = userBasicInfo
 
 		log.Infof(c, "[users.UserUpdateProfileHandler] user \"uid:%d\" token refreshed, new token will be expired at %d", user.Uid, claims.ExpiresAt)
 
@@ -633,16 +631,6 @@ func (a *UsersApi) UserUpdateProfileHandler(c *core.WebContext) (any, *errs.Erro
 // UserUpdateAvatarHandler saves user avatar by request parameters for current user
 func (a *UsersApi) UserUpdateAvatarHandler(c *core.WebContext) (any, *errs.Error) {
 	uid := c.GetCurrentUid()
-	claims := c.GetTokenClaims()
-
-	if claims == nil {
-		log.Warnf(c, "[users.UserUpdateAvatarHandler] current token is null")
-		return nil, errs.ErrInvalidToken
-	} else if claims.Type != core.USER_TOKEN_TYPE_NORMAL {
-		log.Warnf(c, "[users.UserUpdateAvatarHandler] token type \"%d\" is not allowed to update user avatar", claims.Type)
-		return nil, errs.ErrInvalidToken
-	}
-
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -703,23 +691,19 @@ func (a *UsersApi) UserUpdateAvatarHandler(c *core.WebContext) (any, *errs.Error
 	}
 
 	user.CustomAvatarType = fileExtension
-	userResp := a.getUserProfileResponse(user)
+	userResp, err := a.getUserProfileResponse(c, user)
+
+	if err != nil {
+		log.Errorf(c, "[users.UserUpdateAvatarHandler] failed to get user profile response for user \"uid:%d\", because %s", user.Uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
 	return userResp, nil
 }
 
 // UserRemoveAvatarHandler removes user avatar by request parameters for current user
 func (a *UsersApi) UserRemoveAvatarHandler(c *core.WebContext) (any, *errs.Error) {
 	uid := c.GetCurrentUid()
-	claims := c.GetTokenClaims()
-
-	if claims == nil {
-		log.Warnf(c, "[users.UserRemoveAvatarHandler] current token is null")
-		return nil, errs.ErrInvalidToken
-	} else if claims.Type != core.USER_TOKEN_TYPE_NORMAL {
-		log.Warnf(c, "[users.UserRemoveAvatarHandler] token type \"%d\" is not allowed to remove user avatar", claims.Type)
-		return nil, errs.ErrInvalidToken
-	}
-
 	user, err := a.users.GetUserById(c, uid)
 
 	if err != nil {
@@ -746,7 +730,13 @@ func (a *UsersApi) UserRemoveAvatarHandler(c *core.WebContext) (any, *errs.Error
 	}
 
 	user.CustomAvatarType = ""
-	userResp := a.getUserProfileResponse(user)
+	userResp, err := a.getUserProfileResponse(c, user)
+
+	if err != nil {
+		log.Errorf(c, "[users.UserRemoveAvatarHandler] failed to get user profile response for user \"uid:%d\", because %s", user.Uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
 	return userResp, nil
 }
 
@@ -881,6 +871,13 @@ func (a *UsersApi) UserGetAvatarHandler(c *core.WebContext) ([]byte, string, *er
 	return avatarData, contentType, nil
 }
 
-func (a *UsersApi) getUserProfileResponse(user *models.User) *models.UserProfileResponse {
-	return user.ToUserProfileResponse(a.GetUserBasicInfo(user))
+func (a *UsersApi) getUserProfileResponse(c *core.WebContext, user *models.User) (*models.UserProfileResponse, error) {
+	userBasicInfo, err := a.GetUserBasicInfo(c, user)
+
+	if err != nil {
+		log.Errorf(c, "[users.getUserProfileResponse] failed to get user basic info for user \"uid:%d\", because %s", user.Uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	return user.ToUserProfileResponse(userBasicInfo), nil
 }

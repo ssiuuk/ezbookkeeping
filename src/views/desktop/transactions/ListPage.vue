@@ -608,6 +608,10 @@
                                                 v-if="!transaction.tagIds || !transaction.tagIds.length"/>
                                     </td>
                                     <td class="transaction-table-column-description text-truncate">
+                                        <v-icon class="transaction-picture-indicator" size="18" :icon="mdiImageOutline"
+                                                :aria-label="tt('Transaction Pictures')" role="img"
+                                                v-if="showPictureIndicatorInTransactionListPage && transaction.pictures?.length">
+                                        </v-icon>
                                         <span class="text-medium-emphasis" v-if="transaction.merchant">{{ transaction.merchant }}</span>
                                         <span class="text-medium-emphasis" v-if="transaction.merchant && transaction.comment"> · </span>
                                         <span v-if="transaction.comment">{{ transaction.comment }}</span>
@@ -689,7 +693,7 @@
     <edit-dialog ref="editDialog" :type="TransactionEditPageType.Transaction" />
     <batch-add-dialog ref="batchAddDialog" />
     <a-i-image-recognition-dialog ref="aiImageRecognitionDialog" />
-    <import-dialog ref="importDialog" :persistent="true" />
+    <import-dialog ref="importDialog" />
 
     <account-filter-settings-dialog type="transactionListCurrent"
                                     v-model:show="showFilterAccountDialog"
@@ -704,14 +708,12 @@
                                             v-model:show="showFilterTagDialog"
                                             @settings:change="changeMultipleTagsFilter" />
 
-    <confirm-dialog ref="confirmDialog"/>
     <snack-bar ref="snackbar" />
 </template>
 
 <script setup lang="ts">
 import { VMenu } from 'vuetify/components/VMenu';
 import PaginationButtons from '@/components/desktop/PaginationButtons.vue';
-import ConfirmDialog from '@/components/desktop/ConfirmDialog.vue';
 import SnackBar from '@/components/desktop/SnackBar.vue';
 import EditDialog from './list/dialogs/EditDialog.vue';
 import BatchAddDialog from './list/dialogs/BatchAddDialog.vue';
@@ -823,6 +825,7 @@ import {
     mdiArrowLeft,
     mdiArrowRight,
     mdiPound,
+    mdiImageOutline,
     mdiMagicStaff,
     mdiTablePlus,
     mdiTextBoxOutline,
@@ -845,7 +848,6 @@ interface TransactionListProps {
 
 const props = defineProps<TransactionListProps>();
 
-type ConfirmDialogType = InstanceType<typeof ConfirmDialog>;
 type SnackBarType = InstanceType<typeof SnackBar>;
 type EditDialogType = InstanceType<typeof EditDialog>;
 type BatchAddDialogType = InstanceType<typeof BatchAddDialog>;
@@ -876,6 +878,7 @@ const {
     showTotalAmountInTransactionListPage,
     totalAmountTypeInTransactionListPage,
     showTagInTransactionListPage,
+    showPictureIndicatorInTransactionListPage,
     allDateRanges,
     allAccounts,
     allAccountsMap,
@@ -938,7 +941,6 @@ const amountFilterMenu = useTemplateRef<VMenu>('amountFilterMenu');
 const accountFilterMenu = useTemplateRef<VMenu>('accountFilterMenu');
 const tagFilterMenu = useTemplateRef<VMenu>('tagFilterMenu');
 
-const confirmDialog = useTemplateRef<ConfirmDialogType>('confirmDialog');
 const snackbar = useTemplateRef<SnackBarType>('snackbar');
 const editDialog = useTemplateRef<EditDialogType>('editDialog');
 const batchAddDialog = useTemplateRef<BatchAddDialogType>('batchAddDialog');
@@ -1277,7 +1279,7 @@ function reload(force: boolean, init: boolean): void {
                 year: currentYear,
                 month: currentMonth,
                 mustHavePictures: isGalleryMode,
-                withPictures: isGalleryMode,
+                withPictures: isGalleryMode || showPictureIndicatorInTransactionListPage.value,
                 autoExpand: true,
                 defaultCurrency: selectedAccountDefaultCurrency.value
             });
@@ -1288,7 +1290,7 @@ function reload(force: boolean, init: boolean): void {
                 page: page,
                 mustHavePictures: isGalleryMode,
                 withCount: page <= 1,
-                withPictures: isGalleryMode,
+                withPictures: isGalleryMode || showPictureIndicatorInTransactionListPage.value,
                 autoExpand: true,
                 defaultCurrency: selectedAccountDefaultCurrency.value
             });
@@ -1954,6 +1956,12 @@ init(props);
             max-width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+    }
+
+    .transaction-table-column-description {
+        > .transaction-picture-indicator {
+            vertical-align: text-bottom;
         }
     }
 }

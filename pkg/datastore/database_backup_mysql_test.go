@@ -109,7 +109,7 @@ func TestVerifyMysqlDatabaseBackupFile(t *testing.T) {
 
 // the mysql tests need a mysql or mariadb database which can be dropped and created freely, e.g.
 // EZBOOKKEEPING_TEST_MYSQL_HOST=127.0.0.1:3306 EZBOOKKEEPING_TEST_MYSQL_NAME=ezb_test EZBOOKKEEPING_TEST_MYSQL_USER=ezb EZBOOKKEEPING_TEST_MYSQL_PASSWORD=ezbpass
-func openMysqlTestDatabase(t *testing.T) *Database {
+func openMysqlTestDatabase(t *testing.T) *XOrmDatabase {
 	host := os.Getenv("EZBOOKKEEPING_TEST_MYSQL_HOST")
 
 	if host == "" {
@@ -129,7 +129,7 @@ func openMysqlTestDatabase(t *testing.T) *Database {
 	return db
 }
 
-func initializeMysqlTestDatabase(t *testing.T) *Database {
+func initializeMysqlTestDatabase(t *testing.T) *XOrmDatabase {
 	db := openMysqlTestDatabase(t)
 	c := core.NewNullContext()
 	var err error
@@ -288,9 +288,9 @@ func TestRestoreMysqlDatabaseRefusesInvalidFile(t *testing.T) {
 }
 
 func TestBackupMysqlDatabaseRejectsSqlite(t *testing.T) {
-	_, err := backupMysqlDatabaseToFile(core.NewNullContext(), &Database{databaseType: settings.Sqlite3DbType}, t.TempDir(), "x.sql.gz")
+	_, err := backupMysqlDatabaseToFile(core.NewNullContext(), &XOrmDatabase{databaseType: settings.Sqlite3DbType}, t.TempDir(), "x.sql.gz")
 	assert.Equal(t, ErrDatabaseBackupNotSupported, err)
 
-	_, err = restoreMysqlDatabase(core.NewNullContext(), &Database{databaseType: settings.Sqlite3DbType}, "", "x.sql.gz", t.TempDir(), time.Now())
+	_, err = restoreMysqlDatabase(core.NewNullContext(), &XOrmDatabase{databaseType: settings.Sqlite3DbType}, "", "x.sql.gz", t.TempDir(), time.Now())
 	assert.Equal(t, ErrDatabaseRestoreNotSupported, err)
 }

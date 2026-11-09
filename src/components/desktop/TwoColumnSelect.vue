@@ -43,7 +43,7 @@
                 <div class="primary-list-container">
                     <v-list ref="primaryList" :class="{ 'list-item-with-header': !!primaryHeaderField, 'list-item-with-footer': !!primaryFooterField }"
                             @keydown.capture="onListKeydown($event, 'left')">
-                        <v-list-item :class="{ 'primary-list-item-selected v-list-item--active text-primary': item === selectedPrimaryItem }"
+                        <v-list-item :class="{ 'primary-list-item-selected v-list-item--active text-primary': item === activePrimaryItem }"
                                      :key="primaryKeyField ? (item as Record<string, unknown>)[primaryKeyField] as string : JSON.stringify(item)"
                                      v-for="item in filteredItems"
                                      @click="onPrimaryItemClicked(item)">
@@ -65,7 +65,7 @@
                 <div class="secondary-list-container">
                     <v-list ref="secondaryList" :class="{ 'list-item-with-header': !!secondaryHeaderField, 'list-item-with-footer': !!secondaryFooterField }"
                             @keydown.capture="onListKeydown($event, 'right')"
-                            v-if="selectedPrimaryItem && primarySubItemsField && (selectedPrimaryItem as Record<string, unknown>)[primarySubItemsField]">
+                            v-if="activePrimaryItem && primarySubItemsField && (activePrimaryItem as Record<string, unknown>)[primarySubItemsField]">
                         <v-list-item :class="{ 'secondary-list-item-selected v-list-item--active text-primary': isSecondarySelected(subItem) }"
                                      :key="secondaryKeyField ? subItem[secondaryKeyField] as string : JSON.stringify(subItem)"
                                      v-for="subItem in filteredSubItems"
@@ -140,6 +140,7 @@ interface DesktopTwoColumnListItemSelectionProps extends CommonTwoColumnListItem
     noItemText?: string;
     autoUpdateMenuPosition?: boolean;
     addItemText?: string;
+    disableAutoSelectFirstSecondaryItem?: boolean;
 }
 
 const props = defineProps<DesktopTwoColumnListItemSelectionProps>();
@@ -170,8 +171,9 @@ const primaryList = useTemplateRef<VList>('primaryList');
 const secondaryList = useTemplateRef<VList>('secondaryList');
 
 const menuState = ref<boolean>(false);
+const menuPrimaryValue = ref<unknown>(undefined);
 
-const filteredSubItems = computed<Record<string, unknown>[]>(() => getFilteredSubItems(selectedPrimaryItem.value));
+const filteredSubItems = computed<Record<string, unknown>[]>(() => getFilteredSubItems(activePrimaryItem.value));
 
 const currentPrimaryValue = computed<unknown>({
     get: () => {
@@ -181,6 +183,11 @@ const currentPrimaryValue = computed<unknown>({
         const primaryItem = getItemByKeyValue(filteredItems.value, value, props.primaryValueField as string);
 
         if (!primaryItem) {
+            return;
+        }
+
+        if (props.disableAutoSelectFirstSecondaryItem) {
+            menuPrimaryValue.value = value;
             return;
         }
 
@@ -206,6 +213,7 @@ const currentSecondaryValue = computed<unknown>({
 
 const selectedPrimaryItem = computed<unknown>(() => getSelectedPrimaryItem(currentPrimaryValue.value));
 const selectedSecondaryItem = computed<unknown>(() => getSelectedSecondaryItem(currentSecondaryValue.value, selectedPrimaryItem.value));
+const activePrimaryItem = computed<unknown>(() => menuState.value && props.disableAutoSelectFirstSecondaryItem ? getSelectedPrimaryItem(menuPrimaryValue.value) : selectedPrimaryItem.value);
 
 const noSelectionText = computed<string>(() => props.noItemText ? props.noItemText : tt('None'));
 
@@ -285,7 +293,7 @@ function onListKeydown(event: KeyboardEvent, column: TwoColumnListColumn): void 
         },
         getSelectedIndex: column => {
             if (column === 'left') {
-                return filteredItems.value.findIndex(item => item === selectedPrimaryItem.value);
+                return filteredItems.value.findIndex(item => item === activePrimaryItem.value);
             } else if (column === 'right') {
                 return filteredSubItems.value.findIndex(isSecondarySelected);
             } else {
@@ -310,6 +318,8 @@ function onListKeydown(event: KeyboardEvent, column: TwoColumnListColumn): void 
 
 function onMenuStateChanged(state: boolean): void {
     if (state) {
+        menuPrimaryValue.value = getCurrentPrimaryValueBySecondaryValue(props.modelValue);
+
         nextTick(() => {
             if (dropdownMenu.value && dropdownMenu.value.parentElement) {
                 scrollToSelectedItem(dropdownMenu.value.parentElement, '.primary-list-container', '.primary-list-container', '.primary-list-item-selected');

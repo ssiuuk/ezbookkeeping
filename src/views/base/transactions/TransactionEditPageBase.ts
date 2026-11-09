@@ -735,7 +735,7 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
     }
 
     function getTransactionPictureUrl(pictureInfo?: TransactionPictureInfoBasicResponse | null): string | undefined {
-        return transactionsStore.getTransactionPictureUrl(pictureInfo, undefined, !!pictureInfo && !!savedPictureIds.value[pictureInfo.pictureId]);
+        return transactionsStore.getTransactionPictureUrl(pictureInfo);
     }
 
     watch(() => transaction.value.sourceAmount, (newValue, oldValue) => {
