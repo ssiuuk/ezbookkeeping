@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sort"
 	"strings"
 	"time"
 
@@ -2572,32 +2573,58 @@ func (s *TransactionService) GetAccountsAndCategoriesTotalInflowAndOutflow(c cor
 	return transactionTotalAmounts, nil
 }
 
-// GetRecentMerchants returns the distinct non-empty merchant names used in transactions, most recently used first
-func (s *TransactionService) GetRecentMerchants(c core.Context, uid int64, count int) ([]string, error) {
-	if uid <= 0 {
-		return nil, errs.ErrUserIdInvalid
+// GetRecentMerchantsOfBooks returns the distinct non-empty merchant names used in transactions of all the given books, most recently used first
+func (s *TransactionService) GetRecentMerchantsOfBooks(c core.Context, bookUids []int64, count int) ([]string, error) {
+	lastUsedTimes := make(map[string]int64)
+
+	for i := 0; i < len(bookUids); i++ {
+		if bookUids[i] <= 0 {
+			return nil, errs.ErrUserIdInvalid
+		}
+
+		var merchants []*models.TransactionMerchantLastUsedTime
+		err := s.UserDataDB(bookUids[i]).NewSession(c).Table(&models.Transaction{}).
+			Select("merchant, MAX(transaction_time) AS last_transaction_time").
+			Where("uid=? AND deleted=? AND merchant<>?", bookUids[i], false, "").
+			GroupBy("merchant").
+			OrderBy("last_transaction_time desc").
+			Limit(count, 0).
+			Find(&merchants)
+
+		if err != nil {
+			return nil, err
+		}
+
+		for j := 0; j < len(merchants); j++ {
+			if lastUsedTime, exists := lastUsedTimes[merchants[j].Merchant]; !exists || merchants[j].LastTransactionTime > lastUsedTime {
+				lastUsedTimes[merchants[j].Merchant] = merchants[j].LastTransactionTime
+			}
+		}
 	}
 
-	var merchants []*models.TransactionMerchantLastUsedTime
-	err := s.UserDataDB(uid).NewSession(c).Table(&models.Transaction{}).
-		Select("merchant, MAX(transaction_time) AS last_transaction_time").
-		Where("uid=? AND deleted=? AND merchant<>?", uid, false, "").
-		GroupBy("merchant").
-		OrderBy("last_transaction_time desc").
-		Limit(count, 0).
-		Find(&merchants)
+	return getMerchantsSortedByLastUsedTime(lastUsedTimes, count), nil
+}
 
-	if err != nil {
-		return nil, err
+func getMerchantsSortedByLastUsedTime(lastUsedTimes map[string]int64, count int) []string {
+	result := make([]string, 0, len(lastUsedTimes))
+
+	for merchant := range lastUsedTimes {
+		result = append(result, merchant)
 	}
 
-	result := make([]string, len(merchants))
+	sort.Slice(result, func(i, j int) bool {
+		if lastUsedTimes[result[i]] != lastUsedTimes[result[j]] {
+			return lastUsedTimes[result[i]] > lastUsedTimes[result[j]]
+		}
 
-	for i := 0; i < len(merchants); i++ {
-		result[i] = merchants[i].Merchant
+		return result[i] < result[j]
+	})
+
+	if count > 0 && len(result) > count {
+		result = result[:count]
 	}
 
-	return result, nil
+	return result
 }
 
 // GetLatestTransactionOfMerchant returns the latest income or expense transaction of a merchant, or nil if there is none

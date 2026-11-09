@@ -677,10 +677,24 @@ func (a *TransactionsApi) TransactionStatisticsHandler(c *core.WebContext) (any,
 	return statisticResp, nil
 }
 
-// TransactionMerchantListHandler returns the merchant names recently used in transactions of current book
+// TransactionMerchantListHandler returns the merchant names recently used in transactions of all the books current user can access
 func (a *TransactionsApi) TransactionMerchantListHandler(c *core.WebContext) (any, *errs.Error) {
-	uid := c.GetCurrentBookUid()
-	merchants, err := a.transactions.GetRecentMerchants(c, uid, maxRecentMerchantCount)
+	uid := c.GetCurrentUid()
+	books, err := a.books.GetAccessibleSharedBooks(c, uid)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionMerchantListHandler] failed to get books for user \"uid:%d\", because %s", uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	bookUids := make([]int64, 0, len(books)+1)
+	bookUids = append(bookUids, uid)
+
+	for i := 0; i < len(books); i++ {
+		bookUids = append(bookUids, books[i].BookId)
+	}
+
+	merchants, err := a.transactions.GetRecentMerchantsOfBooks(c, bookUids, maxRecentMerchantCount)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionMerchantListHandler] failed to get merchants for user \"uid:%d\", because %s", uid, err.Error())
