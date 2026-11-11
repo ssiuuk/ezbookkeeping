@@ -2034,6 +2034,8 @@
     "Unable to record settlement": "Unable to record settlement",
     "Unable to delete settlement": "Unable to delete settlement",
     "You have moved this transaction to the selected book": "You have moved this transaction to the selected book",
+    "This transaction was created by a scheduled transaction. Do you also want to move the scheduled transaction and all its other entries to the selected book? Choose OK to move them all, or Cancel to move only this transaction.": "この取引は定期取引によって作成されました。定期取引とその他のすべての取引も選択したブックに移動しますか？すべて移動する場合は OK、この取引だけを移動する場合はキャンセルを選択してください。",
+    "You have moved this transaction, its scheduled transaction and its other entries to the selected book": "この取引、その定期取引、およびその他の取引を選択したブックに移動しました",
     "Budget Alert Emails": "Budget Alert Emails",
     "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})": "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})",
     "{category}: the budget for {period} has been exceeded ({spent} of {budget})": "{category}: the budget for {period} has been exceeded ({spent} of {budget})",

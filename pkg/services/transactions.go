@@ -609,38 +609,158 @@ func (s *TransactionService) CreateTransaction(c core.Context, transaction *mode
 
 // MoveTransactionToBook deletes the transaction from its source book and saves the new transaction into the book of the new transaction in one database transaction
 func (s *TransactionService) MoveTransactionToBook(c core.Context, sourceUid int64, sourceTransactionId int64, transaction *models.Transaction, tagIds []int64, pictureIds []int64) error {
-	if sourceUid <= 0 || transaction.Uid <= 0 {
+	return s.MoveTransactionsToBook(c, sourceUid, []*TransactionMoveToBookItem{
+		{
+			SourceTransactionId: sourceTransactionId,
+			Transaction:         transaction,
+			TagIds:              tagIds,
+			PictureIds:          pictureIds,
+		},
+	}, 0)
+}
+
+// TransactionMoveToBookItem represents a transaction of the source book and the new transaction which replaces it in the target book
+type TransactionMoveToBookItem struct {
+	SourceTransactionId int64
+	Transaction         *models.Transaction
+	TagIds              []int64
+	PictureIds          []int64
+}
+
+// MoveTransactionsToBook deletes the given transactions from the source book and creates the new transactions in the target book in one database transaction,
+// and moves the scheduled transaction template with the given id to the target book as well when the id is not zero
+func (s *TransactionService) MoveTransactionsToBook(c core.Context, sourceUid int64, items []*TransactionMoveToBookItem, templateId int64) error {
+	if len(items) < 1 {
+		return errs.ErrTransactionNotFound
+	}
+
+	uid := items[0].Transaction.Uid
+
+	if sourceUid <= 0 || uid <= 0 {
 		return errs.ErrUserIdInvalid
 	}
 
-	if sourceUid == transaction.Uid {
+	if sourceUid == uid {
 		return errs.ErrCannotMoveTransactionToSameBook
 	}
 
-	// Check whether account id is valid
-	err := s.isAccountIdValid(transaction)
+	transactionTagIndexes := make([][]*models.TransactionTagIndex, len(items))
+	pictureUpdateModels := make([]*models.TransactionPictureInfo, len(items))
 
-	if err != nil {
-		return err
-	}
+	for i := 0; i < len(items); i++ {
+		if items[i].Transaction.Uid != uid {
+			return errs.ErrUserIdInvalid
+		}
 
-	tagIds, transactionTagIndexes, pictureUpdateModel, err := s.prepareNewTransaction(transaction, tagIds)
-
-	if err != nil {
-		return err
-	}
-
-	userDataDb := s.UserDataDB(transaction.Uid)
-
-	return userDataDb.DoTransaction(c, func(sess datastore.DatabaseSession) error {
-		err := s.doDeleteTransaction(c, sess, sourceUid, sourceTransactionId, transaction.CreatedUnixTime)
+		// Check whether account id is valid
+		err := s.isAccountIdValid(items[i].Transaction)
 
 		if err != nil {
 			return err
 		}
 
-		return s.doCreateTransaction(c, userDataDb, sess, transaction, transactionTagIndexes, tagIds, pictureIds, pictureUpdateModel)
+		items[i].TagIds, transactionTagIndexes[i], pictureUpdateModels[i], err = s.prepareNewTransaction(items[i].Transaction, items[i].TagIds)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	userDataDb := s.UserDataDB(uid)
+
+	return userDataDb.DoTransaction(c, func(sess datastore.DatabaseSession) error {
+		for i := 0; i < len(items); i++ {
+			item := items[i]
+			err := s.doDeleteTransaction(c, sess, sourceUid, item.SourceTransactionId, item.Transaction.CreatedUnixTime)
+
+			if err != nil {
+				return err
+			}
+
+			err = s.doCreateTransaction(c, userDataDb, sess, item.Transaction, transactionTagIndexes[i], item.TagIds, item.PictureIds, pictureUpdateModels[i])
+
+			if err != nil {
+				return err
+			}
+		}
+
+		if templateId > 0 {
+			return s.doMoveScheduledTemplateToBook(sess, sourceUid, templateId, items[0].Transaction, items[0].TagIds)
+		}
+
+		return nil
 	})
+}
+
+// doMoveScheduledTemplateToBook moves the template to the book of the given transaction, using the category, accounts and tags of the transaction since they belong to that book
+func (s *TransactionService) doMoveScheduledTemplateToBook(sess datastore.DatabaseSession, sourceUid int64, templateId int64, transaction *models.Transaction, tagIds []int64) error {
+	template := &models.TransactionTemplate{}
+	has, err := sess.ID(templateId).Where("uid=? AND deleted=?", sourceUid, false).Get(template)
+
+	if err != nil {
+		return err
+	} else if !has {
+		// the scheduled transaction has been deleted, so only its transactions are moved
+		return nil
+	}
+
+	transactionType, err := transaction.Type.ToTransactionType()
+
+	if err != nil {
+		return err
+	}
+
+	lastTemplate := &models.TransactionTemplate{}
+	hasLastTemplate, err := sess.Cols("uid", "deleted", "display_order").Where("uid=? AND deleted=? AND template_type=?", transaction.Uid, false, template.TemplateType).OrderBy("display_order desc").Limit(1).Get(lastTemplate)
+
+	if err != nil {
+		return err
+	}
+
+	template.Uid = transaction.Uid
+	template.DisplayOrder = 1
+
+	if hasLastTemplate {
+		template.DisplayOrder = lastTemplate.DisplayOrder + 1
+	}
+
+	template.Type = transactionType
+	template.CategoryId = transaction.CategoryId
+	template.AccountId = transaction.AccountId
+	template.RelatedAccountId = 0
+
+	if transaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT {
+		template.RelatedAccountId = transaction.RelatedAccountId
+	}
+
+	template.TagIds = strings.Join(utils.Int64ArrayToStringArray(tagIds), ",")
+	template.UpdatedUnixTime = time.Now().Unix()
+
+	updatedRows, err := sess.ID(templateId).Cols("uid", "display_order", "type", "category_id", "account_id", "related_account_id", "tag_ids", "updated_unix_time").Where("uid=? AND deleted=?", sourceUid, false).Update(template)
+
+	if err != nil {
+		return err
+	} else if updatedRows < 1 {
+		return errs.ErrTransactionTemplateNotFound
+	}
+
+	return nil
+}
+
+// GetTransactionsCreatedByTemplate returns all the transactions which the given scheduled transaction template created, except the transfer-in halves of transfers
+func (s *TransactionService) GetTransactionsCreatedByTemplate(c core.Context, uid int64, templateId int64) ([]*models.Transaction, error) {
+	if uid <= 0 {
+		return nil, errs.ErrUserIdInvalid
+	}
+
+	if templateId <= 0 {
+		return nil, errs.ErrTransactionTemplateIdInvalid
+	}
+
+	var transactions []*models.Transaction
+	err := s.UserDataDB(uid).NewSession(c).Where("uid=? AND deleted=? AND source_template_id=? AND type<>?", uid, false, templateId, models.TRANSACTION_DB_TYPE_TRANSFER_IN).OrderBy("transaction_time asc").Find(&transactions)
+
+	return transactions, err
 }
 
 // prepareNewTransaction generates the ids and timestamps of a new transaction and returns its unique tag ids, tag indexes and picture update model

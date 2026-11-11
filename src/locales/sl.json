@@ -2034,6 +2034,8 @@
     "Unable to record settlement": "Unable to record settlement",
     "Unable to delete settlement": "Unable to delete settlement",
     "You have moved this transaction to the selected book": "You have moved this transaction to the selected book",
+    "This transaction was created by a scheduled transaction. Do you also want to move the scheduled transaction and all its other entries to the selected book? Choose OK to move them all, or Cancel to move only this transaction.": "To transakcijo je ustvarila načrtovana transakcija. Ali želite v izbrano knjigo premakniti tudi načrtovano transakcijo in vse njene druge vnose? Izberite V redu, da premaknete vse, ali Prekliči, da premaknete samo to transakcijo.",
+    "You have moved this transaction, its scheduled transaction and its other entries to the selected book": "To transakcijo, njeno načrtovano transakcijo in njene druge vnose ste premaknili v izbrano knjigo",
     "Budget Alert Emails": "Budget Alert Emails",
     "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})": "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})",
     "{category}: the budget for {period} has been exceeded ({spent} of {budget})": "{category}: the budget for {period} has been exceeded ({spent} of {budget})",

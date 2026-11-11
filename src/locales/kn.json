@@ -2034,6 +2034,8 @@
     "Unable to record settlement": "Unable to record settlement",
     "Unable to delete settlement": "Unable to delete settlement",
     "You have moved this transaction to the selected book": "You have moved this transaction to the selected book",
+    "This transaction was created by a scheduled transaction. Do you also want to move the scheduled transaction and all its other entries to the selected book? Choose OK to move them all, or Cancel to move only this transaction.": "ಈ ವಹಿವಾಟನ್ನು ನಿಗದಿತ ವಹಿವಾಟು ರಚಿಸಿದೆ. ನಿಗದಿತ ವಹಿವಾಟು ಮತ್ತು ಅದರ ಎಲ್ಲಾ ಇತರ ನಮೂದುಗಳನ್ನೂ ಆಯ್ಕೆಮಾಡಿದ ಪುಸ್ತಕಕ್ಕೆ ಸರಿಸಬೇಕೆ? ಎಲ್ಲವನ್ನೂ ಸರಿಸಲು ಸರಿ ಆಯ್ಕೆಮಾಡಿ, ಅಥವಾ ಈ ವಹಿವಾಟನ್ನು ಮಾತ್ರ ಸರಿಸಲು ರದ್ದುಮಾಡಿ ಆಯ್ಕೆಮಾಡಿ.",
+    "You have moved this transaction, its scheduled transaction and its other entries to the selected book": "ನೀವು ಈ ವಹಿವಾಟು, ಅದರ ನಿಗದಿತ ವಹಿವಾಟು ಮತ್ತು ಅದರ ಇತರ ನಮೂದುಗಳನ್ನು ಆಯ್ಕೆಮಾಡಿದ ಪುಸ್ತಕಕ್ಕೆ ಸರಿಸಿದ್ದೀರಿ",
     "Budget Alert Emails": "Budget Alert Emails",
     "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})": "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})",
     "{category}: the budget for {period} has been exceeded ({spent} of {budget})": "{category}: the budget for {period} has been exceeded ({spent} of {budget})",
