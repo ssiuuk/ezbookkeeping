@@ -3922,6 +3922,18 @@ func (a *TransactionsApi) getOtherScheduledTransactionsToMove(c *core.WebContext
 	}
 
 	items := make([]*services.TransactionMoveToBookItem, 0, len(otherTransactions))
+	sameCurrencyTransfer := false
+
+	if transaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT {
+		sourceAccount := allUsedAccounts[transaction.AccountId]
+		destinationAccount := allUsedAccounts[transaction.RelatedAccountId]
+
+		if sourceAccount == nil || destinationAccount == nil {
+			return nil, copiedPictureInfos, errs.ErrAccountNotFound
+		}
+
+		sameCurrencyTransfer = sourceAccount.Currency == destinationAccount.Currency
+	}
 
 	for i := 0; i < len(otherTransactions); i++ {
 		otherTransaction := otherTransactions[i]
@@ -3931,7 +3943,7 @@ func (a *TransactionsApi) getOtherScheduledTransactionsToMove(c *core.WebContext
 			return nil, copiedPictureInfos, errs.ErrCannotModifyTransactionWithThisTransactionTime
 		}
 
-		newTransaction := getMovedScheduledTransaction(otherTransaction, transaction)
+		newTransaction := getMovedScheduledTransaction(otherTransaction, transaction, sameCurrencyTransfer)
 
 		pictureInfos, err := a.transactionPictures.GetPictureInfosByTransactionId(c, sourceUid, otherTransaction.TransactionId)
 
@@ -3959,8 +3971,9 @@ func (a *TransactionsApi) getOtherScheduledTransactionsToMove(c *core.WebContext
 	return items, copiedPictureInfos, nil
 }
 
-// getMovedScheduledTransaction returns the new transaction of another transaction of the same scheduled transaction as the moved transaction
-func getMovedScheduledTransaction(otherTransaction *models.Transaction, movedTransaction *models.Transaction) *models.Transaction {
+// getMovedScheduledTransaction returns the new transaction of another transaction of the same scheduled transaction as the moved transaction,
+// sameCurrencyTransfer tells whether the moved transaction is a transfer between accounts of the same currency
+func getMovedScheduledTransaction(otherTransaction *models.Transaction, movedTransaction *models.Transaction, sameCurrencyTransfer bool) *models.Transaction {
 	newTransaction := &models.Transaction{
 		Uid:               movedTransaction.Uid,
 		Type:              movedTransaction.Type,
@@ -3988,11 +4001,11 @@ func getMovedScheduledTransaction(otherTransaction *models.Transaction, movedTra
 	if movedTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT {
 		newTransaction.RelatedAccountId = movedTransaction.RelatedAccountId
 
-		if otherTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT && movedTransaction.Amount != movedTransaction.RelatedAccountAmount {
+		if sameCurrencyTransfer {
+			newTransaction.RelatedAccountAmount = otherTransaction.Amount
+		} else if otherTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT {
 			// the destination account of the moved transaction has another currency, so each transfer keeps its own received amount
 			newTransaction.RelatedAccountAmount = otherTransaction.RelatedAccountAmount
-		} else if movedTransaction.Amount == movedTransaction.RelatedAccountAmount {
-			newTransaction.RelatedAccountAmount = otherTransaction.Amount
 		} else {
 			newTransaction.Amount = movedTransaction.Amount
 			newTransaction.RelatedAccountAmount = movedTransaction.RelatedAccountAmount

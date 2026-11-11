@@ -724,19 +724,28 @@ func (s *TransactionService) doMoveScheduledTemplateToBook(sess datastore.Databa
 		template.DisplayOrder = lastTemplate.DisplayOrder + 1
 	}
 
+	if transaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT {
+		sourceAccount, destinationAccount, err := s.getAccountModels(sess, transaction)
+
+		if err != nil {
+			return err
+		}
+
+		template.Amount, template.RelatedAccountAmount = getMovedScheduledTemplateTransferAmounts(template, transaction, sourceAccount.Currency == destinationAccount.Currency)
+		template.RelatedAccountId = transaction.RelatedAccountId
+	} else {
+		template.RelatedAccountId = 0
+		template.RelatedAccountAmount = 0
+	}
+
 	template.Type = transactionType
 	template.CategoryId = transaction.CategoryId
 	template.AccountId = transaction.AccountId
-	template.RelatedAccountId = 0
-
-	if transaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT {
-		template.RelatedAccountId = transaction.RelatedAccountId
-	}
 
 	template.TagIds = strings.Join(utils.Int64ArrayToStringArray(tagIds), ",")
 	template.UpdatedUnixTime = time.Now().Unix()
 
-	updatedRows, err := sess.ID(templateId).Cols("uid", "display_order", "type", "category_id", "account_id", "related_account_id", "tag_ids", "updated_unix_time").Where("uid=? AND deleted=?", sourceUid, false).Update(template)
+	updatedRows, err := sess.ID(templateId).Cols("uid", "display_order", "type", "category_id", "account_id", "amount", "related_account_id", "related_account_amount", "tag_ids", "updated_unix_time").Where("uid=? AND deleted=?", sourceUid, false).Update(template)
 
 	if err != nil {
 		return err
@@ -745,6 +754,25 @@ func (s *TransactionService) doMoveScheduledTemplateToBook(sess datastore.Databa
 	}
 
 	return nil
+}
+
+// getMovedScheduledTemplateTransferAmounts returns the amounts of a scheduled transfer template moved to the accounts of the given transfer,
+// so that a transfer between accounts of the same currency has equal amounts, which creating its transactions requires
+func getMovedScheduledTemplateTransferAmounts(template *models.TransactionTemplate, transaction *models.Transaction, sameCurrency bool) (int64, int64) {
+	amount := template.Amount
+	relatedAccountAmount := template.RelatedAccountAmount
+
+	if template.Type != models.TRANSACTION_TYPE_TRANSFER {
+		// the schedule becomes a transfer, and only the moved transaction knows its received amount
+		amount = transaction.Amount
+		relatedAccountAmount = transaction.RelatedAccountAmount
+	}
+
+	if sameCurrency {
+		relatedAccountAmount = amount
+	}
+
+	return amount, relatedAccountAmount
 }
 
 // GetTransactionsCreatedByTemplate returns all the transactions which the given scheduled transaction template created, except the transfer-in halves of transfers

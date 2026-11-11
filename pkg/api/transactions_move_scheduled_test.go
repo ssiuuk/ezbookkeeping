@@ -35,7 +35,7 @@ func TestGetMovedScheduledTransaction_ExpenseKeepsItsOwnTimeAndAmount(t *testing
 		SourceTemplateId:  9,
 	}
 
-	result := getMovedScheduledTransaction(other, moved)
+	result := getMovedScheduledTransaction(other, moved, false)
 
 	assert.Equal(t, int64(0), result.TransactionId)
 	assert.Equal(t, int64(200), result.Uid)
@@ -60,17 +60,27 @@ func TestGetMovedScheduledTransaction_Transfer(t *testing.T) {
 	otherTransfer := &models.Transaction{Type: models.TRANSACTION_DB_TYPE_TRANSFER_OUT, Amount: 1500, RelatedAccountAmount: 13000}
 	otherExpense := &models.Transaction{Type: models.TRANSACTION_DB_TYPE_EXPENSE, Amount: 1500}
 
-	result := getMovedScheduledTransaction(otherTransfer, sameCurrency)
+	result := getMovedScheduledTransaction(otherTransfer, sameCurrency, true)
 	assert.Equal(t, int64(2), result.RelatedAccountId)
 	assert.Equal(t, int64(1500), result.Amount)
 	assert.Equal(t, int64(1500), result.RelatedAccountAmount)
 
-	result = getMovedScheduledTransaction(otherTransfer, otherCurrency)
+	result = getMovedScheduledTransaction(otherTransfer, otherCurrency, false)
 	assert.Equal(t, int64(3), result.RelatedAccountId)
 	assert.Equal(t, int64(1500), result.Amount)
 	assert.Equal(t, int64(13000), result.RelatedAccountAmount)
 
-	result = getMovedScheduledTransaction(otherExpense, otherCurrency)
+	result = getMovedScheduledTransaction(otherExpense, otherCurrency, false)
 	assert.Equal(t, int64(1000), result.Amount)
 	assert.Equal(t, int64(9000), result.RelatedAccountAmount)
+}
+
+func TestGetMovedScheduledTransaction_OtherCurrencyTransferWithEqualAmountsKeepsHistoricalReceivedAmounts(t *testing.T) {
+	// a 1:1 rate on the moved transfer does not make its accounts the same currency
+	moved := &models.Transaction{Uid: 200, Type: models.TRANSACTION_DB_TYPE_TRANSFER_OUT, AccountId: 1, RelatedAccountId: 3, Amount: 1000, RelatedAccountAmount: 1000}
+	earlier := &models.Transaction{Type: models.TRANSACTION_DB_TYPE_TRANSFER_OUT, Amount: 1500, RelatedAccountAmount: 1300}
+
+	result := getMovedScheduledTransaction(earlier, moved, false)
+	assert.Equal(t, int64(1500), result.Amount)
+	assert.Equal(t, int64(1300), result.RelatedAccountAmount)
 }

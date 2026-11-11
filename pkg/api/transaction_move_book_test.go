@@ -276,3 +276,136 @@ func TestTransactionMoveToBook_WithoutMoveScheduleMovesOnlyTheEntry(t *testing.T
 	_, err := services.TransactionTemplates.GetTemplateByTemplateId(core.NewNullContext(), env.memberUid, templateId)
 	assert.Nil(t, err)
 }
+
+func insertMoveBookTestTransferCategory(t *testing.T, uid int64) int64 {
+	parent := &models.TransactionCategory{
+		CategoryId: uuid.Container.GenerateUuid(uuid.UUID_TYPE_CATEGORY),
+		Uid:        uid,
+		Type:       models.CATEGORY_TYPE_TRANSFER,
+		Name:       "Transfers",
+		Icon:       1,
+		Color:      "000000",
+	}
+
+	category := &models.TransactionCategory{
+		CategoryId:       uuid.Container.GenerateUuid(uuid.UUID_TYPE_CATEGORY),
+		Uid:              uid,
+		Type:             models.CATEGORY_TYPE_TRANSFER,
+		ParentCategoryId: parent.CategoryId,
+		Name:             "Savings",
+		Icon:             1,
+		Color:            "000000",
+	}
+
+	_, err := datastore.Container.UserDataStore.Query(core.NewNullContext(), 0).Insert(parent, category)
+	assert.Nil(t, err)
+
+	return category.CategoryId
+}
+
+func TestTransactionMoveToBook_MovesOtherCurrencyScheduledTransferToSameCurrencyAccounts(t *testing.T) {
+	env := setupSharedBookWithMemberAccount(t)
+	personalCategoryId := insertMoveBookTestTransferCategory(t, env.memberUid)
+	familyCategoryId := insertMoveBookTestTransferCategory(t, env.bookId)
+
+	euroAccount := &models.Account{
+		Uid:      env.memberUid,
+		Name:     "Euro savings",
+		Category: models.ACCOUNT_CATEGORY_SAVINGS_ACCOUNT,
+		Type:     models.ACCOUNT_TYPE_SINGLE_ACCOUNT,
+		Icon:     1,
+		Color:    "000000",
+		Currency: "EUR",
+	}
+	assert.Nil(t, services.Accounts.CreateAccounts(core.NewNullContext(), euroAccount, 0, nil, nil, time.UTC))
+
+	var latest *models.TransactionInfoResponse
+
+	for i, relatedAmount := range []int64{11800, 11500} {
+		c := newSharedBookTestContext(http.MethodPost, "/api/v1/transactions/add.json", &models.TransactionCreateRequest{
+			Type:                 models.TRANSACTION_TYPE_TRANSFER,
+			CategoryId:           personalCategoryId,
+			Time:                 time.Now().Unix() - int64(2-i)*30*86400,
+			SourceAccountId:      env.usedAccountId,
+			DestinationAccountId: euroAccount.AccountId,
+			SourceAmount:         10000,
+			DestinationAmount:    relatedAmount,
+			Comment:              "monthly savings",
+		}, env.memberUid, env.memberUid)
+
+		result, errResp := Transactions.TransactionCreateHandler(c)
+		assert.Nil(t, errResp)
+		latest = result.(*models.TransactionInfoResponse)
+	}
+
+	template := &models.TransactionTemplate{
+		TemplateId:             uuid.Container.GenerateUuid(uuid.UUID_TYPE_TEMPLATE),
+		Uid:                    env.memberUid,
+		TemplateType:           models.TRANSACTION_TEMPLATE_TYPE_SCHEDULE,
+		Name:                   "Monthly savings",
+		Type:                   models.TRANSACTION_TYPE_TRANSFER,
+		CategoryId:             personalCategoryId,
+		AccountId:              env.usedAccountId,
+		RelatedAccountId:       euroAccount.AccountId,
+		Amount:                 10000,
+		RelatedAccountAmount:   11500,
+		ScheduledFrequencyType: models.TRANSACTION_SCHEDULE_FREQUENCY_TYPE_MONTHLY,
+		ScheduledFrequency:     "1",
+		ScheduledTimezoneName:  "UTC",
+		DisplayOrder:           1,
+		CreatedUnixTime:        time.Now().Unix(),
+	}
+
+	_, err := datastore.Container.UserDataStore.Query(core.NewNullContext(), 0).Insert(template)
+	assert.Nil(t, err)
+
+	_, err = datastore.Container.UserDataStore.Query(core.NewNullContext(), 0).Table(&models.Transaction{}).Where("uid=? AND deleted=?", env.memberUid, false).Update(map[string]any{"source_template_id": template.TemplateId, "scheduled_created": true})
+	assert.Nil(t, err)
+
+	// both accounts used in the family book have the same currency
+	_, errResp := moveTransactionToBookWithSchedule(env.memberUid, env.bookId, env.memberUid, latest.Id, models.TransactionCreateRequest{
+		Type:                 models.TRANSACTION_TYPE_TRANSFER,
+		CategoryId:           familyCategoryId,
+		Time:                 latest.Time,
+		UtcOffset:            latest.UtcOffset,
+		SourceAccountId:      env.usedAccountId,
+		DestinationAccountId: env.unusedAccountId,
+		SourceAmount:         10000,
+		DestinationAmount:    10000,
+		Comment:              "monthly savings",
+	}, true)
+	assert.Nil(t, errResp)
+
+	movedTemplate, err := services.TransactionTemplates.GetTemplateByTemplateId(core.NewNullContext(), env.bookId, template.TemplateId)
+	assert.Nil(t, err)
+	assert.Equal(t, env.unusedAccountId, movedTemplate.RelatedAccountId)
+	assert.Equal(t, int64(10000), movedTemplate.Amount)
+	assert.Equal(t, int64(10000), movedTemplate.RelatedAccountAmount)
+
+	familyTransfers := 0
+
+	for _, transaction := range getSharedBookTestTransactionList(t, env.ownerUid, env.bookId) {
+		if transaction.Comment == "monthly savings" {
+			familyTransfers++
+			assert.Equal(t, transaction.SourceAmount, *transaction.DestinationAmount)
+		}
+	}
+
+	assert.Equal(t, 2, familyTransfers)
+
+	// the next transaction of the schedule can be created in the family book
+	next := &models.Transaction{
+		Uid:                  env.bookId,
+		Type:                 models.TRANSACTION_DB_TYPE_TRANSFER_OUT,
+		CategoryId:           movedTemplate.CategoryId,
+		TransactionTime:      utils.GetMinTransactionTimeFromUnixTime(time.Now().Unix()),
+		AccountId:            movedTemplate.AccountId,
+		Amount:               movedTemplate.Amount,
+		RelatedAccountId:     movedTemplate.RelatedAccountId,
+		RelatedAccountAmount: movedTemplate.RelatedAccountAmount,
+		CreatedByUid:         env.memberUid,
+		ScheduledCreated:     true,
+		SourceTemplateId:     movedTemplate.TemplateId,
+	}
+	assert.Nil(t, services.Transactions.CreateTransaction(core.NewNullContext(), next, nil, nil))
+}
