@@ -193,6 +193,7 @@ type TransactionMoveToBookRequest struct {
 	TransactionCreateRequest
 	Id           int64 `json:"id,string" binding:"required,min=1"`
 	SourceBookId int64 `json:"sourceBookId,string" binding:"required,min=1"`
+	MoveSchedule bool  `json:"moveSchedule"`
 }
 
 // TransactionModifyRequest represents all parameters of transaction modification request

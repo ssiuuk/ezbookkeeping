@@ -2034,6 +2034,8 @@
     "Unable to record settlement": "Unable to record settlement",
     "Unable to delete settlement": "Unable to delete settlement",
     "You have moved this transaction to the selected book": "You have moved this transaction to the selected book",
+    "This transaction was created by a scheduled transaction. Do you also want to move the scheduled transaction and all its other entries to the selected book? Choose OK to move them all, or Cancel to move only this transaction.": "Αυτή η συναλλαγή δημιουργήθηκε από προγραμματισμένη συναλλαγή. Θέλετε να μετακινήσετε επίσης την προγραμματισμένη συναλλαγή και όλες τις άλλες καταχωρίσεις της στο επιλεγμένο βιβλίο; Επιλέξτε OK για να τις μετακινήσετε όλες ή Άκυρο για να μετακινήσετε μόνο αυτή τη συναλλαγή.",
+    "You have moved this transaction, its scheduled transaction and its other entries to the selected book": "Μετακινήσατε αυτή τη συναλλαγή, την προγραμματισμένη συναλλαγή της και τις άλλες καταχωρίσεις της στο επιλεγμένο βιβλίο",
     "Budget Alert Emails": "Budget Alert Emails",
     "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})": "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})",
     "{category}: the budget for {period} has been exceeded ({spent} of {budget})": "{category}: the budget for {period} has been exceeded ({spent} of {budget})",

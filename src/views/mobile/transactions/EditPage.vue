@@ -649,7 +649,7 @@ import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
 import { useBooksStore } from '@/stores/book.ts';
 import { useProjectsStore } from '@/stores/project.ts';
 import { useEntryBookSelectionBase } from '@/views/base/books/EntryBookSelectionBase.ts';
-import { useScheduledChangeBase, SCHEDULED_CHANGE_CONFIRM_MESSAGE, SCHEDULED_CHANGE_NOT_APPLIED_MESSAGE } from '@/views/base/transactions/ScheduledChangeBase.ts';
+import { useScheduledChangeBase, SCHEDULED_CHANGE_CONFIRM_MESSAGE, SCHEDULED_MOVE_CONFIRM_MESSAGE, SCHEDULED_CHANGE_NOT_APPLIED_MESSAGE } from '@/views/base/transactions/ScheduledChangeBase.ts';
 import { REPEAT_NOT_SET_UP_MESSAGE, useTransactionRepeatBase } from '@/views/base/transactions/TransactionRepeatBase.ts';
 import type { BookInfoResponse } from '@/models/book.ts';
 
@@ -1315,11 +1315,14 @@ function save(afterAction: AfterSaveAction): void {
             let savePromise: Promise<Transaction>;
 
             if (sourceBookId && originalTransaction.value) {
-                savedMessage = 'You have moved this transaction to the selected book';
+                // when moving, applyToLaterScheduled moves the scheduled transaction and all its other entries as well
+                const moveSchedule = applyToLaterScheduled && !!sourceTemplateId;
+                savedMessage = moveSchedule ? 'You have moved this transaction, its scheduled transaction and its other entries to the selected book' : 'You have moved this transaction to the selected book';
                 savePromise = transactionsStore.moveTransactionToBook({
                     transaction: transaction.value as Transaction,
                     originalTransaction: originalTransaction.value,
                     sourceBookId: sourceBookId,
+                    moveSchedule: moveSchedule,
                     defaultCurrency: defaultCurrency.value,
                     clientSessionId: generateRandomUUID()
                 });
@@ -1334,6 +1337,11 @@ function save(afterAction: AfterSaveAction): void {
 
             savePromise.then(() => {
                 if (!applyToLaterScheduled || !sourceTemplateId) {
+                    return;
+                }
+
+                if (sourceBookId) {
+                    transactionTemplatesStore.updateTransactionTemplateListInvalidState(TemplateType.Schedule.type, true);
                     return;
                 }
 
@@ -1400,8 +1408,13 @@ function save(afterAction: AfterSaveAction): void {
         };
 
         const confirmScheduledChangeAndSubmit = function () {
-            // a transaction moved to another book leaves its schedule in the old book
-            if (mode.value === TransactionEditPageMode.Edit && originalTransaction.value && !getMovingFromBookId() && hasScheduledFieldChanges(originalTransaction.value, transaction.value as Transaction)) {
+            if (mode.value === TransactionEditPageMode.Edit && originalTransaction.value && getMovingFromBookId() && originalTransaction.value.sourceTemplateId) {
+                showConfirm(SCHEDULED_MOVE_CONFIRM_MESSAGE, () => {
+                    doSubmit(true);
+                }, () => {
+                    doSubmit(false);
+                });
+            } else if (mode.value === TransactionEditPageMode.Edit && originalTransaction.value && !getMovingFromBookId() && hasScheduledFieldChanges(originalTransaction.value, transaction.value as Transaction)) {
                 showConfirm(SCHEDULED_CHANGE_CONFIRM_MESSAGE, () => {
                     doSubmit(true);
                 }, () => {

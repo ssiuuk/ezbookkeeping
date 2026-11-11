@@ -2034,6 +2034,8 @@
     "Unable to record settlement": "Unable to record settlement",
     "Unable to delete settlement": "Unable to delete settlement",
     "You have moved this transaction to the selected book": "You have moved this transaction to the selected book",
+    "This transaction was created by a scheduled transaction. Do you also want to move the scheduled transaction and all its other entries to the selected book? Choose OK to move them all, or Cancel to move only this transaction.": "Această tranzacție a fost creată de o tranzacție programată. Doriți să mutați și tranzacția programată și toate celelalte înregistrări ale ei în cartea selectată? Alegeți OK pentru a le muta pe toate sau Anulare pentru a muta doar această tranzacție.",
+    "You have moved this transaction, its scheduled transaction and its other entries to the selected book": "Ați mutat această tranzacție, tranzacția ei programată și celelalte înregistrări ale ei în cartea selectată",
     "Budget Alert Emails": "Budget Alert Emails",
     "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})": "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})",
     "{category}: the budget for {period} has been exceeded ({spent} of {budget})": "{category}: the budget for {period} has been exceeded ({spent} of {budget})",

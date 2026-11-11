@@ -2034,6 +2034,8 @@
     "Unable to record settlement": "Unable to record settlement",
     "Unable to delete settlement": "Unable to delete settlement",
     "You have moved this transaction to the selected book": "You have moved this transaction to the selected book",
+    "This transaction was created by a scheduled transaction. Do you also want to move the scheduled transaction and all its other entries to the selected book? Choose OK to move them all, or Cancel to move only this transaction.": "이 거래는 예약 거래로 만들어졌습니다. 예약 거래와 다른 모든 항목도 선택한 장부로 옮길까요? 모두 옮기려면 확인을, 이 거래만 옮기려면 취소를 선택하세요.",
+    "You have moved this transaction, its scheduled transaction and its other entries to the selected book": "이 거래, 해당 예약 거래 및 다른 항목을 선택한 장부로 옮겼습니다",
     "Budget Alert Emails": "Budget Alert Emails",
     "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})": "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})",
     "{category}: the budget for {period} has been exceeded ({spent} of {budget})": "{category}: the budget for {period} has been exceeded ({spent} of {budget})",

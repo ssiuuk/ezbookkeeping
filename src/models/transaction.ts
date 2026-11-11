@@ -264,11 +264,12 @@ export class Transaction implements TransactionInfoResponse {
         };
     }
 
-    public toMoveToBookRequest(sourceBookId: string, clientSessionId: string): TransactionMoveToBookRequest {
+    public toMoveToBookRequest(sourceBookId: string, moveSchedule: boolean, clientSessionId: string): TransactionMoveToBookRequest {
         return {
             ...this.toCreateRequest(clientSessionId),
             id: this.id,
-            sourceBookId: sourceBookId
+            sourceBookId: sourceBookId,
+            moveSchedule: moveSchedule
         };
     }
 
@@ -590,6 +591,7 @@ export interface TransactionCreateRequest {
 export interface TransactionMoveToBookRequest extends TransactionCreateRequest {
     readonly id: string;
     readonly sourceBookId: string;
+    readonly moveSchedule: boolean;
 }
 
 export interface TransactionModifyRequest {

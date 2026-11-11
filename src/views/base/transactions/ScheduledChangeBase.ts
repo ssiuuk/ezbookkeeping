@@ -12,6 +12,7 @@ import { generateRandomUUID } from '@/lib/misc.ts';
 import { handleApiResponse } from '@/lib/api.ts';
 
 export const SCHEDULED_CHANGE_NOT_APPLIED_MESSAGE: string = 'The transaction has been saved, but the changes could not be applied to its scheduled transaction';
+export const SCHEDULED_MOVE_CONFIRM_MESSAGE: string = 'This transaction was created by a scheduled transaction. Do you also want to move the scheduled transaction and all its other entries to the selected book? Choose OK to move them all, or Cancel to move only this transaction.';
 export const SCHEDULED_CHANGE_CONFIRM_MESSAGE: string = 'This transaction was created by a scheduled transaction. Do you also want to apply these changes to the scheduled transaction and all its entries after this one? Choose OK to update them too, or Cancel to change only this transaction.';
 
 function sameTagIds(tagIds1: string[], tagIds2: string[]): boolean {

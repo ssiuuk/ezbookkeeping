@@ -1694,7 +1694,38 @@ func (a *TransactionsApi) TransactionMoveToBookHandler(c *core.WebContext) (any,
 	allPictureInfos := append(copiedPictureInfos, newPictureInfos...)
 	allPictureIds := a.transactionPictures.GetTransactionPictureIds(allPictureInfos)
 
-	err = a.transactions.MoveTransactionToBook(c, sourceUid, oldTransaction.TransactionId, transaction, tagIds, allPictureIds)
+	moveItems := []*services.TransactionMoveToBookItem{
+		{
+			SourceTransactionId: oldTransaction.TransactionId,
+			Transaction:         transaction,
+			TagIds:              tagIds,
+			PictureIds:          allPictureIds,
+		},
+	}
+
+	var templateId int64
+
+	// the scheduled transaction and all the other transactions it created are moved together when requested
+	if transactionMoveReq.MoveSchedule && oldTransaction.SourceTemplateId > 0 {
+		templateId = oldTransaction.SourceTemplateId
+		transaction.SourceTemplateId = oldTransaction.SourceTemplateId
+		transaction.ScheduledCreated = oldTransaction.ScheduledCreated
+
+		scheduledItems, scheduledCopiedPictureInfos, errResp := a.getOtherScheduledTransactionsToMove(c, user, clientTimezone, sourceUid, oldTransaction, transaction, tagIds, allUsedAccounts)
+		copiedPictureInfos = append(copiedPictureInfos, scheduledCopiedPictureInfos...)
+
+		if errResp != nil {
+			for i := 0; i < len(copiedPictureInfos); i++ {
+				_ = a.transactionPictures.RemoveUnusedTransactionPicture(c, uid, copiedPictureInfos[i].PictureId)
+			}
+
+			return nil, errResp
+		}
+
+		moveItems = append(moveItems, scheduledItems...)
+	}
+
+	err = a.transactions.MoveTransactionsToBook(c, sourceUid, moveItems, templateId)
 
 	if err != nil {
 		log.Errorf(c, "[transactions.TransactionMoveToBookHandler] failed to move transaction \"id:%d\" from user \"uid:%d\" to user \"uid:%d\", because %s", oldTransaction.TransactionId, sourceUid, uid, err.Error())
@@ -1706,7 +1737,7 @@ func (a *TransactionsApi) TransactionMoveToBookHandler(c *core.WebContext) (any,
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
-	log.Infof(c, "[transactions.TransactionMoveToBookHandler] user \"uid:%d\" has moved transaction \"id:%d\" from book \"uid:%d\" to book \"uid:%d\" as transaction \"id:%d\"", c.GetCurrentUid(), oldTransaction.TransactionId, sourceUid, uid, transaction.TransactionId)
+	log.Infof(c, "[transactions.TransactionMoveToBookHandler] user \"uid:%d\" has moved transaction \"id:%d\" from book \"uid:%d\" to book \"uid:%d\" as transaction \"id:%d\", with %d other scheduled transactions", c.GetCurrentUid(), oldTransaction.TransactionId, sourceUid, uid, transaction.TransactionId, len(moveItems)-1)
 
 	if transaction.Type == models.TRANSACTION_DB_TYPE_EXPENSE {
 		a.budgetAlerts.CheckBudgetAlertsInBackground(c, uid, []int64{transaction.CategoryId}, clientTimezone)
@@ -3858,6 +3889,130 @@ func (a *TransactionsApi) setTransactionImportResult(uid int64, clientSessionId 
 	if err == nil {
 		a.SetSubmissionRemarkWithCustomExpiration(duplicatechecker.DUPLICATE_CHECKER_TYPE_IMPORT_TRANSACTIONS, uid, clientSessionId, string(remark), transactionImportResultExpiration)
 	}
+}
+
+// getOtherScheduledTransactionsToMove returns the other transactions which the scheduled transaction of the moved transaction created, as new transactions of the current book
+// which use the category, accounts, tags and project of the moved transaction and keep their own time, amounts, description, merchant, location and pictures
+func (a *TransactionsApi) getOtherScheduledTransactionsToMove(c *core.WebContext, user *models.User, clientTimezone *time.Location, sourceUid int64, oldTransaction *models.Transaction, transaction *models.Transaction, tagIds []int64, allUsedAccounts map[int64]*models.Account) ([]*services.TransactionMoveToBookItem, []*models.TransactionPictureInfo, *errs.Error) {
+	var copiedPictureInfos []*models.TransactionPictureInfo
+	scheduledTransactions, err := a.transactions.GetTransactionsCreatedByTemplate(c, sourceUid, oldTransaction.SourceTemplateId)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.getOtherScheduledTransactionsToMove] failed to get transactions of template \"id:%d\" for user \"uid:%d\", because %s", oldTransaction.SourceTemplateId, sourceUid, err.Error())
+		return nil, copiedPictureInfos, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	otherTransactions := make([]*models.Transaction, 0, len(scheduledTransactions))
+
+	for i := 0; i < len(scheduledTransactions); i++ {
+		if scheduledTransactions[i].TransactionId != oldTransaction.TransactionId && scheduledTransactions[i].Type != models.TRANSACTION_DB_TYPE_MODIFY_BALANCE {
+			otherTransactions = append(otherTransactions, scheduledTransactions[i])
+		}
+	}
+
+	if len(otherTransactions) < 1 {
+		return nil, copiedPictureInfos, nil
+	}
+
+	oldUsedAccounts, err := a.getTransactionUsedAccounts(c, sourceUid, otherTransactions, false)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.getOtherScheduledTransactionsToMove] failed to get transaction used accounts for user \"uid:%d\", because %s", sourceUid, err.Error())
+		return nil, copiedPictureInfos, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	items := make([]*services.TransactionMoveToBookItem, 0, len(otherTransactions))
+	sameCurrencyTransfer := false
+
+	if transaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT {
+		sourceAccount := allUsedAccounts[transaction.AccountId]
+		destinationAccount := allUsedAccounts[transaction.RelatedAccountId]
+
+		if sourceAccount == nil || destinationAccount == nil {
+			return nil, copiedPictureInfos, errs.ErrAccountNotFound
+		}
+
+		sameCurrencyTransfer = sourceAccount.Currency == destinationAccount.Currency
+	}
+
+	for i := 0; i < len(otherTransactions); i++ {
+		otherTransaction := otherTransactions[i]
+
+		if !user.CanEditTransactionByTransactionTime(otherTransaction.TransactionTime, clientTimezone, oldUsedAccounts[otherTransaction.AccountId], oldUsedAccounts[otherTransaction.RelatedAccountId]) ||
+			!user.CanEditTransactionByTransactionTime(otherTransaction.TransactionTime, clientTimezone, allUsedAccounts[transaction.AccountId], allUsedAccounts[transaction.RelatedAccountId]) {
+			return nil, copiedPictureInfos, errs.ErrCannotModifyTransactionWithThisTransactionTime
+		}
+
+		newTransaction := getMovedScheduledTransaction(otherTransaction, transaction, sameCurrencyTransfer)
+
+		pictureInfos, err := a.transactionPictures.GetPictureInfosByTransactionId(c, sourceUid, otherTransaction.TransactionId)
+
+		if err != nil {
+			log.Errorf(c, "[transactions.getOtherScheduledTransactionsToMove] failed to get transaction picture infos for user \"uid:%d\", because %s", sourceUid, err.Error())
+			return nil, copiedPictureInfos, errs.Or(err, errs.ErrOperationFailed)
+		}
+
+		newPictureInfos, err := a.transactionPictures.CopyPicturesToBook(c, pictureInfos, transaction.Uid)
+		copiedPictureInfos = append(copiedPictureInfos, newPictureInfos...)
+
+		if err != nil {
+			log.Errorf(c, "[transactions.getOtherScheduledTransactionsToMove] failed to copy transaction pictures to user \"uid:%d\", because %s", transaction.Uid, err.Error())
+			return nil, copiedPictureInfos, errs.Or(err, errs.ErrOperationFailed)
+		}
+
+		items = append(items, &services.TransactionMoveToBookItem{
+			SourceTransactionId: otherTransaction.TransactionId,
+			Transaction:         newTransaction,
+			TagIds:              tagIds,
+			PictureIds:          a.transactionPictures.GetTransactionPictureIds(newPictureInfos),
+		})
+	}
+
+	return items, copiedPictureInfos, nil
+}
+
+// getMovedScheduledTransaction returns the new transaction of another transaction of the same scheduled transaction as the moved transaction,
+// sameCurrencyTransfer tells whether the moved transaction is a transfer between accounts of the same currency
+func getMovedScheduledTransaction(otherTransaction *models.Transaction, movedTransaction *models.Transaction, sameCurrencyTransfer bool) *models.Transaction {
+	newTransaction := &models.Transaction{
+		Uid:               movedTransaction.Uid,
+		Type:              movedTransaction.Type,
+		CategoryId:        movedTransaction.CategoryId,
+		TransactionTime:   otherTransaction.TransactionTime,
+		TimezoneUtcOffset: otherTransaction.TimezoneUtcOffset,
+		AccountId:         movedTransaction.AccountId,
+		Amount:            otherTransaction.Amount,
+		HideAmount:        otherTransaction.HideAmount,
+		Comment:           otherTransaction.Comment,
+		Merchant:          otherTransaction.Merchant,
+		GeoLongitude:      otherTransaction.GeoLongitude,
+		GeoLatitude:       otherTransaction.GeoLatitude,
+		ProjectId:         movedTransaction.ProjectId,
+		CreatedIp:         otherTransaction.CreatedIp,
+		CreatedByUid:      otherTransaction.CreatedByUid,
+		ScheduledCreated:  otherTransaction.ScheduledCreated,
+		SourceTemplateId:  otherTransaction.SourceTemplateId,
+	}
+
+	if newTransaction.CreatedByUid == 0 {
+		newTransaction.CreatedByUid = movedTransaction.CreatedByUid
+	}
+
+	if movedTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT {
+		newTransaction.RelatedAccountId = movedTransaction.RelatedAccountId
+
+		if sameCurrencyTransfer {
+			newTransaction.RelatedAccountAmount = otherTransaction.Amount
+		} else if otherTransaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT {
+			// the destination account of the moved transaction has another currency, so each transfer keeps its own received amount
+			newTransaction.RelatedAccountAmount = otherTransaction.RelatedAccountAmount
+		} else {
+			newTransaction.Amount = movedTransaction.Amount
+			newTransaction.RelatedAccountAmount = movedTransaction.RelatedAccountAmount
+		}
+	}
+
+	return newTransaction
 }
 
 func (a *TransactionsApi) createNewTransactionModel(uid int64, creatorUid int64, transactionCreateReq *models.TransactionCreateRequest, clientIp string) *models.Transaction {

@@ -2034,6 +2034,8 @@
     "Unable to record settlement": "Unable to record settlement",
     "Unable to delete settlement": "Unable to delete settlement",
     "You have moved this transaction to the selected book": "You have moved this transaction to the selected book",
+    "This transaction was created by a scheduled transaction. Do you also want to move the scheduled transaction and all its other entries to the selected book? Choose OK to move them all, or Cancel to move only this transaction.": "Diese Buchung wurde von einer geplanten Buchung erstellt. Möchten Sie die geplante Buchung und alle ihre anderen Einträge ebenfalls in das ausgewählte Buch verschieben? Wählen Sie OK, um alle zu verschieben, oder Abbrechen, um nur diese Buchung zu verschieben.",
+    "You have moved this transaction, its scheduled transaction and its other entries to the selected book": "Sie haben diese Buchung, ihre geplante Buchung und ihre anderen Einträge in das ausgewählte Buch verschoben",
     "Budget Alert Emails": "Budget Alert Emails",
     "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})": "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})",
     "{category}: the budget for {period} has been exceeded ({spent} of {budget})": "{category}: the budget for {period} has been exceeded ({spent} of {budget})",

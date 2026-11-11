@@ -2034,6 +2034,8 @@
     "Unable to record settlement": "Unable to record settlement",
     "Unable to delete settlement": "Unable to delete settlement",
     "You have moved this transaction to the selected book": "You have moved this transaction to the selected book",
+    "This transaction was created by a scheduled transaction. Do you also want to move the scheduled transaction and all its other entries to the selected book? Choose OK to move them all, or Cancel to move only this transaction.": "यह लेन-देन एक निर्धारित लेन-देन से बना था। क्या आप निर्धारित लेन-देन और उसकी सभी अन्य प्रविष्टियों को भी चुनी गई बही में ले जाना चाहते हैं? सबको ले जाने के लिए ठीक चुनें, या केवल इस लेन-देन को ले जाने के लिए रद्द करें चुनें।",
+    "You have moved this transaction, its scheduled transaction and its other entries to the selected book": "आपने यह लेन-देन, इसका निर्धारित लेन-देन और इसकी अन्य प्रविष्टियाँ चुनी गई बही में ले जाई हैं",
     "Budget Alert Emails": "Budget Alert Emails",
     "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})": "{category}: {percent}% of the budget for {period} has been spent ({spent} of {budget})",
     "{category}: the budget for {period} has been exceeded ({spent} of {budget})": "{category}: the budget for {period} has been exceeded ({spent} of {budget})",

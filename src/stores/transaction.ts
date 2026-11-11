@@ -1293,7 +1293,8 @@ export const useTransactionsStore = defineStore('transactions', () => {
     }
 
     // moves an edited transaction from the source book to the book of the request, where it is saved as a new transaction
-    function moveTransactionToBook({ transaction, originalTransaction, sourceBookId, defaultCurrency, clientSessionId }: { transaction: Transaction, originalTransaction: Transaction, sourceBookId: string, defaultCurrency: string, clientSessionId: string }): Promise<Transaction> {
+    // with moveSchedule, the scheduled transaction which created it and all its other transactions are moved as well
+    function moveTransactionToBook({ transaction, originalTransaction, sourceBookId, moveSchedule, defaultCurrency, clientSessionId }: { transaction: Transaction, originalTransaction: Transaction, sourceBookId: string, moveSchedule: boolean, defaultCurrency: string, clientSessionId: string }): Promise<Transaction> {
         return new Promise((resolve, reject) => {
             if (transaction.type !== TransactionType.Expense &&
                 transaction.type !== TransactionType.Income &&
@@ -1302,7 +1303,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
                 return;
             }
 
-            services.moveTransactionToBook(transaction.toMoveToBookRequest(sourceBookId, clientSessionId)).then(response => {
+            services.moveTransactionToBook(transaction.toMoveToBookRequest(sourceBookId, moveSchedule, clientSessionId)).then(response => {
                 const data = response.data;
 
                 if (!data || !data.success || !data.result) {
@@ -1317,6 +1318,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
                 });
 
                 updateStoreInvalidState({
+                    transactionList: moveSchedule,
                     reconciliationStatement: true,
                     accountList: true,
                     overview: true,

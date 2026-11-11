@@ -41,3 +41,22 @@ func TestGetMerchantsSortedByLastUsedTime(t *testing.T) {
 	assert.Equal(t, []string{"Amazon", "Boots"}, getMerchantsSortedByLastUsedTime(lastUsedTimes, 2))
 	assert.Equal(t, []string{}, getMerchantsSortedByLastUsedTime(map[string]int64{}, 10))
 }
+
+func TestGetMovedScheduledTemplateTransferAmounts(t *testing.T) {
+	transfer := &models.TransactionTemplate{Type: models.TRANSACTION_TYPE_TRANSFER, Amount: 10000, RelatedAccountAmount: 11500}
+	expense := &models.TransactionTemplate{Type: models.TRANSACTION_TYPE_EXPENSE, Amount: 10000}
+	moved := &models.Transaction{Type: models.TRANSACTION_DB_TYPE_TRANSFER_OUT, Amount: 9000, RelatedAccountAmount: 10400}
+
+	// moved to two accounts of the same currency, so the amounts must be equal
+	amount, relatedAccountAmount := getMovedScheduledTemplateTransferAmounts(transfer, moved, true)
+	assert.Equal(t, int64(10000), amount)
+	assert.Equal(t, int64(10000), relatedAccountAmount)
+
+	amount, relatedAccountAmount = getMovedScheduledTemplateTransferAmounts(transfer, moved, false)
+	assert.Equal(t, int64(10000), amount)
+	assert.Equal(t, int64(11500), relatedAccountAmount)
+
+	amount, relatedAccountAmount = getMovedScheduledTemplateTransferAmounts(expense, moved, false)
+	assert.Equal(t, int64(9000), amount)
+	assert.Equal(t, int64(10400), relatedAccountAmount)
+}
