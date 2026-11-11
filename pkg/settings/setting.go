@@ -498,6 +498,7 @@ type Config struct {
 	// Map
 	MapProvider                           string
 	EnableMapDataFetchProxy               bool
+	SupportMapDataFetchProxy              bool
 	MapProxy                              string
 	TomTomMapAPIKey                       string
 	TianDiTuAPIKey                        string
@@ -778,7 +779,7 @@ func loadMCPServerConfiguration(config *Config, configFile *ini.File, sectionNam
 func loadDatabaseConfiguration(config *Config, configFile *ini.File, sectionName string) error {
 	dbConfig := &DatabaseConfig{}
 
-	dbConfig.DatabaseType = getConfigItemStringValue(configFile, sectionName, "type", MySqlDbType)
+	dbConfig.DatabaseType = getConfigItemStringValue(configFile, sectionName, "type")
 
 	if dbConfig.DatabaseType != MySqlDbType &&
 		dbConfig.DatabaseType != PostgresDbType &&
@@ -1210,7 +1211,7 @@ func loadAuthConfiguration(config *Config, configFile *ini.File, sectionName str
 	config.EnableOAuth2Login = getConfigItemBoolValue(configFile, sectionName, "enable_oauth2_auth", false)
 	config.EnableTwoFactor = getConfigItemBoolValue(configFile, sectionName, "enable_two_factor", true)
 	config.EnableUserForgetPassword = getConfigItemBoolValue(configFile, sectionName, "enable_forget_password", false)
-	config.ForgetPasswordRequireVerifyEmail = getConfigItemBoolValue(configFile, sectionName, "forget_password_require_email_verify", false)
+	config.ForgetPasswordRequireVerifyEmail = getConfigItemBoolValue(configFile, sectionName, "forget_password_require_email_verify", true)
 	config.OAuth2ClientID = getConfigItemStringValue(configFile, sectionName, "oauth2_client_id")
 	config.OAuth2ClientSecret = getConfigItemStringValue(configFile, sectionName, "oauth2_client_secret")
 	config.OAuth2UsePKCE = getConfigItemBoolValue(configFile, sectionName, "oauth2_use_pkce", false)
@@ -1347,6 +1348,21 @@ func loadMapConfiguration(config *Config, configFile *ini.File, sectionName stri
 	}
 
 	config.EnableMapDataFetchProxy = getConfigItemBoolValue(configFile, sectionName, "map_data_fetch_proxy", false)
+
+	if config.MapProvider == OpenStreetMapProvider ||
+		config.MapProvider == OpenStreetMapHumanitarianStyleProvider ||
+		config.MapProvider == OpenTopoMapProvider ||
+		config.MapProvider == OPNVKarteMapProvider ||
+		config.MapProvider == CyclOSMMapProvider ||
+		config.MapProvider == CartoDBMapProvider ||
+		config.MapProvider == TomTomMapProvider ||
+		config.MapProvider == TianDiTuProvider ||
+		config.MapProvider == CustomProvider {
+		config.SupportMapDataFetchProxy = true
+	} else {
+		config.SupportMapDataFetchProxy = false
+	}
+
 	config.MapProxy = getConfigItemStringValue(configFile, sectionName, "proxy", "system")
 	config.TomTomMapAPIKey = getConfigItemStringValue(configFile, sectionName, "tomtom_map_api_key")
 	config.TianDiTuAPIKey = getConfigItemStringValue(configFile, sectionName, "tianditu_map_app_key")

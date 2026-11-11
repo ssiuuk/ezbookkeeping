@@ -15,6 +15,7 @@ const webContextRequestIdFieldKey = "REQUEST_ID"
 const webContextTextualTokenFieldKey = "TOKEN_STRING"
 const webContextTokenClaimsFieldKey = "TOKEN_CLAIMS"
 const webContextTokenContextFieldKey = "TOKEN_CONTEXT"
+const webContextTextualMapProxyTokenFieldKey = "MAP_PROXY_TOKEN_STRING"
 const webContextResponseErrorFieldKey = "RESPONSE_ERROR"
 const webContextCurrentBookUidFieldKey = "CURRENT_BOOK_UID"
 
@@ -136,6 +137,22 @@ func (c *WebContext) GetTokenRecord() TokenRecord {
 	}
 
 	return record.(TokenRecord)
+}
+
+// SetTextualMapProxyToken sets the given map proxy textual token to context
+func (c *WebContext) SetTextualMapProxyToken(token string) {
+	c.Set(webContextTextualMapProxyTokenFieldKey, token)
+}
+
+// GetTextualMapProxyToken returns the current map proxy textual token
+func (c *WebContext) GetTextualMapProxyToken() string {
+	token, exists := c.Get(webContextTextualMapProxyTokenFieldKey)
+
+	if !exists || token == nil {
+		return ""
+	}
+
+	return token.(string)
 }
 
 // GetTokenContext returns the current user token context

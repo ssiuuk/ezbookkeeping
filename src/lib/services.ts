@@ -432,9 +432,12 @@ export default {
         return axios.post<ApiResponse<RegisterResponse>>('register.json', req);
     },
     verifyEmail: (token: string): ApiResponsePromise<boolean> => {
-        return axios.post<ApiResponse<boolean>>('verify_email/by_token.json?token=' + token, {}, {
+        return axios.post<ApiResponse<boolean>>('verify_email/by_token.json', {}, {
             noAuth: true,
-            ignoreError: true
+            ignoreError: true,
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
         } as ApiRequestConfig);
     },
     resendVerifyEmailByUnloginUser: (req: UserResendVerifyEmailRequest): ApiResponsePromise<boolean> => {
@@ -444,12 +447,15 @@ export default {
         return axios.post<ApiResponse<boolean>>('forget_password/request.json', req);
     },
     resetPassword: ({ email, token, password }: { email: string, token: string, password: string }): ApiResponsePromise<boolean> => {
-        return axios.post<ApiResponse<boolean>>('forget_password/reset/by_token.json?token=' + token, {
+        return axios.post<ApiResponse<boolean>>('forget_password/reset/by_token.json', {
             email: email,
             password: password
         }, {
             noAuth: true,
-            ignoreError: true
+            ignoreError: true,
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
         } as ApiRequestConfig);
     },
     logout: (): ApiResponsePromise<boolean> => {
@@ -1178,8 +1184,7 @@ export default {
             `.*${BASE_PROXY_URL_PATH}/map/annotation/[^/]+/[^/]+/[^/]+\\.png\\?provider=[^&]+.*$`
         ];
     },
-    generateMapProxyTileImageUrl: (mapProvider: string, language: string): string => {
-        const token = getCurrentToken();
+    generateMapProxyTileImageUrl: (mapProvider: string, language: string, token: string): string => {
         let url = `${getBasePath()}${BASE_PROXY_URL_PATH}/map/tile/{z}/{x}/{y}.png?provider=${mapProvider}&token=${token}`;
 
         if (language) {
@@ -1188,8 +1193,7 @@ export default {
 
         return url;
     },
-    generateMapProxyAnnotationImageUrl: (mapProvider: string, language: string): string => {
-        const token = getCurrentToken();
+    generateMapProxyAnnotationImageUrl: (mapProvider: string, language: string, token: string): string => {
         let url = `${getBasePath()}${BASE_PROXY_URL_PATH}/map/annotation/{z}/{x}/{y}.png?provider=${mapProvider}&token=${token}`;
 
         if (language) {
